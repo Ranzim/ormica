@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ormica"
+version = "0.0.1"
+description = "Build agentic software that organizes itself like an ant colony."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Ranzim" }]
+keywords = [
+    "ai", "agents", "agentic", "multi-agent", "ant-colony",
+    "swarm", "llm", "automation", "business", "framework",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+claude = ["anthropic>=0.40"]
+openai = ["openai>=1.0"]
+memory = ["chromadb>=0.5"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
+all = ["anthropic>=0.40", "openai>=1.0", "chromadb>=0.5"]
+
+[project.urls]
+Homepage = "https://github.com/Ranzim/ormica"
+Repository = "https://github.com/Ranzim/ormica"
+Issues = "https://github.com/Ranzim/ormica/issues"
+
+[project.scripts]
+ormica = "ormica.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ormica*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
