@@ -1,28 +1,72 @@
-name: Feature request
-description: Suggest an idea for Ormica
-labels: [enhancement]
+name: ✨ Feature request
+description: Suggest an idea for Ormica.
+title: "[feat] "
+labels: ["enhancement", "triage"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Strong proposals describe the *problem* clearly — the solution is easier once we agree on the problem.
+
   - type: textarea
     id: problem
     attributes:
       label: What problem does this solve?
+      description: Who is affected and how?
+      placeholder: "Today there's no way to express per-node Constitution overrides..."
     validations:
       required: true
+
   - type: textarea
     id: solution
     attributes:
-      label: Proposed solution
-    validations:
-      required: false
+      label: Proposed solution (optional)
+      description: What would the public API look like? A code snippet is great.
+      render: markdown
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you think about, and why is this the best option?
+
   - type: dropdown
     id: area
     attributes:
       label: Which area?
+      multiple: true
       options:
-        - Core engine (arbor/stigma/canopy/mycelium)
-        - Cortex (LLM)
-        - Colony (industry agents)
-        - Integrations
-        - CLI / Dashboard
-        - Docs
-        - Other
+        - arbor (tree / nodes)
+        - canopy (permission chain)
+        - mycelium (memory + backends)
+        - stigma (signals + decay)
+        - brain (LLM seam — Mock / Claude / GPT / new provider)
+        - cortex (Constitution / Rules / governance)
+        - observe (events + Thought Trail)
+        - colony (industries + YAML loader)
+        - agent.py / runtime.py
+        - cli
+        - docs / examples
+        - other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Estimated scope
+      options:
+        - Small (a few lines, no API change)
+        - Medium (one module, additive)
+        - Large (cross-module / breaking)
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Are you up for contributing this?
+      options:
+        - label: "I'd like to send a PR (we'll help review and shape it)."
+        - label: "I'd like to discuss the design first."

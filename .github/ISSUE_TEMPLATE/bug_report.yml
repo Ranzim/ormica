@@ -1,26 +1,92 @@
-name: Bug report
-description: Report something that isn't working
-labels: [bug]
+name: 🐛 Bug report
+description: Something isn't working as expected.
+title: "[bug] "
+labels: ["bug", "triage"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please include enough info that someone unfamiliar with your setup could reproduce the problem.
+
   - type: textarea
     id: what-happened
     attributes:
       label: What happened?
-      description: Describe the bug clearly.
+      description: A clear description of what went wrong.
+      placeholder: "When I called org.run() with a Constitution attached..."
     validations:
       required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
   - type: textarea
     id: reproduce
     attributes:
       label: Steps to reproduce
+      description: Ideally a minimal Python snippet.
       placeholder: |
-        1. ...
-        2. ...
+        ```python
+        from ormica import Ormica
+        from ormica.brain import MockBrain
+        org = Ormica("test")
+        org.task("hello")
+        org.run(brain=MockBrain(replies=["ok"]))
+        # -> AttributeError: ...
+        ```
+      render: markdown
     validations:
       required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      multiple: true
+      options:
+        - arbor (tree / nodes)
+        - canopy (permission chain)
+        - mycelium (memory + backends)
+        - stigma (signals + decay)
+        - brain (LLM seam)
+        - cortex (Constitution)
+        - observe (events + Thought Trail)
+        - colony (industries + YAML loader)
+        - agent.py / runtime.py
+        - cli
+        - docs
+        - other
+    validations:
+      required: true
+
   - type: input
     id: version
     attributes:
       label: Ormica version
+      placeholder: "0.1.0 (or commit SHA)"
     validations:
-      required: false
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.11.x"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 14 / Ubuntu 22.04 / Windows 11"
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Stack traces, screenshots, logs — anything else you think is relevant.

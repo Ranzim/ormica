@@ -25,55 +25,39 @@ Ormica is an **open-source coordination framework** for building agentic systems
 
 ```mermaid
 flowchart TB
-    subgraph TOP["━━━━━━━━━━━━━━━━ ROOT ━━━━━━━━━━━━━━━━"]
-        R(("<br/>👑<br/><b>OWNER</b><br/>(you)<br/> "))
-    end
+    R(("👑<br/><b>ROOT</b><br/><i>owner</i>"))
 
-    subgraph CASTE["━━━━━━━━ DEPARTMENT CASTE ━━━━━━━━"]
-        OPS(("⚙️<br/><b>OPS</b>"))
-        SAL(("💼<br/><b>SALES</b>"))
-        MKT(("📣<br/><b>MKT</b>"))
-        FIN(("💰<br/><b>FIN</b>"))
-    end
+    OPS(("⚙️<br/><b>OPS</b>"))
+    SAL(("💼<br/><b>SALES</b>"))
+    FIN(("💰<br/><b>FIN</b>"))
 
-    subgraph WORK["━━━━━━━━━━━ WORKER SWARM ━━━━━━━━━━━"]
-        S1[["🐜 scout-α"]]
-        S2[["🐜 scout-β"]]
-        H1[["🐜 hunter-1"]]
-        H2[["🐜 hunter-2"]]
-        A1[["🐜 analyst"]]
-        D1["💀 pruned"]
-    end
+    S1["🐜 scout"]
+    H1["🐜 hunter"]
+    A1["🐜 analyst"]
+    D1["💀 pruned"]
 
-    R ==>|spawn approved| OPS
-    R ==>|spawn approved| SAL
-    R ==>|spawn approved| MKT
-    R ==>|spawn approved| FIN
+    R ==> OPS
+    R ==> SAL
+    R ==> FIN
 
     OPS ==> S1
-    OPS ==> S2
     SAL ==> H1
-    SAL ==> H2
     FIN ==> A1
-    SAL -. "✂️ pruned" .-> D1
+    SAL -. "✂ pruned" .-> D1
 
-    S1 -. "trail · hot_lead ↑0.8" .-> H1
-    S2 -. "trail · burn ↑1.2" .-> A1
-    H1 -. "trail · deal_closed ↑2.4" .-> FIN
-    H2 -. "trail · follow-up ↑0.4" .-> SAL
-    A1 -. "trail · cash_signal ↑0.6" .-> R
+    S1 -. "🔥 hot_lead ↑ 0.8" .-> H1
+    H1 -. "💎 deal_closed ↑↑ 2.4" .-> FIN
+    A1 -. "💵 cash_signal ↑ 0.6" .-> R
 
-    classDef root fill:#0a1929,stroke:#00d9ff,color:#00d9ff,stroke-width:4px,font-weight:bold
-    classDef caste fill:#16213e,stroke:#4a9eff,color:#fff,stroke-width:2px
-    classDef worker fill:#0f3460,stroke:#888,color:#fff
-    classDef dead fill:#1a0a0a,stroke:#663333,color:#777,stroke-dasharray: 5 5
-    classDef sub fill:transparent,stroke:transparent,color:#888,font-size:11px
+    classDef root fill:#001a2e,stroke:#00d9ff,stroke-width:5px,color:#00d9ff
+    classDef caste fill:#0a1929,stroke:#4a9eff,stroke-width:3px,color:#fff
+    classDef worker fill:#1a2c4a,stroke:#aaa,stroke-width:2px,color:#fff
+    classDef dead fill:#1a0a0a,stroke:#663333,stroke-width:1px,color:#888,stroke-dasharray: 5 5
 
     class R root
-    class OPS,SAL,MKT,FIN caste
-    class S1,S2,H1,H2,A1 worker
+    class OPS,SAL,FIN caste
+    class S1,H1,A1 worker
     class D1 dead
-    class TOP,CASTE,WORK sub
 ```
 
 **Solid arrows** = the spawn hierarchy. Every node has a parent. Every spawn was approved.
@@ -339,23 +323,45 @@ GitHub Project board is coming. Open an issue to vote on or contribute to any ro
 
 ---
 
-## 🤝 Contributing
+## 🤝 Join the Colony — Contributing
 
 The colony is young; new contributors shape its character.
 
-- 📖 **Read [`docs/`](./docs/)** — pick one architecture page + one guide and you're ready.
-- 🗺️ **[`CONTRIBUTING.md`](./CONTRIBUTING.md)** — *where-to-put-what* matrix and the hard rules of the codebase.
-- 🧪 **`pytest`** — 310 tests, ~370ms. Green or your PR isn't ready.
+### 🚀 New here? Three pages to read:
 
-Good first areas:
+| | Page | What you'll get |
+|---|---|---|
+| 1 | **[Your First PR](./docs/guides/your-first-pr.md)** | The shortest path from "I want to help" to "my PR is merged." |
+| 2 | **[CONTRIBUTING.md](./CONTRIBUTING.md)** | The *where-to-put-what* matrix + hard rules of the codebase. |
+| 3 | **One [architecture page](./docs/architecture/README.md)** | Pick the pillar you're touching. Each page is ~5 minutes. |
+
+### 🐜 Good first contributions
 
 | You want to add… | Where it goes | Read first |
 |---|---|---|
-| A new industry / org-chart | `colony/<name>/` or a YAML file | [Writing a colony](./docs/guides/writing-a-colony.md) |
-| A new LLM provider | `brain/<provider>.py` | [Brain architecture](./docs/architecture/03-brain.md) |
-| A persistence backend | `mycelium/<name>_backend.py` | [Persistence](./docs/guides/persistence.md) |
-| A safety / business rule | A `Rule` in your own code (the framework stays domain-agnostic) | [Writing a Constitution](./docs/guides/writing-a-constitution.md) |
-| A real-world integration | `integrations/<service>/` (propose design first) | [Architecture overview](./docs/architecture/README.md) |
+| 🏢 A new industry / colony | `ormica/colony/<name>/` or a YAML file | [Writing a colony](./docs/guides/writing-a-colony.md) |
+| 🛠️ A new tool | wherever you use `act_with_tools(...)` | [Writing tools](./docs/guides/writing-tools.md) |
+| 🧠 A new LLM provider | `ormica/brain/<provider>.py` | [Brain](./docs/architecture/03-brain.md) |
+| 🍄 A persistence backend | `ormica/mycelium/<name>_backend.py` | [Persistence](./docs/guides/persistence.md) |
+| 📡 A new observer (metrics, log sink) | `ormica/observe/<observer>.py` | [Observability](./docs/architecture/05-observability.md) |
+| 📚 A docs improvement | `docs/` | The page itself |
+| 🐛 A small bug fix | wherever the bug lives | The bug report |
+
+### 💬 Other ways to help
+
+- 📌 **Browse open issues** — look for [`good first issue`](https://github.com/Ranzim/ormica/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or [`help wanted`](https://github.com/Ranzim/ormica/labels/help%20wanted).
+- 💭 **Open a Discussion** — questions, ideas, show-and-tell at [GitHub Discussions](https://github.com/Ranzim/ormica/discussions).
+- ⭐ **Star the repo** — visibility helps new contributors find us.
+- 📣 **Share your colony** — tag the project when you build something cool.
+
+### 🧪 Before you push
+
+```bash
+pytest              # 310 tests, ~370ms, all green
+ruff check .        # lint clean
+```
+
+By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](./SECURITY.md).
 
 ---
 

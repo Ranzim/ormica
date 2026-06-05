@@ -1,0 +1,61 @@
+name: 🏢 New colony / industry proposal
+description: Propose a new colony (industry / org-chart) for the bundled library.
+title: "[colony] "
+labels: ["colony", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Colonies describe an industry's department structure as AgentTemplates. The framework stays domain-agnostic; the industry knowledge lives in the colony.
+
+        Existing colonies: `business`, `supply_chain`. Yours doesn't need to be in this list to be useful — but bundled colonies need to be broadly useful, not bespoke to one company.
+
+  - type: input
+    id: name
+    attributes:
+      label: Colony name
+      placeholder: "healthcare / ecommerce / saas / law_firm / ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: departments
+    attributes:
+      label: Department layout
+      description: Which AgentTemplates would it contain? One per line — name + role + 1-line task.
+      placeholder: |
+        - intake     (intake)     Triage new patients and book consults.
+        - clinical   (clinical)   Manage patient care and clinical notes.
+        - billing    (billing)    Submit claims, reconcile insurance.
+        - compliance (compliance) Audit clinical and billing records for HIPAA compliance.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hierarchy
+    attributes:
+      label: Hierarchy
+      options:
+        - Flat (all departments under root)
+        - Nested (override Colony.plant — please describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Preferred form
+      options:
+        - Python module (full IDE support)
+        - YAML file (no Python required)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Are you up for sending the PR?
+      options:
+        - label: "I'd like to build this myself."
+        - label: "I'd like to scope it together first."

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/Ranzim/ormica/discussions
+    about: Ideas, questions, show-and-tell, philosophy chats. Anything that isn't an actionable bug or feature request.
+  - name: 📖 Docs
+    url: https://github.com/Ranzim/ormica/tree/master/docs
+    about: Architecture, guides, and reference. Start here before opening "how do I…?" issues.
+  - name: 🔐 Security
+    url: https://github.com/Ranzim/ormica/security/policy
+    about: Report security vulnerabilities privately, not via public issues.

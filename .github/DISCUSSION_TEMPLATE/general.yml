@@ -1,0 +1,23 @@
+title: "[discussion] "
+labels: ["discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Welcome to Ormica Discussions 🐜
+
+        This is the place for:
+        - "How do I…?" questions that aren't already answered in [`docs/`](https://github.com/Ranzim/ormica/tree/master/docs)
+        - "Has anyone tried…?" experience-sharing
+        - "I built X with Ormica" show-and-tell
+        - Philosophy and design conversations
+        - Roadmap input
+
+        For actionable bugs or feature requests, please use [Issues](https://github.com/Ranzim/ormica/issues/new/choose) instead.
+
+  - type: textarea
+    id: topic
+    attributes:
+      label: What's on your mind?
+    validations:
+      required: true
