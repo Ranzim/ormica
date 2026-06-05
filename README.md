@@ -25,40 +25,49 @@ Ormica is an **open-source coordination framework** for building agentic systems
 
 ```mermaid
 flowchart TB
-    R(("👑<br/><b>ROOT</b><br/><i>owner</i>"))
+    R(("👑🐜<br/><b>ROOT</b>"))
+    OPS(("🐜⚙️<br/><b>OPS</b>"))
+    SAL(("🐜💼<br/><b>SALES</b>"))
+    FIN(("🐜💰<br/><b>FIN</b>"))
+    S["🐜<br/><b>scout</b>"]
+    H["🐜<br/><b>hunter</b>"]
+    A["🐜<br/><b>analyst</b>"]
+    D["💀<br/>pruned"]
 
-    OPS(("⚙️<br/><b>OPS</b>"))
-    SAL(("💼<br/><b>SALES</b>"))
-    FIN(("💰<br/><b>FIN</b>"))
+    R ==>|spawn| OPS
+    R ==>|spawn| SAL
+    R ==>|spawn| FIN
+    OPS ==> S
+    SAL ==> H
+    FIN ==> A
+    SAL -. "✂ prune" .-> D
 
-    S1["🐜 scout"]
-    H1["🐜 hunter"]
-    A1["🐜 analyst"]
-    D1["💀 pruned"]
+    S -. "① 🔥 hot_lead ↑0.8" .-> H
+    H -. "② 💎 deal_closed ↑↑2.4" .-> FIN
+    FIN -. "③ 💵 cash_signal ↑0.6" .-> R
 
-    R ==> OPS
-    R ==> SAL
-    R ==> FIN
-
-    OPS ==> S1
-    SAL ==> H1
-    FIN ==> A1
-    SAL -. "✂ pruned" .-> D1
-
-    S1 -. "🔥 hot_lead ↑ 0.8" .-> H1
-    H1 -. "💎 deal_closed ↑↑ 2.4" .-> FIN
-    A1 -. "💵 cash_signal ↑ 0.6" .-> R
-
-    classDef root fill:#001a2e,stroke:#00d9ff,stroke-width:5px,color:#00d9ff
-    classDef caste fill:#0a1929,stroke:#4a9eff,stroke-width:3px,color:#fff
-    classDef worker fill:#1a2c4a,stroke:#aaa,stroke-width:2px,color:#fff
-    classDef dead fill:#1a0a0a,stroke:#663333,stroke-width:1px,color:#888,stroke-dasharray: 5 5
+    classDef root fill:#001226,stroke:#00ffff,stroke-width:5px,color:#00ffff
+    classDef caste fill:#062045,stroke:#4ab4ff,stroke-width:3px,color:#ffffff
+    classDef worker fill:#142b52,stroke:#9fb5d4,stroke-width:2px,color:#ffffff
+    classDef dead fill:#1a0808,stroke:#552222,stroke-width:1px,color:#7a5454
 
     class R root
     class OPS,SAL,FIN caste
-    class S1,H1,A1 worker
-    class D1 dead
+    class S,H,A worker
+    class D dead
+
+    %% Bright spawn arrows (cyan)
+    linkStyle 0,1,2 stroke:#00ffff,stroke-width:3px
+    linkStyle 3,4,5 stroke:#4ab4ff,stroke-width:2.5px
+    linkStyle 6 stroke:#552222,stroke-width:1px,stroke-dasharray:4
+
+    %% Pheromone trails — color = intensity, thickness = reinforcement
+    linkStyle 7 stroke:#ff7700,stroke-width:2px,color:#ff7700
+    linkStyle 8 stroke:#ffd700,stroke-width:4px,color:#ffd700
+    linkStyle 9 stroke:#00ff88,stroke-width:2.5px,color:#00ff88
 ```
+
+<sub>🐜 **Every node is an ant.** Solid cyan arrows = the spawn hierarchy. Dashed coloured arrows = pheromone trails — ① **scout** senses a hot lead and signals **hunter** → ② **hunter** closes the deal and signals **finance** → ③ **finance** signals cash back to **root**. One sensing pathway, full closed loop, decay-prunes the dead branch. *Color = intensity. Thickness = reinforcement.*</sub>
 
 **Solid arrows** = the spawn hierarchy. Every node has a parent. Every spawn was approved.
 **Dashed trails** = stigmergic signals — pheromone trails, with intensity. Strong trails dominate, weak ones decay, dead branches are pruned.
