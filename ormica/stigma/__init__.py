@@ -7,3 +7,8 @@ weak ones evaporate. Intelligence emerges from simple local rules.
 
 Biological metaphor: stigmergy — how ants self-organize without a boss.
 """
+
+from .signal import Signal
+from .stigma import Stigma
+
+__all__ = ["Signal", "Stigma"]
