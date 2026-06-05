@@ -25,49 +25,49 @@ Ormica is an **open-source coordination framework** for building agentic systems
 
 ```mermaid
 flowchart TB
-    R(("👑🐜<br/><b>ROOT</b>"))
-    OPS(("🐜⚙️<br/><b>OPS</b>"))
-    SAL(("🐜💼<br/><b>SALES</b>"))
-    FIN(("🐜💰<br/><b>FIN</b>"))
-    S["🐜<br/><b>scout</b>"]
-    H["🐜<br/><b>hunter</b>"]
-    A["🐜<br/><b>analyst</b>"]
-    D["💀<br/>pruned"]
+    R(("🐜<br/><b>ROOT</b>"))
+    OPS(("🐜<br/><b>OPS</b>"))
+    SAL(("🐜<br/><b>SALES</b>"))
+    FIN(("🐜<br/><b>FIN</b>"))
+    S["🐜<br/>scout"]
+    H["🐜<br/>hunter"]
+    A["🐜<br/>analyst"]
+    D["pruned"]
 
-    R ==>|spawn| OPS
-    R ==>|spawn| SAL
-    R ==>|spawn| FIN
-    OPS ==> S
-    SAL ==> H
-    FIN ==> A
-    SAL -. "✂ prune" .-> D
+    R --> OPS
+    R --> SAL
+    R --> FIN
+    OPS --> S
+    SAL --> H
+    FIN --> A
+    SAL -. "prune" .-> D
 
-    S -. "① 🔥 hot_lead ↑0.8" .-> H
-    H -. "② 💎 deal_closed ↑↑2.4" .-> FIN
-    FIN -. "③ 💵 cash_signal ↑0.6" .-> R
+    S -. "① hot_lead ↑0.8" .-> H
+    H -. "② deal_closed ↑↑2.4" .-> FIN
+    FIN -. "③ cash_signal ↑0.6" .-> R
 
-    classDef root fill:#001226,stroke:#00ffff,stroke-width:5px,color:#00ffff
-    classDef caste fill:#062045,stroke:#4ab4ff,stroke-width:3px,color:#ffffff
-    classDef worker fill:#142b52,stroke:#9fb5d4,stroke-width:2px,color:#ffffff
-    classDef dead fill:#1a0808,stroke:#552222,stroke-width:1px,color:#7a5454
+    classDef root   fill:#2d2418,stroke:#d4a04a,stroke-width:3px,color:#f0c068
+    classDef caste  fill:#241e15,stroke:#a07d3a,stroke-width:2px,color:#d4a04a
+    classDef worker fill:#1f1a13,stroke:#6b5538,stroke-width:1.5px,color:#b8a78d
+    classDef dead   fill:#1a1410,stroke:#3d3528,stroke-width:1px,color:#5c4538
 
     class R root
     class OPS,SAL,FIN caste
     class S,H,A worker
     class D dead
 
-    %% Bright spawn arrows (cyan)
-    linkStyle 0,1,2 stroke:#00ffff,stroke-width:3px
-    linkStyle 3,4,5 stroke:#4ab4ff,stroke-width:2.5px
-    linkStyle 6 stroke:#552222,stroke-width:1px,stroke-dasharray:4
+    %% Spawn arrows — muted earth tones
+    linkStyle 0,1,2 stroke:#8c6b30,stroke-width:2px
+    linkStyle 3,4,5 stroke:#6b5538,stroke-width:1.5px
+    linkStyle 6 stroke:#3d3528,stroke-width:1px
 
-    %% Pheromone trails — color = intensity, thickness = reinforcement
-    linkStyle 7 stroke:#ff7700,stroke-width:2px,color:#ff7700
-    linkStyle 8 stroke:#ffd700,stroke-width:4px,color:#ffd700
-    linkStyle 9 stroke:#00ff88,stroke-width:2.5px,color:#00ff88
+    %% Pheromone trails — single amber accent, intensity = brightness/thickness
+    linkStyle 7 stroke:#a07d3a,stroke-width:1.5px,color:#a07d3a
+    linkStyle 8 stroke:#f0c068,stroke-width:3px,color:#f0c068
+    linkStyle 9 stroke:#d4a04a,stroke-width:2px,color:#d4a04a
 ```
 
-<sub>🐜 **Every node is an ant.** Solid cyan arrows = the spawn hierarchy. Dashed coloured arrows = pheromone trails — ① **scout** senses a hot lead and signals **hunter** → ② **hunter** closes the deal and signals **finance** → ③ **finance** signals cash back to **root**. One sensing pathway, full closed loop, decay-prunes the dead branch. *Color = intensity. Thickness = reinforcement.*</sub>
+<sub>**Every node is an ant.** Solid arrows = spawn hierarchy. Dashed amber arrows = pheromone trails. ① **scout** senses a hot lead and signals **hunter** → ② **hunter** closes the deal and signals **finance** → ③ **finance** reports cash back to **root**. One sensing pathway, full closed loop, decay-prunes the dead branch. *Brightness = signal intensity. Thickness = reinforcement count.*</sub>
 
 **Solid arrows** = the spawn hierarchy. Every node has a parent. Every spawn was approved.
 **Dashed trails** = stigmergic signals — pheromone trails, with intensity. Strong trails dominate, weak ones decay, dead branches are pruned.
@@ -175,23 +175,32 @@ Five lines from "no colony" to "running, signal-driven, governed, audited."
 ### 1. The Permission Chain — *why growth is bounded*
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{
+  'background':'#14110d',
+  'primaryColor':'#241e15','primaryBorderColor':'#a07d3a','primaryTextColor':'#d4a04a',
+  'lineColor':'#8c6b30','secondaryColor':'#2d2418','tertiaryColor':'#1f1a13',
+  'actorBkg':'#241e15','actorBorder':'#a07d3a','actorTextColor':'#d4a04a',
+  'signalColor':'#a07d3a','signalTextColor':'#d4a04a',
+  'noteBkgColor':'#1f1a13','noteBorderColor':'#6b5538','noteTextColor':'#b8a78d',
+  'sequenceNumberColor':'#f0c068','labelBoxBkgColor':'#241e15','labelBoxBorderColor':'#a07d3a'
+}}}%%
 sequenceDiagram
     autonumber
     participant W as 🐜 sub-agent
-    participant P as 💼 parent
-    participant D as ⚙️ department lead
-    participant R as 👑 ROOT (you)
+    participant P as 🐜 parent
+    participant D as 🐜 dept lead
+    participant R as 🐜 ROOT
 
     W->>P: "Spawn a sub-worker?"
     Note over P: assess risk
-    rect rgba(74, 158, 255, 0.08)
+    rect rgba(212, 160, 74, 0.08)
     Note over P,R: risk = ROOT → escalate
     P->>D: forward request
     D->>R: forward request
-    Note right of R: 🤔 approve / deny
-    R-->>D: ✅ approved
-    D-->>P: ✅
-    P-->>W: ✅ spawn proceeds
+    Note right of R: approve / deny
+    R-->>D: approved
+    D-->>P: forwarded
+    P-->>W: spawn proceeds
     end
 ```
 
@@ -202,17 +211,21 @@ Three risk levels: **AUTO** · **CHAIN** · **ROOT**. Configure per role:
 
 ```mermaid
 flowchart LR
-    A([🐜 ant-α<br/><i>emit</i>]) ==>|"strength = 1.0"| F
-    B([🐜 ant-β<br/><i>reinforce</i>]) ==>|"+1.0"| F
-    C([🐜 ant-γ<br/><i>reinforce</i>]) ==>|"+1.0"| F
-    F[("🌐<br/><b>SIGNAL FIELD</b><br/><i>mycelium</i><br/>strength: 3.0")]
-    F -.->|"⏳ decay<br/>(half-life)"| F
-    F ==>|"sense ▸ strongest trail"| D([🐜 ant-δ<br/><i>follows</i>])
+    A([🐜<br/>ant-α]) -->|"emit · 1.0"| F
+    B([🐜<br/>ant-β]) -->|"+1.0"| F
+    C([🐜<br/>ant-γ]) -->|"+1.0"| F
+    F[("trail<br/><b>strength 3.0</b><br/><i>mycelium</i>")]
+    F -->|"decay · half-life"| F
+    F -->|"sense ▸ follow"| D([🐜<br/>ant-δ])
 
-    classDef ant fill:#0f3460,stroke:#888,color:#fff
-    classDef field fill:#0a1929,stroke:#00d9ff,color:#fff,stroke-width:3px
+    classDef ant   fill:#1f1a13,stroke:#6b5538,stroke-width:1.5px,color:#b8a78d
+    classDef field fill:#2d2418,stroke:#f0c068,stroke-width:3px,color:#f0c068
     class A,B,C,D ant
     class F field
+
+    linkStyle 0,1,2 stroke:#a07d3a,stroke-width:2px,color:#a07d3a
+    linkStyle 3 stroke:#6b5538,stroke-width:1px,color:#8c7a60
+    linkStyle 4 stroke:#d4a04a,stroke-width:2.5px,color:#d4a04a
 ```
 
 Reinforced trails dominate. Weak trails evaporate. **Persistence is automatic** — restart the process and the field is still there (if you used a persistent backend).
@@ -220,11 +233,18 @@ Reinforced trails dominate. Weak trails evaporate. **Persistence is automatic** 
 ### 3. Agent State Topology — *every node has a known phase*
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{
+  'background':'#14110d',
+  'primaryColor':'#241e15','primaryBorderColor':'#a07d3a','primaryTextColor':'#d4a04a',
+  'lineColor':'#8c6b30','secondaryColor':'#2d2418','tertiaryColor':'#1f1a13',
+  'noteBkgColor':'#1f1a13','noteBorderColor':'#6b5538','noteTextColor':'#b8a78d',
+  'labelTextColor':'#d4a04a','labelBoxBkgColor':'#241e15','labelBoxBorderColor':'#6b5538'
+}}}%%
 stateDiagram-v2
     [*] --> IDLE: spawn approved
     IDLE --> WORKING: act()
     WORKING --> DONE: response received
-    WORKING --> FAILED: 💥 exception<br/>· 💰 budget exhausted<br/>· ⚖️ RuleViolation
+    WORKING --> FAILED: exception<br/>· budget exhausted<br/>· rule violation
     DONE --> [*]: task complete
     FAILED --> [*]: task complete
     IDLE --> PRUNED: tree.prune()
