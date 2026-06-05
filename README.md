@@ -1,200 +1,220 @@
 <div align="center">
 
 # 🐜 Ormica
-
-### Build agentic software that organizes itself — like an ant colony.
-
-*Not pipelines. Not chains. **A living hierarchy of AI agents** that spawns, signals, prunes, and grows — with every decision traceable back to root.*
+### An Autonomous Coordination Engine
+> **Seed the colony. Let the organization emerge.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Tests: 310 passing](https://img.shields.io/badge/tests-310%20passing-success.svg)]()
 [![Status: v0.1](https://img.shields.io/badge/status-v0.1-orange.svg)]()
+[![Concept: Computational Stigmergy](https://img.shields.io/badge/concept-computational%20stigmergy-7a4cff.svg)]()
 
 </div>
 
 ---
 
-## 🗺️ The Colony, at a glance
+> Traditional AI systems are **machines** — programmed to perform tasks until they fail.
+> **Ormica is a cybernetic organism** — designed to evolve within your business architecture.
+
+Ormica is an **open-source coordination framework** for building agentic systems that scale through biological principles. Instead of brittle chains or static pipelines, it provides the *infrastructure* to **spawn**, **signal**, **prune**, and **govern** a living hierarchy of AI agents.
+
+---
+
+## 🗺️ The Living Colony
 
 ```mermaid
 flowchart TB
-    subgraph ROOT[" "]
-        R(("👑<br/><b>ROOT</b><br/><i>you</i>"))
+    subgraph TOP["━━━━━━━━━━━━━━━━ ROOT ━━━━━━━━━━━━━━━━"]
+        R(("<br/>👑<br/><b>OWNER</b><br/>(you)<br/> "))
     end
 
-    subgraph CASTE["── DEPARTMENT CASTE ──"]
-        OPS(("⚙️<br/>operations"))
-        SAL(("💼<br/>sales"))
-        FIN(("💰<br/>finance"))
+    subgraph CASTE["━━━━━━━━ DEPARTMENT CASTE ━━━━━━━━"]
+        OPS(("⚙️<br/><b>OPS</b>"))
+        SAL(("💼<br/><b>SALES</b>"))
+        MKT(("📣<br/><b>MKT</b>"))
+        FIN(("💰<br/><b>FIN</b>"))
     end
 
-    subgraph WORKER["── WORKERS ──"]
-        S1[["🐜 scout-1"]]
-        S2[["🐜 scout-2"]]
+    subgraph WORK["━━━━━━━━━━━ WORKER SWARM ━━━━━━━━━━━"]
+        S1[["🐜 scout-α"]]
+        S2[["🐜 scout-β"]]
         H1[["🐜 hunter-1"]]
-        A1[["🐜 analyst-1"]]
+        H2[["🐜 hunter-2"]]
+        A1[["🐜 analyst"]]
+        D1["💀 pruned"]
     end
 
-    R ==> OPS
-    R ==> SAL
-    R ==> FIN
+    R ==>|spawn approved| OPS
+    R ==>|spawn approved| SAL
+    R ==>|spawn approved| MKT
+    R ==>|spawn approved| FIN
+
     OPS ==> S1
     OPS ==> S2
     SAL ==> H1
+    SAL ==> H2
     FIN ==> A1
+    SAL -.x.- D1
 
-    S1 -. "pheromone:<br/>hot_lead↑" .-> H1
-    S2 -. "pheromone:<br/>burn↑" .-> A1
-    H1 -. "pheromone:<br/>deal_closed↑" .-> FIN
+    S1 -. "trail · hot_lead ↑0.8" .-> H1
+    S2 -. "trail · burn ↑1.2" .-> A1
+    H1 -. "trail · deal_closed ↑2.4" .-> FIN
+    H2 -. "trail · follow-up ↑0.4" .-> SAL
+    A1 -. "trail · cash_signal ↑0.6" .-> R
 
-    classDef root fill:#0a1929,stroke:#00d9ff,color:#fff,stroke-width:3px
+    classDef root fill:#0a1929,stroke:#00d9ff,color:#00d9ff,stroke-width:4px,font-weight:bold
     classDef caste fill:#16213e,stroke:#4a9eff,color:#fff,stroke-width:2px
     classDef worker fill:#0f3460,stroke:#888,color:#fff
-    classDef sub fill:transparent,stroke:transparent,color:#999
+    classDef dead fill:#1a0a0a,stroke:#663333,color:#777,stroke-dasharray: 5 5
+    classDef sub fill:transparent,stroke:transparent,color:#888,font-size:11px
 
     class R root
-    class OPS,SAL,FIN caste
-    class S1,S2,H1,A1 worker
-    class ROOT,CASTE,WORKER sub
+    class OPS,SAL,MKT,FIN caste
+    class S1,S2,H1,H2,A1 worker
+    class D1 dead
+    class TOP,CASTE,WORK sub
 ```
 
-Solid arrows = the **hierarchy** (every node has a parent; every spawn is permission-checked).
-Dashed arrows = **pheromone signals** (agents coordinate by reading/writing a decaying signal field, not by direct messages).
-You — the human owner — stay at the root. The colony grows beneath you.
+**Solid arrows** = the spawn hierarchy. Every node has a parent. Every spawn was approved.
+**Dashed trails** = stigmergic signals — pheromone trails, with intensity. Strong trails dominate, weak ones decay, dead branches are pruned.
+**You stay at the root.** The colony grows beneath you.
 
 ---
 
-## ⚡ Why Ormica?
+## 🧬 The Ormica Philosophy: *"Computational Stigmergy"*
 
-> **Ormica is a distributed systems framework — the AI part is the user-facing layer.**
+Four biological principles, one architecture.
 
-Building production multi-agent AI hits the same problems distributed systems solved 40 years ago. Ormica answers each one explicitly:
+### 🌲 Emergent Hierarchy — `arbor`
+You define the *goals*; the framework grows the *tree*. Agents are spawned dynamically to meet demand, creating a depth-first hierarchy that is as complex or as simple as the task requires. No fixed graphs. No predefined chains.
 
-| Distributed systems problem | Ormica's answer |
+### 🐜 Stigmergic Coordination — `stigma` + `mycelium`
+Agents do not rely on fragile message-passing. They post state, intent, and progress to a **shared digital pheromone field**. Other agents detect strong trails and follow; weak signals evaporate. Coordination is *emergent*, not orchestrated.
+
+### 🏛️ Permission Chain — `canopy`
+The engine prevents agent runaway. **Every sub-agent birth** must pass through a permission gate — `AUTO` (parent alone), `CHAIN` (N ancestors), or `ROOT` (only you). High-risk growth propagates all the way to the human owner. The colony remains aligned with your core directives.
+
+### ⚖️ Constitutional Governance — `cortex`
+The colony's *law*. Hard constraints and soft policies encoded as `Rule` objects. Where the **brain** generates a response, the **cortex** decides whether it's permissible. Anatomically and architecturally: the brain *acts*; the cortex *inhibits*.
+
+### 🍄 Persistent Memory — `mycelium`
+The colony maintains a shared underground network of knowledge. Agents read and write to this state-layer with full author tags, timestamps, and TTL. Pluggable backends (`FileBackend`, `SqliteBackend`) keep state across process restarts. **The system learns from its own history rather than starting from zero.**
+
+### 📡 The Thought Trail — `observe`
+Every reasoning step — messages, tool calls, response, tokens — captured and tied to the task that triggered it. Not just *what* happened, but *why the colony chose that path*. Queryable via `org.trace_for(task_id)`. The Black-Box Problem, solved.
+
+---
+
+## 🏗️ Why this is a *Framework*, not just *Software*
+
+| | What you'd normally write | What Ormica gives you |
+|---|---|---|
+| 🧠 **You provide** | Individual agent actions, prompts, glue code | The *intent* — a colony config + a few tools |
+| 🦴 **Ormica provides** | (you wire it together) | **The nervous system** — `arbor`, `stigma`, `mycelium`, `cortex`, `observe` |
+| 🏥 **Industry** | Hard-coded for one domain | **Industry-agnostic core** — same engine runs a hospital, a supply chain, a solo founder, just by swapping a colony |
+| 💬 **Failure model** | "Catch and retry" | **Bounded blast radius** — a failed task ≠ a dead colony; a prunable branch ≠ tree death |
+| 🔭 **Observability** | Logs you grep later | **Thought Trail** — structured per-task reasoning capture, persisted |
+
+You're not writing the colony. You're writing the colony's *constitution*.
+
+---
+
+## 🔬 Engineered for Distributed Systems
+
+Multi-agent AI hits the same problems distributed systems solved 40 years ago. Ormica answers each one explicitly:
+
+| Distributed-systems problem | Ormica's answer |
 |---|---|
 | Coordination without central commands | **Stigmergy** — agents read/write a shared signal field; strong trails reinforce, weak ones decay |
 | Bounded growth | **Permission chain** on every spawn (AUTO / CHAIN / ROOT); root owner is the final authority |
-| Failure isolation | A failed task marks *itself* failed; the run continues. One bad agent ≠ a dead system |
+| Failure isolation | A failed task marks *itself* failed; the run continues |
 | State persistence | Pluggable `Backend` — `FileBackend` (JSON), `SqliteBackend` (WAL). Memory survives restarts |
 | Scheduling fairness | Priority bands (`high` → `normal` → `low`) run sequentially; same-band tasks fan out concurrently |
 | Governance & safety | **Constitutional cortex** — hard constraints enforced regardless of LLM output |
-| Auditability | **Thought Trail** — per-task capture of every reasoning step + tool call, queryable by id |
+| Auditability | **Thought Trail** — per-task capture of every reasoning step + tool call |
 
-That's what separates a lab experiment from infrastructure a CTO would actually trust.
+This is the framing that separates a lab experiment from **infrastructure a CTO would actually trust**.
 
 ---
 
-## 🚀 30-second taste
+## 🚀 30-Second Taste
 
 ```python
 from ormica import Ormica
 from ormica.brain import ClaudeBrain
+from ormica.cortex import Constitution, Rule
 
-org = Ormica("My SaaS", owner="Founder")
-org.plant("business")                      # 4 departments — ops/sales/marketing/finance
+# 1. Encode the law of the colony
+constitution = Constitution([
+    Rule(name="depth_cap",
+         description="never grow past depth 4",
+         check=lambda ctx: ctx["depth"] <= 4, stage="spawn"),
+])
 
-org.task("Follow up with 3 leads", dept="sales", priority="high")
-org.task("Forecast Q3 cash flow",   dept="finance")
+# 2. Seed the colony
+org = Ormica("My SaaS", owner="Founder",
+             constitution=constitution,
+             memory_db="./acme.db")     # state survives restarts
+org.plant("business")                    # 4 departments emerge under root
 
+# 3. Queue intent (not implementation)
+org.task("Reach out to 3 SMB leads", dept="sales", priority="high")
+org.task("Forecast Q3 cash flow",     dept="finance")
+
+# 4. Let the organization emerge
 org.run(brain=ClaudeBrain())
-# → priority-ordered; sales runs first; results land in shared memory
 ```
 
-Or from the shell:
+…or from a terminal:
 
 ```bash
 ormica init "My SaaS" --industry business --brain claude
 ormica run --async --concurrency 5
 ```
 
----
-
-## 🏛️ The four pillars
-
-The framework is built on **four functional pillars** plus a small runtime layer. Each pillar exists for one reason and exposes one minimal API.
-
-```mermaid
-flowchart TD
-    subgraph P1["Pillar 1 — HIERARCHY"]
-        ARB[arbor: Tree · Node]
-        CAN[canopy: Permission chain]
-    end
-    subgraph P2["Pillar 2 — SIGNALING"]
-        STI[stigma: Pheromones · decay]
-        MYC[mycelium: Shared memory]
-    end
-    subgraph P3["Pillar 3 — GOVERNANCE"]
-        COR[cortex: Constitution · Rules]
-    end
-    subgraph P4["Pillar 4 — OBSERVABILITY"]
-        OBS[observe: Events · Thought Trail]
-    end
-
-    RT[Runtime: Agent · TaskRunner · async]
-    BRA[brain: LLM seam — Claude · GPT · Mock]
-    COL[colony: Industry templates]
-
-    BRA --> RT
-    P1 --> RT
-    P2 --> RT
-    P3 --> RT
-    P4 --> RT
-    COL --> P1
-
-    classDef pillar fill:#0a1929,stroke:#00d9ff,color:#fff,stroke-width:2px
-    classDef inner fill:#16213e,stroke:#4a9eff,color:#fff
-    classDef other fill:#0f3460,stroke:#666,color:#fff
-
-    class P1,P2,P3,P4 pillar
-    class ARB,CAN,STI,MYC,COR,OBS inner
-    class RT,BRA,COL other
-```
-
-| Pillar | Module(s) | One-line role | Read |
-|---|---|---|---|
-| 1️⃣ **Hierarchy** | `arbor` · `canopy` | Tree of agents + permission chain on growth | [docs](./docs/architecture/01-hierarchy.md) |
-| 2️⃣ **Signaling** | `mycelium` · `stigma` | Shared signal field + pheromone trails | [docs](./docs/architecture/02-signaling.md) |
-| 3️⃣ **Governance** | `cortex` | Constitution: rules that gate every action | [docs](./docs/architecture/04-governance.md) |
-| 4️⃣ **Observability** | `observe` | Events + Thought Trail (every think captured) | [docs](./docs/architecture/05-observability.md) |
-
-Runtime layer: `brain` (LLM seam) · `agent.py` · `runtime.py` (Task/Runner) · `colony` (industries) · `cli`.
+Five lines from "no colony" to "running, signal-driven, governed, audited."
 
 ---
 
-## 🌊 How the four pillars compose — three quick visuals
+## 📡 How the Colony Behaves — Three Living Diagrams
 
-### 1. Permission chain — why growth is bounded
+### 1. The Permission Chain — *why growth is bounded*
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant W as 🐜 worker (sub-agent)
+    participant W as 🐜 sub-agent
     participant P as 💼 parent
-    participant D as ⚙️ department
+    participant D as ⚙️ department lead
     participant R as 👑 ROOT (you)
 
-    W->>P: "I want to spawn a sub-worker"
-    Note over P,D: Risk classified ROOT → escalate
-    P->>D: Forward request
-    D->>R: Forward request
-    Note right of R: 🤔 Approve / Deny
-    R-->>D: ✅ Approved
+    W->>P: "Spawn a sub-worker?"
+    Note over P: assess risk
+    rect rgba(74, 158, 255, 0.08)
+    Note over P,R: risk = ROOT → escalate
+    P->>D: forward request
+    D->>R: forward request
+    Note right of R: 🤔 approve / deny
+    R-->>D: ✅ approved
     D-->>P: ✅
     P-->>W: ✅ spawn proceeds
+    end
 ```
 
-Three risk levels: **AUTO** (parent alone), **CHAIN** (N ancestors), **ROOT** (only you). Set per role: `RoleRisk({"finance": ROOT, "scout": AUTO})`. See [canopy](./docs/architecture/01-hierarchy.md).
+Three risk levels: **AUTO** · **CHAIN** · **ROOT**. Configure per role:
+`RoleRisk({"finance": ROOT, "scout": AUTO})`. See [docs/architecture/01-hierarchy.md](./docs/architecture/01-hierarchy.md).
 
-### 2. Stigmergic signal field — coordination without chat
+### 2. The Pheromone Field — *coordination without chat*
 
 ```mermaid
 flowchart LR
-    A([ant-1]) -->|emit<br/>strength=1.0| F[("🌐<br/>Signal Field<br/>(mycelium)")]
-    B([ant-2]) -->|reinforce +1.0| F
-    C([ant-3]) -->|reinforce +1.0| F
-    F -.->|"decay (half-life)"| F
-    F -->|sense<br/>strongest trail| D([ant-4 follows])
+    A([🐜 ant-α<br/><i>emit</i>]) ==>|"strength = 1.0"| F
+    B([🐜 ant-β<br/><i>reinforce</i>]) ==>|"+1.0"| F
+    C([🐜 ant-γ<br/><i>reinforce</i>]) ==>|"+1.0"| F
+    F[("🌐<br/><b>SIGNAL FIELD</b><br/><i>mycelium</i><br/>strength: 3.0")]
+    F -.->|"⏳ decay<br/>(half-life)"| F
+    F ==>|"sense ▸ strongest trail"| D([🐜 ant-δ<br/><i>follows</i>])
 
     classDef ant fill:#0f3460,stroke:#888,color:#fff
     classDef field fill:#0a1929,stroke:#00d9ff,color:#fff,stroke-width:3px
@@ -202,71 +222,90 @@ flowchart LR
     class F field
 ```
 
-Strong trails dominate. Weak ones evaporate. Agents coordinate without ever messaging each other directly — and the field persists across process restarts when you use `SqliteBackend`.
+Reinforced trails dominate. Weak trails evaporate. **Persistence is automatic** — restart the process and the field is still there (if you used a persistent backend).
 
-### 3. Agent state machine — every node has a known state
+### 3. Agent State Topology — *every node has a known phase*
 
 ```mermaid
 stateDiagram-v2
-    [*] --> IDLE: spawn
+    [*] --> IDLE: spawn approved
     IDLE --> WORKING: act()
     WORKING --> DONE: response received
-    WORKING --> FAILED: exception<br/>· budget exhausted<br/>· RuleViolation
-    DONE --> [*]
-    FAILED --> [*]
+    WORKING --> FAILED: 💥 exception<br/>· 💰 budget exhausted<br/>· ⚖️ RuleViolation
+    DONE --> [*]: task complete
+    FAILED --> [*]: task complete
     IDLE --> PRUNED: tree.prune()
+    WORKING --> PRUNED: tree.prune()
     DONE --> PRUNED: tree.prune()
-    FAILED --> PRUNED: tree.prune()
+
+    note right of WORKING
+        every think() call emits
+        think.recorded → the
+        Thought Trail
+    end note
 ```
 
-Every transition emits an event onto the bus. A `TraceObserver` aggregates them per task — that's the **Thought Trail**.
+Every transition emits an event onto the colony's bus. A `TraceObserver` aggregates them per task — that's the **Thought Trail**.
 
 ---
 
-## 🧬 The biological metaphors
+## 🩺 The Colony Health Report
 
-Three concepts fused into one framework — plus a fourth layer that makes the result production-safe.
+`ormica status` — the colony's vital signs without running anything.
 
-| Concept | What it gives Ormica | Module |
-|---|---|---|
-| 🐜 **Ant colony intelligence** (stigmergy) | Coordination through signals, not central commands. Intelligence emerges from simple local rules. | `stigma` + `mycelium` |
-| 🌲 **Random forest structure** | Many branches explore a problem in parallel, each from a different angle, growing to any depth. | `arbor` |
-| 🏛️ **Organizational theory** | A permission chain controls growth. Every new agent is approved up the hierarchy — like hiring in a real company. | `canopy` |
-| 🧠 **Constitutional governance** | Hard constraints encoded as `Rule` objects. The brain *generates*; the cortex *constrains*. | `cortex` |
+```text
+$ ormica status
 
-Read the full philosophy in [`docs/concepts.md`](./docs/concepts.md).
+name:     My SaaS
+owner:    Ranzim
+industry: business
+brain:    claude (model=claude-opus-4-7)
+
+tree (5 nodes):
+  - My SaaS [root]
+    - operations  [operations]
+    - sales       [sales]
+    - marketing   [marketing]
+    - finance     [finance]
+
+tasks queued: 2
+  - [high]   sales:   Reach out to 3 SMB leads
+  - [normal] finance: Forecast Q3 cash flow
+```
+
+A richer dashboard — signal intensity per topic, branch depth, governance compliance, top-N pheromone trails — is on the [roadmap](#%EF%B8%8F-roadmap) as a v0.5 web UI on top of the Thought Trail.
 
 ---
 
-## 🆚 vs. the alternatives
+## 🆚 vs. the Alternatives
 
 | | LangChain · CrewAI · AutoGen | **Ormica** |
 |---|---|---|
-| Structure | Fixed chains / graphs | Living tree, grows to N depth |
-| Agent creation | Defined upfront | Self-spawning on demand |
-| Growth control | None built in | Permission chain to root |
-| Coordination | Direct messaging | Stigmergic signals + emergence |
-| State persistence | DIY | Pluggable `Backend` (file / sqlite) |
-| Failure handling | Often kills the run | Failed task ≠ dead system |
-| Governance | "Try harder prompts" | First-class `Constitution` |
-| Auditability | Ad-hoc logging | Thought Trail per task |
+| Structure | Fixed chains / graphs | **Living tree** — grows to N depth |
+| Agent creation | Defined upfront | **Self-spawning** on demand |
+| Growth control | None built in | **Permission chain to root** (canopy) |
+| Coordination | Direct messaging | **Stigmergic signals + emergence** |
+| State persistence | DIY | **Pluggable `Backend`** (file / sqlite) |
+| Failure handling | Often kills the run | **Failed task ≠ dead system** |
+| Governance | "Try harder prompts" | **First-class `Constitution`** (cortex) |
+| Auditability | Ad-hoc logging | **Thought Trail per task** (observe) |
 | Focus | General purpose | **Production agent operations** |
 
 ---
 
-## 📦 What's inside
+## 📦 What's Inside
 
 ```
 ormica/
-├── arbor/         Tree · Node · Branch · SpawnPolicy        🌲 hierarchy
-├── canopy/        Permission chain (AUTO · CHAIN · ROOT)    🏛️ governance of growth
-├── mycelium/      Shared KV + FileBackend + SqliteBackend   🍄 shared memory
-├── stigma/        Pheromone trails · lazy decay             🐜 signaling
-├── brain/         LLM seam: Mock · Claude · GPT (sync+async) 🧠 thinking
-│                  + Router + TokenBudget + @tool
-├── cortex/        Constitution · Rule · ConstitutionPolicy  ⚖️ law of the colony
-├── observe/       Event · EventBus · TraceObserver           📡 Thought Trail
-├── colony/        AgentTemplate · Colony · YAML loader      🏢 industries
+├── arbor/         Tree · Node · Branch · SpawnPolicy       🌲 emergent hierarchy
+├── canopy/        Permission chain (AUTO · CHAIN · ROOT)   🏛️ growth governance
+├── mycelium/      Shared KV + FileBackend + SqliteBackend  🍄 persistent memory
+├── stigma/        Pheromone trails · lazy decay            🐜 stigmergic signals
+├── brain/         LLM seam: Mock · Claude · GPT            🧠 the colony's thinking
+│                  (sync + async) · Router · Tool · @tool
+├── cortex/        Constitution · Rule · Policy             ⚖️ law of the colony
+├── observe/       Event · EventBus · TraceObserver         📡 the Thought Trail
+├── colony/        AgentTemplate · Colony · YAML loader     🏢 industry templates
 │                  (business + supply_chain bundled)
 ├── agent.py       Agent · AsyncAgent · ToolLoopExceeded
 ├── runtime.py     Task · TaskRunner · AsyncTaskRunner
@@ -276,60 +315,62 @@ ormica/
 
 ```
 docs/                                # the onboarding map
-├── README.md                         index + table of contents
-├── concepts.md                       3 metaphors + production layer
+├── README.md                         index
+├── concepts.md                       Computational Stigmergy in depth
 ├── getting-started.md                install + hello-world
-├── architecture/                     one page per module
-│   ├── 01-hierarchy.md ... 08-facade.md
-└── guides/                           task-focused how-tos
-    ├── writing-a-colony.md
-    ├── writing-tools.md
-    ├── writing-a-constitution.md
-    ├── reading-the-thought-trail.md
-    ├── persistence.md
-    └── async-and-routing.md
+├── architecture/                     one page per module / pillar
+└── guides/                           writing colonies, tools, rules, traces…
 ```
 
-```
-tests/                                310 tests · ~370ms · no SDK deps required
-```
+`tests/` — **310 tests · ~370ms · no SDK deps required for CI.**
 
 ---
 
 ## 🛣️ Roadmap
 
 - [x] **v0.1** — Four pillars + runtime + CLI + persistence + async + observability *(here)*
-- [ ] **v0.2** — YAML-defined Constitutions; soft-violation events; per-node Constitution overrides
-- [ ] **v0.3** — Async tools; streaming responses; integrations (Gmail · Notion · GitHub · Stripe)
-- [ ] **v0.4** — ChromaDB backend (semantic memory); vector signals
-- [ ] **v0.5** — Web dashboard for Thought Trail browsing + live event stream
+- [ ] **v0.2** — YAML Constitutions · soft-violation events · per-node rule overrides
+- [ ] **v0.3** — Async tools · streaming responses · first integrations (Gmail · Notion · GitHub · Stripe)
+- [ ] **v0.4** — ChromaDB backend (semantic mycelium) · vector signals
+- [ ] **v0.5** — **Colony Dashboard** (web UI) — signal intensity, branch depth, governance compliance, live Thought Trail
 - [ ] **v1.0** — Ormica Cloud (hosted platform)
 
-GitHub Project board coming. Open issues for any roadmap item to vote / contribute.
+GitHub Project board is coming. Open an issue to vote on or contribute to any roadmap item.
 
 ---
 
 ## 🤝 Contributing
 
-We're early. Contributions of all kinds are welcome — new colonies, new brain adapters, new backends, docs, demos.
+The colony is young; new contributors shape its character.
 
-- 📖 Read [`docs/`](./docs/) — pick one architecture page + one guide and you're ready.
-- 🗺️ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the *where-to-put-what* matrix and the hard rules of the codebase.
-- 🧪 `pytest` — 310 tests, ~370ms. Green or your PR isn't ready.
+- 📖 **Read [`docs/`](./docs/)** — pick one architecture page + one guide and you're ready.
+- 🗺️ **[`CONTRIBUTING.md`](./CONTRIBUTING.md)** — *where-to-put-what* matrix and the hard rules of the codebase.
+- 🧪 **`pytest`** — 310 tests, ~370ms. Green or your PR isn't ready.
+
+Good first areas:
+
+| You want to add… | Where it goes | Read first |
+|---|---|---|
+| A new industry / org-chart | `colony/<name>/` or a YAML file | [Writing a colony](./docs/guides/writing-a-colony.md) |
+| A new LLM provider | `brain/<provider>.py` | [Brain architecture](./docs/architecture/03-brain.md) |
+| A persistence backend | `mycelium/<name>_backend.py` | [Persistence](./docs/guides/persistence.md) |
+| A safety / business rule | A `Rule` in your own code (the framework stays domain-agnostic) | [Writing a Constitution](./docs/guides/writing-a-constitution.md) |
+| A real-world integration | `integrations/<service>/` (propose design first) | [Architecture overview](./docs/architecture/README.md) |
 
 ---
 
-## 🏷️ Recommended GitHub topics
+## 🏷️ Recommended GitHub Topics
 
-When you tag the repo (Settings → "Manage topics"):
+When tagging the repo (Settings → "Manage topics"):
 
 ```
 ai · agents · agentic · multi-agent · multi-agent-framework
 distributed-systems · stigmergy · swarm-intelligence
+cybernetics · self-organization · emergence
 llm · autonomous-agents · python · framework
 ```
 
-Positions Ormica as a **systems engineering tool** — exactly the developer this project wants to attract.
+Positions Ormica where it belongs: **systems engineering**, not "another AI agent chatbot."
 
 ---
 
@@ -342,5 +383,7 @@ MIT — see [LICENSE](LICENSE). Free to use, modify, and build on.
 <div align="center">
 
 **Ormica** — *organize like a colony · grow like a forest · decide like an organization · audit like infrastructure.*
+
+<sub><i>Computational Stigmergy · v0.1 · ant-colony-inspired coordination for autonomous AI operations</i></sub>
 
 </div>
