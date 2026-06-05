@@ -1,6 +1,6 @@
 # Concepts
 
-Ormica fuses three ideas. Understanding them explains every design decision.
+Ormica fuses three ideas — and adds a fourth layer to make them production-safe. Understanding them explains every design decision.
 
 ## 1. Ant colony intelligence (stigmergy)
 
@@ -32,3 +32,20 @@ A result emerges — and flows back to the owner.
 ```
 
 The result is a system that is **alive** (it grows organically) but **controlled** (every agent is known and approved by root).
+
+## 4. Constitutional governance + Thought Trail
+
+The three biological ideas above are the *spark*. To make a colony **production-safe**, Ormica adds:
+
+- **Constitution** (`cortex/`) — hard constraints and soft policies encoded in a `Constitution`. Where the **brain** generates a response, the **cortex** decides whether it's permissible. Token caps, role-specific blocks, depth limits — all expressed as `Rule` objects with a predicate and a stage (`pre` / `post` / `spawn`).
+- **Thought Trail** (`observe/`) — every `Brain.think` call is captured by a `TraceObserver`: the messages going in, the tool calls, the response, the tokens used. Tied back to a task id, queryable via `org.trace_for(id)`, optionally persisted to mycelium.
+
+Together they answer the two questions that block AI from real business operations:
+- *"How do I stop the agent from doing X?"* → put it in the Constitution.
+- *"Why did the agent do Y?"* → read the Thought Trail.
+
+That's what separates a lab experiment from infrastructure a CTO would actually trust.
+
+## How to read this codebase
+
+The four pillars map directly onto modules. See [`architecture/README.md`](./architecture/README.md) for the full map and reading order.
