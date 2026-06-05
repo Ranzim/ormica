@@ -55,7 +55,7 @@ flowchart TB
     SAL ==> H1
     SAL ==> H2
     FIN ==> A1
-    SAL -.x.- D1
+    SAL -. "✂️ pruned" .-> D1
 
     S1 -. "trail · hot_lead ↑0.8" .-> H1
     S2 -. "trail · burn ↑1.2" .-> A1
