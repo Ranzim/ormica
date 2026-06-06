@@ -6,7 +6,6 @@ from ormica.agent import ToolLoopExceeded
 from ormica.arbor import Tree
 from ormica.brain import (
     AsyncMockBrain,
-    Message,
     MockBrain,
     Tool,
     ToolCall,

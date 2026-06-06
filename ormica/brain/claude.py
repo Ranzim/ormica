@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 from .protocol import Prompt, to_messages
 from .tool import Tool, ToolCall
-from .types import Message, Response
+from .types import Response
 
 DEFAULT_MODEL = "claude-opus-4-7"
 

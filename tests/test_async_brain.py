@@ -5,7 +5,7 @@ from typing import Optional
 
 import pytest
 
-from ormica.brain import AsyncBrain, AsyncMockBrain, Message
+from ormica.brain import AsyncBrain, AsyncMockBrain
 
 
 # --- AsyncMockBrain ---------------------------------------------------------

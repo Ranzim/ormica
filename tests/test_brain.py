@@ -3,11 +3,9 @@ import pytest
 
 from ormica.arbor import Node
 from ormica.brain import (
-    BudgetExhausted,
     Brain,
     Message,
     MockBrain,
-    Response,
     Router,
     TokenBudget,
     to_messages,

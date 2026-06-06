@@ -1,5 +1,4 @@
 """Tests for the mycelium module — shared memory, TTL, scoping, backend."""
-import pytest
 
 from ormica.arbor import Tree
 from ormica.mycelium import Backend, Entry, InMemoryBackend, Mycelium, Scope

@@ -3,7 +3,7 @@ import pytest
 
 from ormica import Agent, Ormica
 from ormica.arbor import NodeNotFound
-from ormica.colony import AgentTemplate, Colony, colonies, get_colony, register
+from ormica.colony import AgentTemplate, Colony, colonies, register
 from ormica.brain import MockBrain
 
 

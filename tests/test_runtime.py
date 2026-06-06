@@ -1,8 +1,6 @@
 """Tests for the runtime — Task, TaskRunner, and the Ormica run loop."""
-import pytest
 
-from ormica import Agent, Ormica, RunResult, Task
-from ormica.arbor import NodeNotFound
+from ormica import Ormica, RunResult, Task
 from ormica.brain import MockBrain, Router
 
 
@@ -80,8 +78,8 @@ def test_run_routes_to_target_node_via_find():
 
 def test_run_uses_router_to_pick_per_node_cortex():
     org = Ormica("HQ")
-    sales = org.spawn("sales", role="sales")
-    ops = org.spawn("ops", role="ops")
+    org.spawn("sales", role="sales")
+    org.spawn("ops", role="ops")
     org.task("a", dept="sales")
     org.task("b", dept="ops")
 
@@ -127,9 +125,9 @@ def test_unknown_target_marks_task_failed_not_crash():
 def test_priority_ordering_high_before_normal_before_low():
     org = Ormica("HQ")
     org.spawn("sales", role="sales")
-    a = org.task("a", dept="sales", priority="low")
-    b = org.task("b", dept="sales", priority="normal")
-    c = org.task("c", dept="sales", priority="high")
+    org.task("a", dept="sales", priority="low")
+    org.task("b", dept="sales", priority="normal")
+    org.task("c", dept="sales", priority="high")
 
     order: list[str] = []
     org.run(

@@ -1,14 +1,11 @@
 """Tests for the Thought Trail — TraceObserver, emit_think_event, org.trace_for."""
-import pytest
 
 from ormica import Agent, Ormica
-from ormica.arbor import Tree
 from ormica.brain import MockBrain, ToolCall, tool
 from ormica.observe import (
     THINK_RECORDED,
     EventBus,
     Trace,
-    TraceEntry,
     TraceObserver,
     emit_think_event,
 )

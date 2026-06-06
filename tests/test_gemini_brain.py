@@ -4,7 +4,7 @@ from typing import Optional
 
 import pytest
 
-from ormica.brain import Brain, Message, ToolCall, tool
+from ormica.brain import Brain, Message, tool
 from ormica.brain.gemini import AsyncGeminiBrain, GeminiBrain
 
 

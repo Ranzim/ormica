@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 # A rule predicate takes a context dict (whatever the caller chose to expose)
 # and returns True if the action is allowed.
