@@ -100,6 +100,14 @@ pip install ormica[all]           # everything above
 
 Python 3.10+ required. **One install command, every major LLM.** See [docs/guides/llm-providers.md](./docs/guides/llm-providers.md) for the full recipe matrix.
 
+> **Hacking on ormica itself?** The published wheel doesn't ship tests. Clone the repo and follow [CONTRIBUTING.md](./CONTRIBUTING.md):
+>
+> ```bash
+> git clone https://github.com/Ranzim/ormica.git && cd ormica
+> pip install -e ".[dev]"      # pytest, ruff, build, twine
+> pytest                       # full suite in <1s
+> ```
+
 ---
 
 ## 🚀 30-Second Taste
