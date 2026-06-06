@@ -32,6 +32,7 @@ The runtime layer that sits on top of the four pillars:
 ## 🛠️ Guides (how do I…?)
 
 - [**Your First PR**](./guides/your-first-pr.md) — shortest path from "I want to help" to "merged." **Start here if you're contributing.**
+- [**LLM providers**](./guides/llm-providers.md) — every recipe in one place: Claude, Gemini, OpenAI, Ollama (local), OpenRouter, Groq, Together, DeepSeek, vLLM, LM Studio…
 - [Writing a custom colony](./guides/writing-a-colony.md) — Python *or* YAML.
 - [Writing tools an agent can call](./guides/writing-tools.md) — `@tool` + tool loop.
 - [Writing a Constitution](./guides/writing-a-constitution.md) — encoding business rules and hard constraints.

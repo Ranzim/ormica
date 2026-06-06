@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- **`UniversalBrain`** — one adapter for every OpenAI-compatible LLM endpoint. Configure with `base_url=` and `api_key=`. Covers OpenAI, Ollama (local), OpenRouter (300+ models), Groq, Together AI, DeepSeek, Mistral La Plateforme, Anyscale, Fireworks, vLLM, LM Studio, and any other OpenAI-compatible provider.
+- **`GeminiBrain` / `AsyncGeminiBrain`** — native Google Gemini support behind `pip install ormica[gemini]`. Maps our `Message`/`ToolCall` types to Gemini's content blocks and function declarations.
+- **Provider convenience constructors** in `ormica.brain.providers`: `ollama_brain()`, `openrouter_brain()`, `groq_brain()`, `together_brain()`, `deepseek_brain()` (plus `async_*` variants). One-liners over `UniversalBrain` with the right `base_url` baked in.
+- **CLI now supports the popular providers as `--brain` shortcuts**: `mock` · `claude` · `openai` · `gemini` · `ollama` · `openrouter` · `groq` · `together` · `deepseek`. Each picks a sensible default model.
+- **`docs/guides/llm-providers.md`** — single page documenting every recipe for every provider (15+ providers).
+- **`[gemini]` extra** in `pyproject.toml` pulling `google-generativeai>=0.8`.
+- **`[universal]` extra** as an alias for `[openai]` — semantic clarity for users picking the universal adapter.
+- New tests: 17 for `UniversalBrain`, 22 for `GeminiBrain`, 8 for the provider helpers, 4 new CLI integration tests. Total suite now **361 tests** (up from 310).
+
+### Changed
+- Architectural pivot: **the brain layer is now 3 native adapters (Claude, Gemini, GPT) + 1 universal adapter (UniversalBrain) + 5 convenience helpers** — not one adapter per provider. This was the right shape: most providers have converged on OpenAI-compatible HTTP APIs, so we cover ~12 of them through one well-tested code path. Anthropic Claude and Google Gemini stay native because their wire formats are meaningfully different (content blocks, function declarations).
+- `docs/architecture/03-brain.md` — adds the UniversalBrain section and a "native vs universal" guidance table.
+- README install section — replaces `[ollama]` extra with `[universal]`, mentions all four primary install paths.
+
 ### Planned for v0.2
 - YAML-defined Constitutions
 - Soft-violation events emitted onto the EventBus

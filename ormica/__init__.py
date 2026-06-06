@@ -1,15 +1,21 @@
 """
-Ormica — build agentic software that organizes itself like an ant colony.
+Ormica — An Autonomous Coordination Engine.
+
+Seed the colony. Let the organization emerge.
 
 Quick start:
     from ormica import Ormica
+    from ormica.brain import ClaudeBrain
 
     org = Ormica("My Company", owner="Founder")
-    org.plant("supply_chain")
-    org.run()
+    org.plant("business")
+    org.task("Follow up with 3 leads", dept="sales", priority="high")
+    org.run(brain=ClaudeBrain())
+
+Docs: https://github.com/Ranzim/ormica/tree/master/docs
 """
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 from ormica.agent import Agent, AsyncAgent
 from ormica.core import Ormica

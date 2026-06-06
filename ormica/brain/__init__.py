@@ -51,4 +51,26 @@ def __getattr__(name: str):
     if name == "AsyncGPTBrain":
         from .gpt import AsyncGPTBrain
         return AsyncGPTBrain
+    if name == "UniversalBrain":
+        from .universal import UniversalBrain
+        return UniversalBrain
+    if name == "AsyncUniversalBrain":
+        from .universal import AsyncUniversalBrain
+        return AsyncUniversalBrain
+    if name == "GeminiBrain":
+        from .gemini import GeminiBrain
+        return GeminiBrain
+    if name == "AsyncGeminiBrain":
+        from .gemini import AsyncGeminiBrain
+        return AsyncGeminiBrain
+    # Provider shortcut constructors — wrap UniversalBrain with the right base_url.
+    if name in {
+        "ollama_brain", "async_ollama_brain",
+        "openrouter_brain", "async_openrouter_brain",
+        "groq_brain", "async_groq_brain",
+        "together_brain", "async_together_brain",
+        "deepseek_brain", "async_deepseek_brain",
+    }:
+        from . import providers
+        return getattr(providers, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

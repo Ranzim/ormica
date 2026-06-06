@@ -29,9 +29,61 @@ The async sibling `AsyncBrain` is identical but `async def think(...)`. Same pro
 | Class | Where | When to use |
 |---|---|---|
 | `MockBrain` | [`ormica/brain/mock.py`](../../ormica/brain/mock.py) | Tests; scripted demos. Replies can be plain strings or `ToolCall` lists. |
-| `ClaudeBrain` | [`ormica/brain/claude.py`](../../ormica/brain/claude.py) | Anthropic SDK. Behind `pip install ormica[claude]`. |
-| `GPTBrain` | [`ormica/brain/gpt.py`](../../ormica/brain/gpt.py) | OpenAI SDK. Behind `pip install ormica[openai]`. |
-| `AsyncMockBrain` / `AsyncClaudeBrain` / `AsyncGPTBrain` | same files | Async siblings of each, for `org.arun(...)`. |
+| `ClaudeBrain` | [`ormica/brain/claude.py`](../../ormica/brain/claude.py) | **Anthropic Claude — native API.** Behind `pip install ormica[claude]`. |
+| `GeminiBrain` | [`ormica/brain/gemini.py`](../../ormica/brain/gemini.py) | **Google Gemini — native API.** Behind `pip install ormica[gemini]`. |
+| `GPTBrain` | [`ormica/brain/gpt.py`](../../ormica/brain/gpt.py) | OpenAI SDK, native. Behind `pip install ormica[openai]`. |
+| `UniversalBrain` | [`ormica/brain/universal.py`](../../ormica/brain/universal.py) | **One adapter, every OpenAI-compatible endpoint** — OpenAI, Ollama (local), OpenRouter (300+ models), Groq, Together, DeepSeek, vLLM, LM Studio… Behind `pip install ormica[universal]`. |
+| `Async*` variants | same files | Async siblings for `org.arun(...)`. |
+
+### One adapter, 12+ providers — `UniversalBrain`
+
+Most providers expose an OpenAI-compatible HTTP API. `UniversalBrain` is a thin wrapper over the `openai` SDK with `base_url` exposed:
+
+```python
+from ormica.brain import UniversalBrain
+
+# Local Ollama (free, private, no real API key)
+brain = UniversalBrain(base_url="http://localhost:11434/v1",
+                       model="llama3.2", api_key="ollama")
+
+# OpenRouter — one account, 300+ models including Claude and Gemini
+brain = UniversalBrain(base_url="https://openrouter.ai/api/v1",
+                       model="anthropic/claude-opus-4-7",
+                       api_key=os.environ["OPENROUTER_API_KEY"])
+
+# Groq — very fast Llama / Mixtral
+brain = UniversalBrain(base_url="https://api.groq.com/openai/v1",
+                       model="llama-3.3-70b-versatile",
+                       api_key=os.environ["GROQ_API_KEY"])
+```
+
+### Convenience constructors
+
+If you don't want to remember URLs:
+
+```python
+from ormica.brain import (
+    ollama_brain, openrouter_brain, groq_brain,
+    together_brain, deepseek_brain,
+)
+
+org.run(brain=ollama_brain(model="llama3.2"))
+org.run(brain=openrouter_brain(model="anthropic/claude-opus-4-7"))
+org.run(brain=groq_brain())                    # default: llama-3.3-70b-versatile
+```
+
+All five have `async_*` siblings (`async_ollama_brain`, …) for `org.arun(...)`.
+
+### Native vs universal — when to use which
+
+| Provider | Recommended adapter | Why |
+|---|---|---|
+| Anthropic Claude | `ClaudeBrain` | Full content blocks, native tool_use, adaptive thinking |
+| Google Gemini | `GeminiBrain` | Native function declarations, full part-array support |
+| OpenAI | `UniversalBrain` (default settings) | Same as native; `GPTBrain` is a back-compat alias |
+| Everything else (Ollama, OpenRouter, Groq, …) | `UniversalBrain` + `base_url=` | OpenAI-compat at the wire level |
+
+For the full provider list with copy-paste recipes, see [LLM providers guide](../guides/llm-providers.md).
 
 All adapters are **thin**: they map our `Message` / `Response` types onto the provider's wire format. No streaming, no temperature, no sampling parameters — those are caller-side concerns (and on Opus 4.7 the sampling params 400).
 

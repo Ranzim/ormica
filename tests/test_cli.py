@@ -420,3 +420,121 @@ def test_parser_rejects_unknown_subcommand(capsys):
     parser = build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["bogus"])
+
+
+# --- OpenAI-compatible providers via UniversalBrain --------------------------
+
+
+def test_init_with_ollama_writes_llama32_default(tmp_path: Path):
+    out = tmp_path / "ormica.yaml"
+    rc = main(["init", "Acme", "--brain", "ollama", "--out", str(out)])
+    assert rc == 0
+    data = yaml.safe_load(out.read_text())
+    assert data["brain"]["type"] == "ollama"
+    assert data["brain"]["model"] == "llama3.2"
+
+
+def test_init_with_openrouter_writes_default_model(tmp_path: Path):
+    out = tmp_path / "ormica.yaml"
+    rc = main(["init", "Acme", "--brain", "openrouter", "--out", str(out)])
+    assert rc == 0
+    data = yaml.safe_load(out.read_text())
+    assert data["brain"]["type"] == "openrouter"
+    assert data["brain"]["model"] == "anthropic/claude-opus-4-7"
+
+
+def test_init_with_groq_writes_llama70b_default(tmp_path: Path):
+    out = tmp_path / "ormica.yaml"
+    rc = main(["init", "Acme", "--brain", "groq", "--out", str(out)])
+    assert rc == 0
+    data = yaml.safe_load(out.read_text())
+    assert data["brain"]["model"] == "llama-3.3-70b-versatile"
+
+
+def test_init_with_gemini_writes_flash_default(tmp_path: Path):
+    out = tmp_path / "ormica.yaml"
+    rc = main(["init", "Acme", "--brain", "gemini", "--out", str(out)])
+    assert rc == 0
+    data = yaml.safe_load(out.read_text())
+    assert data["brain"]["model"] == "gemini-2.0-flash"
+
+
+def test_run_with_ollama_routes_through_universal_with_localhost_base_url(
+    tmp_path: Path, monkeypatch
+):
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(name="Acme", tasks=[TaskConfig(description="hi")])
+    save_config(cfg, out)
+
+    constructed = {}
+
+    class FakeUniversal:
+        name = "universal"
+
+        def __init__(self, *, model, base_url=None, api_key=None):
+            constructed["model"] = model
+            constructed["base_url"] = base_url
+            self.model = model
+
+        def think(self, prompt, *, system=None, max_tokens=1024, tools=None):
+            from ormica.brain import Response
+            return Response(content="local", model=self.model, tokens_used=1)
+
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+
+    rc = main(["run", "--config", str(out), "--brain", "ollama"])
+    assert rc == 0
+    assert constructed["model"] == "llama3.2"
+    assert constructed["base_url"] == "http://localhost:11434/v1"
+
+
+def test_run_with_groq_routes_through_universal_with_groq_base_url(
+    tmp_path: Path, monkeypatch
+):
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(name="Acme", tasks=[TaskConfig(description="hi")])
+    save_config(cfg, out)
+
+    constructed = {}
+
+    class FakeUniversal:
+        name = "universal"
+
+        def __init__(self, *, model, base_url=None, api_key=None):
+            constructed["base_url"] = base_url
+            self.model = model
+
+        def think(self, prompt, *, system=None, max_tokens=1024, tools=None):
+            from ormica.brain import Response
+            return Response(content="groq", model=self.model, tokens_used=1)
+
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+
+    rc = main(["run", "--config", str(out), "--brain", "groq"])
+    assert rc == 0
+    assert constructed["base_url"] == "https://api.groq.com/openai/v1"
+
+
+def test_run_with_gemini_builds_native_gemini_brain(tmp_path: Path, monkeypatch):
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(name="Acme", tasks=[TaskConfig(description="hi")])
+    save_config(cfg, out)
+
+    constructed = {}
+
+    class FakeGemini:
+        name = "gemini"
+
+        def __init__(self, *, model):
+            constructed["model"] = model
+            self.model = model
+
+        def think(self, prompt, *, system=None, max_tokens=1024, tools=None):
+            from ormica.brain import Response
+            return Response(content="gemini says hi", model=self.model, tokens_used=1)
+
+    monkeypatch.setattr("ormica.brain.GeminiBrain", FakeGemini, raising=True)
+
+    rc = main(["run", "--config", str(out), "--brain", "gemini"])
+    assert rc == 0
+    assert constructed["model"] == "gemini-2.0-flash"

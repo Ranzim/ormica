@@ -131,11 +131,25 @@ This is the framing that separates a lab experiment from **infrastructure a CTO 
 
 ---
 
+## 📥 Install
+
+```bash
+pip install ormica                # core (MockBrain — no LLM cost)
+pip install ormica[claude]        # + Anthropic Claude (native)
+pip install ormica[gemini]        # + Google Gemini (native)
+pip install ormica[universal]     # + OpenAI · Ollama (local) · OpenRouter · Groq · Together · DeepSeek · vLLM · LM Studio · …
+pip install ormica[all]           # everything above
+```
+
+Python 3.10+ required. **One install command, every major LLM.** See [docs/guides/llm-providers.md](./docs/guides/llm-providers.md) for the full recipe matrix.
+
+---
+
 ## 🚀 30-Second Taste
 
 ```python
 from ormica import Ormica
-from ormica.brain import ClaudeBrain
+from ormica.brain import ClaudeBrain          # or GeminiBrain · ollama_brain · UniversalBrain
 from ormica.cortex import Constitution, Rule
 
 # 1. Encode the law of the colony

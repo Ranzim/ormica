@@ -17,6 +17,12 @@ _DEFAULT_MODELS = {
     "mock": "mock",
     "claude": "claude-opus-4-7",
     "openai": "gpt-4o",
+    "gemini": "gemini-2.0-flash",
+    "ollama": "llama3.2",
+    "openrouter": "anthropic/claude-opus-4-7",
+    "groq": "llama-3.3-70b-versatile",
+    "together": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "deepseek": "deepseek-chat",
 }
 
 
@@ -187,8 +193,40 @@ def _build_brain(
         from ormica.brain import GPTBrain
 
         return GPTBrain(model=model or _DEFAULT_MODELS["openai"])
+    # OpenAI-compatible providers route through UniversalBrain with a base_url.
+    _OPENAI_COMPAT = {
+        "ollama":     "http://localhost:11434/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+        "groq":       "https://api.groq.com/openai/v1",
+        "together":   "https://api.together.xyz/v1",
+        "deepseek":   "https://api.deepseek.com/v1",
+    }
+    if type_name in _OPENAI_COMPAT:
+        base_url = _OPENAI_COMPAT[type_name]
+        if async_mode:
+            from ormica.brain import AsyncUniversalBrain
+
+            return AsyncUniversalBrain(
+                model=model or _DEFAULT_MODELS[type_name],
+                base_url=base_url,
+            )
+        from ormica.brain import UniversalBrain
+
+        return UniversalBrain(
+            model=model or _DEFAULT_MODELS[type_name],
+            base_url=base_url,
+        )
+    if type_name == "gemini":
+        if async_mode:
+            from ormica.brain import AsyncGeminiBrain
+
+            return AsyncGeminiBrain(model=model or _DEFAULT_MODELS["gemini"])
+        from ormica.brain import GeminiBrain
+
+        return GeminiBrain(model=model or _DEFAULT_MODELS["gemini"])
     raise ValueError(
-        f"unknown brain type: {type_name!r} (expected 'mock', 'claude', or 'openai')"
+        f"unknown brain type: {type_name!r} "
+        f"(expected one of: mock, claude, openai, gemini, ollama, openrouter, groq, together, deepseek)"
     )
 
 
@@ -215,7 +253,10 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument(
         "--brain",
         default="mock",
-        choices=["mock", "claude", "openai"],
+        choices=[
+            "mock", "claude", "openai", "gemini",
+            "ollama", "openrouter", "groq", "together", "deepseek",
+        ],
         help="Default brain type for the new config",
     )
     init.set_defaults(func=cmd_init)
@@ -225,7 +266,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--brain",
         default=None,
-        choices=["mock", "claude", "openai"],
+        choices=[
+            "mock", "claude", "openai", "gemini",
+            "ollama", "openrouter", "groq", "together", "deepseek",
+        ],
         help="Override the brain type from config",
     )
     run.add_argument(
