@@ -100,6 +100,18 @@ pip install ormica[all]           # everything above
 
 Python 3.10+ required. **One install command, every major LLM.** See [docs/guides/llm-providers.md](./docs/guides/llm-providers.md) for the full recipe matrix.
 
+If you need to run tests or contribute to the code, install from source instead:
+
+```bash
+git clone https://github.com/Ranzim/ormica.git
+cd ormica
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+```
+
+The released wheel is built for consumers; it does not include the test suite used in development.
+
 ---
 
 ## 🚀 30-Second Taste
