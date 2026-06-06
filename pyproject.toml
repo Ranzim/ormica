@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ormica"
-version = "0.1.1rc2"
+version = "0.1.1"
 description = "An Autonomous Coordination Engine — build self-organizing AI agent colonies inspired by ant-colony stigmergy."
 readme = "README.md"
 requires-python = ">=3.10"
