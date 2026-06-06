@@ -4,9 +4,10 @@
 ### An Autonomous Coordination Engine
 > **Seed the colony. Let the organization emerge.**
 
+[![PyPI](https://img.shields.io/pypi/v/ormica.svg)](https://pypi.org/project/ormica/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 310 passing](https://img.shields.io/badge/tests-310%20passing-success.svg)]()
+[![Tests: 361 passing](https://img.shields.io/badge/tests-361%20passing-success.svg)]()
 [![Status: v0.1](https://img.shields.io/badge/status-v0.1-orange.svg)]()
 [![Concept: Computational Stigmergy](https://img.shields.io/badge/concept-computational%20stigmergy-7a4cff.svg)]()
 
@@ -349,7 +350,7 @@ docs/                                # the onboarding map
 └── guides/                           writing colonies, tools, rules, traces…
 ```
 
-`tests/` — **310 tests · ~370ms · no SDK deps required for CI.**
+`tests/` — **361 tests · ~650ms · no SDK deps required for CI.**
 
 ---
 
@@ -400,7 +401,7 @@ The colony is young; new contributors shape its character.
 ### 🧪 Before you push
 
 ```bash
-pytest              # 310 tests, ~370ms, all green
+pytest              # 361 tests, ~650ms, all green
 ruff check .        # lint clean
 ```
 
