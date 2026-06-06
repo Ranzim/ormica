@@ -88,10 +88,10 @@ class _AgentBase:
         )
 
     def _enforce_constitution(self, prompt: Any) -> None:
-        """Raise :class:`RuleViolation` if any pre-stage hard rule fails."""
+        """Raise :class:`RuleViolation` for hard rules; emit events for soft."""
         if self.constitution is None:
             return
-        self.constitution.enforce(
+        soft = self.constitution.enforce(
             {
                 "node": self.node,
                 "role": self.node.role,
@@ -101,6 +101,20 @@ class _AgentBase:
             },
             stage="pre",
         )
+        if self.events is None or not soft:
+            return
+        from .observe import RULE_SOFT_VIOLATION
+
+        for v in soft:
+            self.events.emit(
+                RULE_SOFT_VIOLATION,
+                source="constitution",
+                rule=v.rule.name,
+                reason=v.reason,
+                node=self.node.name,
+                task_id=self.task_id,
+                stage="pre",
+            )
 
     def _compose_system(self) -> Optional[str]:
         parts: list[str] = []

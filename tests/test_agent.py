@@ -115,3 +115,36 @@ def test_signal_methods_are_noops_without_stigma():
     agent.emit("topic")
     agent.reinforce("topic")
     assert agent.sense("topic") is None
+
+
+def test_soft_rule_emits_event_on_event_bus():
+    """Soft constitution rules must surface to the org's event bus.
+
+    Regression for the silent-drop bug: Agent._enforce_constitution used
+    to call Constitution.enforce(...) and throw away the returned soft
+    violation list, so severity="soft" rules fired invisibly.
+    """
+    from ormica import Ormica
+    from ormica.cortex import Constitution, Rule
+    from ormica.observe import CollectObserver, RULE_SOFT_VIOLATION
+
+    constitution = Constitution([
+        Rule(
+            name="always_soft_fails",
+            description="A soft rule that always returns False.",
+            check=lambda _ctx: False,
+            stage="pre",
+            severity="soft",
+        ),
+    ])
+    org = Ormica("soft-rule test", constitution=constitution)
+    org.plant("business")
+    collected = CollectObserver()
+    org.events.subscribe(collected)
+    org.task("noop", dept="sales")
+    org.run(brain=MockBrain(replies=["ok"]))
+
+    soft_events = [e for e in collected.events if e.type == RULE_SOFT_VIOLATION]
+    assert len(soft_events) == 1
+    assert soft_events[0].payload["rule"] == "always_soft_fails"
+    assert soft_events[0].payload["node"] == "sales"
