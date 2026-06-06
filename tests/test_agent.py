@@ -97,7 +97,7 @@ def test_remember_and_recall_are_noops_without_memory():
 
 def test_emit_and_sense_use_stigma_when_wired():
     mem = Mycelium()
-    stig = Stigma(mem)
+    stig = Stigma(mem, half_life=1e9)
     tree = Tree("HQ")
     node = tree.spawn(tree.root, "scout")
     agent = Agent(node, MockBrain(replies=["x"]), signals=stig)
