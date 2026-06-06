@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/ormica.svg)](https://pypi.org/project/ormica/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 361 passing](https://img.shields.io/badge/tests-361%20passing-success.svg)]()
+[![Tests: 362 passing](https://img.shields.io/badge/tests-361%20passing-success.svg)]()
 [![Status: v0.1](https://img.shields.io/badge/status-v0.1-orange.svg)]()
 [![Concept: Computational Stigmergy](https://img.shields.io/badge/concept-computational%20stigmergy-7a4cff.svg)]()
 
@@ -24,55 +24,11 @@ Ormica is an **open-source coordination framework** for building agentic systems
 
 ## 🗺️ The Living Colony
 
-```mermaid
-flowchart TB
-    R(("🐜<br/><b>ROOT</b>"))
-    OPS(("🐜<br/><b>OPS</b>"))
-    SAL(("🐜<br/><b>SALES</b>"))
-    FIN(("🐜<br/><b>FIN</b>"))
-    S["🐜<br/>scout"]
-    H["🐜<br/>hunter"]
-    A["🐜<br/>analyst"]
-    D["pruned"]
+<div align="center">
+  <img src="docs/diagrams/02-living-colony.png" alt="The Living Colony — root, departments, workers, signal trails" width="820">
+</div>
 
-    R --> OPS
-    R --> SAL
-    R --> FIN
-    OPS --> S
-    SAL --> H
-    FIN --> A
-    SAL -. "prune" .-> D
-
-    S -. "① hot_lead ↑0.8" .-> H
-    H -. "② deal_closed ↑↑2.4" .-> FIN
-    FIN -. "③ cash_signal ↑0.6" .-> R
-
-    classDef root   fill:#2d2418,stroke:#d4a04a,stroke-width:3px,color:#f0c068
-    classDef caste  fill:#241e15,stroke:#a07d3a,stroke-width:2px,color:#d4a04a
-    classDef worker fill:#1f1a13,stroke:#6b5538,stroke-width:1.5px,color:#b8a78d
-    classDef dead   fill:#1a1410,stroke:#3d3528,stroke-width:1px,color:#5c4538
-
-    class R root
-    class OPS,SAL,FIN caste
-    class S,H,A worker
-    class D dead
-
-    %% Spawn arrows — muted earth tones
-    linkStyle 0,1,2 stroke:#8c6b30,stroke-width:2px
-    linkStyle 3,4,5 stroke:#6b5538,stroke-width:1.5px
-    linkStyle 6 stroke:#3d3528,stroke-width:1px
-
-    %% Pheromone trails — single amber accent, intensity = brightness/thickness
-    linkStyle 7 stroke:#a07d3a,stroke-width:1.5px,color:#a07d3a
-    linkStyle 8 stroke:#f0c068,stroke-width:3px,color:#f0c068
-    linkStyle 9 stroke:#d4a04a,stroke-width:2px,color:#d4a04a
-```
-
-<sub>**Every node is an ant.** Solid arrows = spawn hierarchy. Dashed amber arrows = pheromone trails. ① **scout** senses a hot lead and signals **hunter** → ② **hunter** closes the deal and signals **finance** → ③ **finance** reports cash back to **root**. One sensing pathway, full closed loop, decay-prunes the dead branch. *Brightness = signal intensity. Thickness = reinforcement count.*</sub>
-
-**Solid arrows** = the spawn hierarchy. Every node has a parent. Every spawn was approved.
-**Dashed trails** = stigmergic signals — pheromone trails, with intensity. Strong trails dominate, weak ones decay, dead branches are pruned.
-**You stay at the root.** The colony grows beneath you.
+Every node is an ant. **Solid arrows** are the spawn hierarchy — every node has a parent, every spawn was approved. **Dashed amber arrows** are stigmergic signals: ① a scout senses a hot lead → hunter, ② hunter closes the deal → finance, ③ finance reports cash → root. *Brightness encodes signal intensity; thickness encodes reinforcement count.* You stay at the root; the colony grows beneath you.
 
 ---
 
@@ -185,95 +141,31 @@ Five lines from "no colony" to "running, signal-driven, governed, audited."
 
 ---
 
-## 📡 How the Colony Behaves — Three Living Diagrams
+## 📡 How the Colony Behaves
 
 ### 1. The Permission Chain — *why growth is bounded*
 
-```mermaid
-%%{init: {'theme':'base','themeVariables':{
-  'background':'#14110d',
-  'primaryColor':'#241e15','primaryBorderColor':'#a07d3a','primaryTextColor':'#d4a04a',
-  'lineColor':'#8c6b30','secondaryColor':'#2d2418','tertiaryColor':'#1f1a13',
-  'actorBkg':'#241e15','actorBorder':'#a07d3a','actorTextColor':'#d4a04a',
-  'signalColor':'#a07d3a','signalTextColor':'#d4a04a',
-  'noteBkgColor':'#1f1a13','noteBorderColor':'#6b5538','noteTextColor':'#b8a78d',
-  'sequenceNumberColor':'#f0c068','labelBoxBkgColor':'#241e15','labelBoxBorderColor':'#a07d3a'
-}}}%%
-sequenceDiagram
-    autonumber
-    participant W as 🐜 sub-agent
-    participant P as 🐜 parent
-    participant D as 🐜 dept lead
-    participant R as 🐜 ROOT
+<div align="center">
+  <img src="docs/diagrams/06-permission-chain.png" alt="Permission chain sequence — sub-agent → parent → ConstitutionPolicy → dept lead → root" width="900">
+</div>
 
-    W->>P: "Spawn a sub-worker?"
-    Note over P: assess risk
-    rect rgba(212, 160, 74, 0.08)
-    Note over P,R: risk = ROOT → escalate
-    P->>D: forward request
-    D->>R: forward request
-    Note right of R: approve / deny
-    R-->>D: approved
-    D-->>P: forwarded
-    P-->>W: spawn proceeds
-    end
-```
-
-Three risk levels: **AUTO** · **CHAIN** · **ROOT**. Configure per role:
-`RoleRisk({"finance": ROOT, "scout": AUTO})`. See [docs/architecture/01-hierarchy.md](./docs/architecture/01-hierarchy.md).
+A spawn request runs through `ConstitutionPolicy.allow(parent, child_name)` before any node is created. If a hard `Rule(stage="spawn")` fails, `SpawnDenied` is raised at the substrate level — no prompt-engineering required. The inner `SpawnPolicy` then handles risk: **AUTO** (parent alone), **CHAIN** (N ancestors confirm), **ROOT** (only the human owner can authorize). Configure per role with `RoleRisk({"finance": ROOT, "scout": AUTO})`. See [docs/architecture/01-hierarchy.md](./docs/architecture/01-hierarchy.md).
 
 ### 2. The Pheromone Field — *coordination without chat*
 
-```mermaid
-flowchart LR
-    A([🐜<br/>ant-α]) -->|"emit · 1.0"| F
-    B([🐜<br/>ant-β]) -->|"+1.0"| F
-    C([🐜<br/>ant-γ]) -->|"+1.0"| F
-    F[("trail<br/><b>strength 3.0</b><br/><i>mycelium</i>")]
-    F -->|"decay · half-life"| F
-    F -->|"sense ▸ follow"| D([🐜<br/>ant-δ])
+<div align="center">
+  <img src="docs/diagrams/07-pheromone-field.png" alt="Pheromone field — multiple ants emit and reinforce; a single field decays lazily; another ant senses" width="900">
+</div>
 
-    classDef ant   fill:#1f1a13,stroke:#6b5538,stroke-width:1.5px,color:#b8a78d
-    classDef field fill:#2d2418,stroke:#f0c068,stroke-width:3px,color:#f0c068
-    class A,B,C,D ant
-    class F field
-
-    linkStyle 0,1,2 stroke:#a07d3a,stroke-width:2px,color:#a07d3a
-    linkStyle 3 stroke:#6b5538,stroke-width:1px,color:#8c7a60
-    linkStyle 4 stroke:#d4a04a,stroke-width:2.5px,color:#d4a04a
-```
-
-Reinforced trails dominate. Weak trails evaporate. **Persistence is automatic** — restart the process and the field is still there (if you used a persistent backend).
+Three ants `emit` and `reinforce` a topic; a fourth `sense`s the resulting trail. Decay is **lazy** — `strength_at(now) = strength × 0.5^((now − last_touch) / half_life)`, computed on read, never persisted as a mutation. Reinforced trails dominate; weak trails fall below the floor and are pruned by `stigma.prune()`. The field survives process restarts when Mycelium uses `FileBackend` or `SqliteBackend`.
 
 ### 3. Agent State Topology — *every node has a known phase*
 
-```mermaid
-%%{init: {'theme':'base','themeVariables':{
-  'background':'#14110d',
-  'primaryColor':'#241e15','primaryBorderColor':'#a07d3a','primaryTextColor':'#d4a04a',
-  'lineColor':'#8c6b30','secondaryColor':'#2d2418','tertiaryColor':'#1f1a13',
-  'noteBkgColor':'#1f1a13','noteBorderColor':'#6b5538','noteTextColor':'#b8a78d',
-  'labelTextColor':'#d4a04a','labelBoxBkgColor':'#241e15','labelBoxBorderColor':'#6b5538'
-}}}%%
-stateDiagram-v2
-    [*] --> IDLE: spawn approved
-    IDLE --> WORKING: act()
-    WORKING --> DONE: response received
-    WORKING --> FAILED: exception<br/>· budget exhausted<br/>· rule violation
-    DONE --> [*]: task complete
-    FAILED --> [*]: task complete
-    IDLE --> PRUNED: tree.prune()
-    WORKING --> PRUNED: tree.prune()
-    DONE --> PRUNED: tree.prune()
+<div align="center">
+  <img src="docs/diagrams/04-agent-state.png" alt="Agent state machine — IDLE → WORKING → DONE / FAILED, with PRUNED as a parallel terminal" width="900">
+</div>
 
-    note right of WORKING
-        every think() call emits
-        think.recorded → the
-        Thought Trail
-    end note
-```
-
-Every transition emits an event onto the colony's bus. A `TraceObserver` aggregates them per task — that's the **Thought Trail**.
+Every transition emits an event onto the `EventBus`. A subscribed `TraceObserver` aggregates them per `task_id` into a `Trace` — that's the **Thought Trail**, queryable later via `org.trace_for(task_id)`.
 
 ---
 
@@ -350,7 +242,73 @@ docs/                                # the onboarding map
 └── guides/                           writing colonies, tools, rules, traces…
 ```
 
-`tests/` — **361 tests · ~650ms · no SDK deps required for CI.**
+`tests/` — **362 tests · ~650ms · no SDK deps required for CI.**
+
+---
+
+## 🏗️ Architecture — under the hood
+
+Six diagrams covering the engine's internals. Click any thumbnail for the full-resolution image.
+
+### System architecture
+
+How `Ormica` wires the pillars, agent layer, runtime, brain seam, and observability into one object. Use this as the import map when navigating the codebase.
+
+<div align="center">
+  <a href="docs/diagrams/01-system-architecture.png">
+    <img src="docs/diagrams/01-system-architecture.png" alt="System architecture — facade, runtime, agent, five pillars, brain, colony, observe" width="880">
+  </a>
+</div>
+
+### Task execution lifecycle
+
+End-to-end path of a single `org.run()` call: queue → priority sort → target node → brain selection → `Agent.act` → `brain.think` → `Response` → side effects on the `EventBus` and `Mycelium` → `RunResult`. One LLM call per task; same-priority tasks fan out concurrently in `org.arun()` via `asyncio.gather`.
+
+<div align="center">
+  <a href="docs/diagrams/03-task-lifecycle.png">
+    <img src="docs/diagrams/03-task-lifecycle.png" alt="Task execution lifecycle — inputs, TaskRunner, Agent.act, EventBus side effects, RunResult" width="900">
+  </a>
+</div>
+
+### Tool-use loop (`Agent.act_with_tools`)
+
+The ReAct iteration: `compose system prompt → brain.think → execute tool calls → append results → loop` until the model returns text or `max_iterations` is exceeded (`ToolLoopExceeded`). Every iteration emits `think.recorded` onto the bus.
+
+<div align="center">
+  <a href="docs/diagrams/05-tool-loop.png">
+    <img src="docs/diagrams/05-tool-loop.png" alt="Tool-use loop — Agent.act_with_tools iteration with brain.think, tool dispatch, history append" width="720">
+  </a>
+</div>
+
+### Persistence stack
+
+`Mycelium` is the developer API surface; underneath, one of three `Backend` implementations decides what survives a restart. `Stigma` is layered on top of `Mycelium` so signals get persistence for free.
+
+<div align="center">
+  <a href="docs/diagrams/08-persistence-stack.png">
+    <img src="docs/diagrams/08-persistence-stack.png" alt="Persistence stack — Developer API, Mycelium, Stigma, three pluggable backends" width="900">
+  </a>
+</div>
+
+### The Thought Trail
+
+Every reasoning step (`RUN_STARTED`, `TASK_STARTED`, `think.recorded`, `TASK_DONE`, `NODE_PRUNED`, …) is published on the `EventBus`. A `TraceObserver` indexes them by `task_id` and writes the resulting `Trace` to `mycelium['traces/{task_id}']` at task completion. The black-box problem becomes a query.
+
+<div align="center">
+  <a href="docs/diagrams/09-thought-trail.png">
+    <img src="docs/diagrams/09-thought-trail.png" alt="Observability — sources publish events to EventBus; TraceObserver writes traces to Mycelium; org.trace_for retrieves" width="900">
+  </a>
+</div>
+
+### Brain layer topology
+
+The `Brain` protocol has three native adapters (Claude, Gemini, GPT) plus one `UniversalBrain` that fronts any OpenAI-compatible endpoint. The five provider helpers (`ollama_brain`, `openrouter_brain`, `groq_brain`, `together_brain`, `deepseek_brain`) are one-liners over `UniversalBrain` with the right `base_url` baked in. `MockBrain` implements the same protocol with scripted replies for offline tests; `Router` dispatches different brains per node.
+
+<div align="center">
+  <a href="docs/diagrams/10-brain-topology.png">
+    <img src="docs/diagrams/10-brain-topology.png" alt="Brain layer topology — Brain protocol, native adapters, UniversalBrain, provider shortcuts, MockBrain, Router" width="900">
+  </a>
+</div>
 
 ---
 
@@ -401,7 +359,7 @@ The colony is young; new contributors shape its character.
 ### 🧪 Before you push
 
 ```bash
-pytest              # 361 tests, ~650ms, all green
+pytest              # 362 tests, ~650ms, all green
 ruff check .        # lint clean
 ```
 
