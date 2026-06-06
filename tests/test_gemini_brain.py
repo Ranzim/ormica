@@ -109,10 +109,13 @@ def test_assistant_role_becomes_model_role():
     assert contents[2]["role"] == "user"
 
 
-def test_system_prompt_becomes_top_level_system_instruction():
+def test_system_prompt_prepended_as_leading_user_message():
     brain, fake = _brain()
     brain.think("hi", system="be terse")
-    assert fake.calls[0]["system_instruction"] == "be terse"
+    contents = fake.calls[0]["contents"]
+    assert contents[0] == {"role": "user", "parts": [{"text": "be terse"}]}
+    assert contents[1] == {"role": "user", "parts": [{"text": "hi"}]}
+    assert "system_instruction" not in fake.calls[0]
 
 
 def test_system_omitted_when_none_or_empty():
@@ -121,6 +124,7 @@ def test_system_omitted_when_none_or_empty():
     brain.think("hi", system="")
     for call in fake.calls:
         assert "system_instruction" not in call
+        assert call["contents"] == [{"role": "user", "parts": [{"text": "hi"}]}]
 
 
 def test_max_tokens_in_generation_config():
@@ -290,6 +294,9 @@ async def test_async_gemini_roundtrip():
     assert resp.content == "async gemini"
     assert resp.tokens_used == 4
     call = fake.calls[0]
-    assert call["system_instruction"] == "be brief"
+    assert "system_instruction" not in call
     assert call["generation_config"] == {"max_output_tokens": 128}
-    assert call["contents"] == [{"role": "user", "parts": [{"text": "hi"}]}]
+    assert call["contents"] == [
+        {"role": "user", "parts": [{"text": "be brief"}]},
+        {"role": "user", "parts": [{"text": "hi"}]},
+    ]

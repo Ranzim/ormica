@@ -187,12 +187,13 @@ class GeminiBrain:
         max_tokens: int = 1024,
         tools: Optional[list[Tool]] = None,
     ) -> Response:
+        contents = _gemini_contents(prompt)
+        if system:
+            contents = [{"role": "user", "parts": [{"text": system}]}] + contents
         kwargs: dict[str, Any] = {
-            "contents": _gemini_contents(prompt),
+            "contents": contents,
             "generation_config": {"max_output_tokens": max_tokens},
         }
-        if system:
-            kwargs["system_instruction"] = system
         gemini_tools = _tools_to_gemini(tools)
         if gemini_tools:
             kwargs["tools"] = gemini_tools
@@ -235,12 +236,13 @@ class AsyncGeminiBrain:
         max_tokens: int = 1024,
         tools: Optional[list[Tool]] = None,
     ) -> Response:
+        contents = _gemini_contents(prompt)
+        if system:
+            contents = [{"role": "user", "parts": [{"text": system}]}] + contents
         kwargs: dict[str, Any] = {
-            "contents": _gemini_contents(prompt),
+            "contents": contents,
             "generation_config": {"max_output_tokens": max_tokens},
         }
-        if system:
-            kwargs["system_instruction"] = system
         gemini_tools = _tools_to_gemini(tools)
         if gemini_tools:
             kwargs["tools"] = gemini_tools
