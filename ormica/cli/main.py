@@ -73,9 +73,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     # mycelium under traces/{task_id}. Without persistence configured
     # they survive only for this process, but `ormica trace` can still
     # read them while the same `ormica run` invocation is in scope.
-    from ormica.observe import TraceObserver
+    from ormica.observe import ConsoleObserver, TraceObserver
 
     org.subscribe(TraceObserver(store=org.memory))
+    if not args.quiet:
+        org.subscribe(ConsoleObserver())
 
     for t in config.tasks:
         org.task(t.description, dept=t.dept or t.target, priority=t.priority)
@@ -435,6 +437,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=5,
         help="Max concurrent tasks when --async is set (default 5)",
+    )
+    run.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress the live event ticker (task start/done, soft rule fires)",
     )
     run.set_defaults(func=cmd_run)
 
