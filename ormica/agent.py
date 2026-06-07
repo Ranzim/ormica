@@ -92,11 +92,35 @@ class _AgentBase:
             response=response,
         )
 
+    def _merged_constitution(self, stage: str):
+        """Compose the org Constitution with rules attached to ancestor Nodes.
+
+        Per-node rules cascade down the tree: a rule attached to a Node
+        applies to every think / spawn under that subtree. Rules attached
+        to the root behave like an org-wide Constitution. Returns a fresh
+        :class:`Constitution` carrying just the stage-relevant rules — or
+        an empty one when nothing applies, which is the cheap-skip case.
+        """
+        from .cortex import Constitution
+
+        rules = []
+        if self.constitution is not None:
+            rules.extend(self.constitution.for_stage(stage))
+        for ancestor in self.node.path():
+            rules.extend(r for r in ancestor.rules if r.stage == stage)
+        return Constitution(rules)
+
     def _enforce_constitution(self, prompt: Any) -> None:
-        """Raise :class:`RuleViolation` for hard rules; emit events for soft."""
-        if self.constitution is None:
+        """Raise :class:`RuleViolation` for hard rules; emit events for soft.
+
+        Evaluates the org Constitution **plus** any rules attached to ancestor
+        Nodes (``node.rules``) for ``stage="pre"``. Per-node rules cascade
+        down the tree.
+        """
+        merged = self._merged_constitution("pre")
+        if len(merged) == 0:
             return
-        soft = self.constitution.enforce(
+        soft = merged.enforce(
             {
                 "node": self.node,
                 "role": self.node.role,
@@ -115,11 +139,13 @@ class _AgentBase:
         Runs after a successful ``brain.think`` with the response available. For
         ``act_with_tools`` this fires only on the final (text) response, not on
         intermediate tool-use responses — the rule's view of "what the agent did"
-        should be the user-visible answer.
+        should be the user-visible answer. Composes the org Constitution with
+        ancestor-attached rules the same way pre-stage does.
         """
-        if self.constitution is None:
+        merged = self._merged_constitution("post")
+        if len(merged) == 0:
             return
-        soft = self.constitution.enforce(
+        soft = merged.enforce(
             {
                 "node": self.node,
                 "role": self.node.role,

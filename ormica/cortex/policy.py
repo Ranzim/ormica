@@ -44,7 +44,16 @@ class ConstitutionPolicy:
             "role": role,
             "task_text": task,
         }
-        violations = self.constitution.check(context, stage="spawn")
+        violations = list(self.constitution.check(context, stage="spawn"))
+        # Per-node spawn rules cascade — anything attached to the parent or
+        # any of its ancestors applies to this spawn attempt.
+        for ancestor in parent.path():
+            for rule in ancestor.rules:
+                if rule.stage != "spawn":
+                    continue
+                v = rule.evaluate(context)
+                if v is not None:
+                    violations.append(v)
         if any(v.rule.severity == "hard" for v in violations):
             return False
         if self.inner is not None:

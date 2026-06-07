@@ -36,6 +36,11 @@ class Node:
     children: list["Node"] = field(default_factory=list, repr=False, compare=False)
     state: NodeState = NodeState.IDLE
     meta: dict = field(default_factory=dict, repr=False, compare=False)
+    # Per-node Constitution rules. These cascade down: a rule attached to this
+    # node applies to every think / spawn under this node's subtree. Rules
+    # attached to the root behave like an org-wide Constitution. List is
+    # untyped to avoid a circular dependency on cortex.Rule.
+    rules: list = field(default_factory=list, repr=False, compare=False)
 
     @property
     def depth(self) -> int:
