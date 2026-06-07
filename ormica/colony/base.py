@@ -32,6 +32,11 @@ class AgentTemplate:
     # Stigma topic prefixes this template's agent reads into its system
     # prompt at think time. Empty tuple = no sensing (back-compat).
     sense_prefixes: ClassVar[tuple] = ()
+    # Static stigma emits: each entry is (topic, strength) — reinforced
+    # on every task finalize regardless of LLM behavior. Lets a colony
+    # author declare a domain-meaningful topic vocabulary without writing
+    # a custom Agent. Empty tuple = no static emits (back-compat).
+    emits: ClassVar[tuple] = ()
 
     @classmethod
     def plant(
@@ -54,6 +59,9 @@ class AgentTemplate:
             node.rules.extend(cls.rules)
         if cls.sense_prefixes:
             node.meta["sense_prefixes"] = list(cls.sense_prefixes)
+        if cls.emits:
+            # Store as list-of-lists for JSON / yaml round-trip cleanliness.
+            node.meta["emits"] = [list(pair) for pair in cls.emits]
         node.meta["template"] = cls.__name__
         return node
 

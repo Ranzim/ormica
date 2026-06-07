@@ -147,6 +147,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
     sense_prefixes = _parse_sense_prefixes(
         spec.get("sense_prefixes"), path=path
     )
+    emits = _parse_emits(spec.get("emits"), path=path)
 
     return type(
         _classname_for(base_name) + "Agent",
@@ -158,6 +159,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
             "system_prompt": spec.get("system_prompt", ""),
             "rules": rules,
             "sense_prefixes": sense_prefixes,
+            "emits": emits,
         },
     )
 
@@ -199,6 +201,88 @@ def _normalize_one(item: Any, *, path: Path) -> str:
         f"colony YAML at {path}: each sense_prefixes entry must be a "
         f"string, got {item!r}"
     )
+
+
+_DEFAULT_EMIT_STRENGTH = 0.5
+
+
+def _parse_emits(raw: Any, *, path: Path) -> tuple[tuple[str, float], ...]:
+    """Normalize an emits: spec to a tuple of ``(topic, strength)`` pairs.
+
+    Accepts:
+        emits:
+          - "trending:weekly-shifts"           # bare string → default 0.5
+          - {topic: "ship-pressure", strength: 1.5}
+          - {trending: 2.0}                     # one-key shorthand: topic=key, strength=value
+          - trending:                           # parsed by yaml as {trending: None} — strength defaults
+
+    Why three forms: the bare string is the common case; the explicit
+    {topic, strength} form is the precise one; the one-key shorthand
+    matches how rules: are spelled and is the most compact when you
+    have a known strength.
+    """
+    if raw is None or raw == "":
+        return ()
+    if not isinstance(raw, (list, tuple)):
+        raise ValueError(
+            f"colony YAML at {path}: 'emits' must be a list, "
+            f"got {type(raw).__name__}"
+        )
+    out: list[tuple[str, float]] = []
+    for item in raw:
+        out.append(_normalize_emit(item, path=path))
+    return tuple(out)
+
+
+def _normalize_emit(item: Any, *, path: Path) -> tuple[str, float]:
+    if isinstance(item, str):
+        if not item:
+            raise ValueError(
+                f"colony YAML at {path}: emit topic cannot be empty"
+            )
+        return (item, _DEFAULT_EMIT_STRENGTH)
+    if isinstance(item, dict):
+        # Explicit form: {topic: "foo", strength: 1.0}
+        if "topic" in item:
+            topic = item["topic"]
+            if not isinstance(topic, str) or not topic:
+                raise ValueError(
+                    f"colony YAML at {path}: emit 'topic' must be a non-empty string, "
+                    f"got {topic!r}"
+                )
+            strength = item.get("strength", _DEFAULT_EMIT_STRENGTH)
+            return (topic, _validate_strength(strength, path=path, topic=topic))
+        # Single-key shorthand: {trending: 2.0} or {trending: None}
+        if len(item) == 1:
+            key, value = next(iter(item.items()))
+            if not isinstance(key, str) or not key:
+                raise ValueError(
+                    f"colony YAML at {path}: emit topic must be a non-empty string, "
+                    f"got key={key!r}"
+                )
+            if value is None:
+                return (key, _DEFAULT_EMIT_STRENGTH)
+            return (key, _validate_strength(value, path=path, topic=key))
+    raise ValueError(
+        f"colony YAML at {path}: each emits entry must be a string or mapping, "
+        f"got {item!r}"
+    )
+
+
+def _validate_strength(value: Any, *, path: Path, topic: str) -> float:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"colony YAML at {path}: emit strength for {topic!r} must be a "
+            f"number, got {value!r}"
+        ) from None
+    if v <= 0:
+        raise ValueError(
+            f"colony YAML at {path}: emit strength for {topic!r} must be > 0, "
+            f"got {v}"
+        )
+    return v
 
 
 def _classname_for(name: str) -> str:

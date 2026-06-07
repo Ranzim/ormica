@@ -48,12 +48,20 @@ templates:
               - name: ideation
                 role: ideation-lead
                 task: Generate hook ideas from trending sounds and audience asks.
-                # Ideation watches what content topics are currently hot in
-                # the colony — biases hook ideas toward areas with momentum.
-                sense_prefixes: ["topic:"]
+                # Ideation watches what's trending AND topics that are hot
+                # in the colony — biases hook ideas toward momentum.
+                sense_prefixes:
+                  - "trending:"
+                  - "topic:"
+                # Marks that a brief was drafted — editing watches this.
+                emits:
+                  - {topic: "brief:drafted", strength: 1.0}
               - name: editing
                 role: editor
                 task: Cut and caption short-form clips to the brand template.
+                # Editing reads brief signals — when ideation has drafted
+                # something fresh, editing knows to prioritize it.
+                sense_prefixes: ["brief:"]
                 rules:
                   # Brand-safe captions — every cut goes through this rule.
                   - banned_words: [guaranteed, miracle, cure, investment]

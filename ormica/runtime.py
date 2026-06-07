@@ -90,20 +90,35 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
 
 
 def _maybe_auto_emit(org: "Ormica", task: Task, node: Node) -> None:
-    """Reinforce activity / topic trails after a task finalizes.
+    """Reinforce stigma trails after a task finalizes.
 
-    No-op unless ``org.signals_auto_emit`` is true. ``reinforce`` (not
-    ``emit``) so repeated work on the same node or target builds a real
-    trail instead of clobbering itself at strength=0.5 each time. Wrapped
-    in a swallow because a stigma write failure must never turn a
-    successful task into a failed one.
+    Two layers, both swallow exceptions so a stigma write failure never
+    turns a successful task into a failed one:
+
+    1. Org-wide auto-emit (gated on ``org.signals_auto_emit``):
+       reinforces ``activity:<node.id>`` and ``topic:<task.target>``.
+       Provides a default "what's been busy" signal landscape with no
+       per-node configuration.
+
+    2. Per-node declared emits (always on when present): reads
+       ``node.meta["emits"]`` — a list of ``(topic, strength)`` pairs
+       stamped by ``AgentTemplate.plant()`` when a colony template
+       declares ``emits:`` in yaml. Lets a colony author publish a
+       domain-meaningful topic vocabulary (e.g. ``trending:weekly-shifts``)
+       without writing a custom Agent.
+
+    ``reinforce`` (not ``emit``) so repeated work accumulates a trail
+    instead of clobbering itself at the declared strength each time.
     """
-    if not getattr(org, "signals_auto_emit", False):
-        return
     try:
-        org.signals.reinforce(f"activity:{node.id}", amount=0.5, by=node.id)
-        if task.target:
-            org.signals.reinforce(f"topic:{task.target}", amount=0.5, by=node.id)
+        if getattr(org, "signals_auto_emit", False):
+            org.signals.reinforce(f"activity:{node.id}", amount=0.5, by=node.id)
+            if task.target:
+                org.signals.reinforce(
+                    f"topic:{task.target}", amount=0.5, by=node.id
+                )
+        for topic, strength in node.meta.get("emits", ()):
+            org.signals.reinforce(topic, amount=float(strength), by=node.id)
     except Exception:
         pass
 
