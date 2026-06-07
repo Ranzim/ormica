@@ -17,6 +17,21 @@ class BrainConfig:
 
 @dataclass
 class TaskConfig:
+    """One task line in ``ormica.yaml``.
+
+    ``dept`` and ``target`` are **aliases** — both route the task to a node
+    by name (see :func:`ormica.cli.main.cmd_run` and ``runtime.Task.target``).
+    If both are set, ``dept`` wins (see ``cli/main.py``: ``dept=t.dept or t.target``).
+    When both are empty, the task lands at the org root.
+
+    Pick whichever name reads better for you:
+
+    - ``dept: sales`` reads naturally for org-chart-style colonies
+      (the two built-in colonies — ``business``, ``supply_chain`` — both expose
+      department-named nodes).
+    - ``target: sales`` reads more generically for "any named node in the tree."
+    """
+
     description: str
     dept: str = ""
     target: str = ""
