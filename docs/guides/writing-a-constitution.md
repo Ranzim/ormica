@@ -178,6 +178,30 @@ def test_max_spend_blocks_when_over_limit():
     assert rule.evaluate({"budget": FakeBudget()}) is not None  # → Violation
 ```
 
+## The standard rule library
+
+Most projects need the same primitives. `ormica.cortex.rules` ships them as one-liner factories so you don't re-implement them:
+
+```python
+from ormica.cortex import Constitution
+from ormica.cortex.rules import (
+    max_depth, block_role, no_child_name, unique_role_in_subtree,    # spawn
+    max_tokens, block_prompt_pattern, min_task_description,           # pre
+    banned_words, max_response_tokens, min_response_length, require_json,  # post
+)
+
+constitution = Constitution([
+    max_depth(4),                                # cap tree depth
+    block_role("finance"),                       # finance can't spawn
+    max_tokens(100_000),                         # org-wide budget cap
+    block_prompt_pattern("internal-only"),       # block sensitive keywords
+    banned_words({"secret", "confidential"}),    # response content guard
+    require_json(),                              # tool-output schema enforcement
+])
+```
+
+Each factory returns a fully-formed `Rule` with a descriptive `name` and `description`, so violations are self-explanatory in `RuleViolation`. Roll your own `Rule` for the cases these don't cover — they're conveniences, not a closed set.
+
 ## Related
 
 - [Pillar 3 — Governance](../architecture/04-governance.md) — the architecture.
