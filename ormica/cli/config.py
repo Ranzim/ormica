@@ -42,12 +42,18 @@ class TaskConfig:
 class ConstitutionConfig:
     """Org-wide rules declared in ``ormica.yaml``.
 
-    Each entry in ``rules`` is a declarative spec consumed by
-    :func:`ormica.cortex.loader.build_rule` — either a bare factory name
-    (string) or a single-key mapping with the factory's positional arg.
+    ``rules`` — declarative specs consumed by
+    :func:`ormica.cortex.loader.build_rule` (bare factory name or
+    single-key mapping with the factory's positional arg).
+
+    ``packs`` — names or paths of pre-built rule bundles
+    (see :mod:`ormica.cortex.packs`). Pack rules are expanded first,
+    then inline ``rules`` are appended — so a later inline rule can
+    augment a pack but cannot remove rules from one.
     """
 
     rules: list = field(default_factory=list)
+    packs: list = field(default_factory=list)
 
 
 @dataclass

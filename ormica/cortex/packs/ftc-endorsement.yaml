@@ -1,0 +1,26 @@
+# FTC Endorsement pack — phrases that draw FTC scrutiny for endorsements,
+# testimonials, and income-related claims. Posture aligned with the
+# FTC Endorsement Guides (16 CFR Part 255) and the FTC's "Made in USA"
+# and income-claim guidance.
+#
+# NOTE: banned_words is case-insensitive *substring* match, not a stem
+# match — adding "guaranteed" does NOT catch "guarantees" or
+# "guaranteeing". List both forms when both matter. (See v-next finding.)
+#
+# Use cases: creator / influencer captions, brand-deal copy, ad copy.
+
+name: ftc-endorsement
+description: FTC-style banned phrases for endorsements and income claims.
+source: https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking
+
+rules:
+  - banned_words:
+      - guaranteed          # income / result guarantees
+      - guarantee           # ditto, stem variant
+      - miracle             # safety / efficacy puffery
+      - cure                # medical claims
+      - clinically-proven   # unsupported clinical claims
+      - fda-approved        # unauthorized regulatory claims
+      - doctor-recommended  # unsubstantiated expert endorsement
+      - risk-free           # income / investment puffery
+      - investment opportunity  # securities framing

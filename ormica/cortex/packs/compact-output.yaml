@@ -1,0 +1,15 @@
+# Compact Output pack — keep responses tight and non-degenerate.
+# Useful default for utility nodes that should answer in 1-3 paragraphs
+# (status reports, triage notes, single-line decisions). Pairs well
+# with any compliance pack since it applies independently.
+#
+# Caps both directions:
+#   - max_response_tokens: prevent runaway essays
+#   - min_response_length: reject empty or one-word brushoffs
+
+name: compact-output
+description: Cap response length above and below — no runaway essays, no one-word answers.
+
+rules:
+  - max_response_tokens: 800
+  - min_response_length: 20

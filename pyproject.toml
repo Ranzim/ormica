@@ -89,7 +89,7 @@ include = ["ormica*"]
 exclude = ["tests*", "docs*", "examples*"]
 
 [tool.setuptools.package-data]
-ormica = ["py.typed"]
+ormica = ["py.typed", "cortex/packs/*.yaml"]
 
 [tool.ruff]
 line-length = 100

@@ -1,0 +1,27 @@
+# Health Claims pack — banned phrases that constitute unauthorized
+# health, medical, or therapeutic claims. Posture aligned with FDA
+# rules on unapproved drugs and structure/function claims for
+# supplements + cosmetics (21 CFR 101.93, 201.5).
+#
+# Use cases: restaurant menus, cosmetics + wellness brand copy,
+# supplement marketing, food packaging.
+
+name: health-claims
+description: Reject unauthorized health, medical, or therapeutic claims.
+source: https://www.fda.gov/food/nutrition-food-labeling-and-critical-foods/structurefunction-claims
+
+rules:
+  - banned_words:
+      - cure                          # treats disease (drug claim)
+      - cures
+      - prevents disease              # drug claim
+      - prevents-disease
+      - clinically-proven             # unsupported clinical claim
+      - clinically proven
+      - treats                        # explicit drug-claim verb
+      - heals                         # therapeutic claim
+      - weight-loss-guaranteed        # weight-loss puffery
+      - weight loss guaranteed
+      - miracle                       # therapeutic puffery
+      - fda-approved                  # unauthorized regulatory claim
+      - fda approved

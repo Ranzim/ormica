@@ -363,10 +363,20 @@ def _build_org(config: OrmicaConfig):
     from ormica import Ormica
 
     constitution = None
-    if config.constitution is not None and config.constitution.rules:
+    if config.constitution is not None and (
+        config.constitution.rules or config.constitution.packs
+    ):
         from ormica.cortex.loader import build_constitution
+        from ormica.cortex.packs import load_pack
 
-        constitution = build_constitution(config.constitution.rules)
+        # Packs first, inline rules appended — inline can layer on top of
+        # a pack (e.g. add max_tokens to an FTC pack) but cannot remove
+        # a pack's rules. That's the intended composition direction.
+        all_specs: list = []
+        for pack_ref in config.constitution.packs:
+            all_specs.extend(load_pack(pack_ref))
+        all_specs.extend(config.constitution.rules)
+        constitution = build_constitution(all_specs)
 
     stigma_cfg = config.stigma or StigmaConfig()
     org = Ormica(
