@@ -2,6 +2,8 @@
 
 Get a working Ormica colony in 5 minutes.
 
+> **First time here?** The plain-English version of this page lives at [`onboarding.md`](./onboarding.md). It walks through the same path but stops to explain each step. Pick whichever fits your style.
+
 ## 1. Install
 
 ```bash
@@ -9,7 +11,7 @@ git clone https://github.com/Ranzim/ormica.git
 cd ormica
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                            # should report 310 passed
+pytest                            # should report 4xx passed
 ```
 
 Optional provider extras:
