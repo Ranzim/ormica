@@ -164,7 +164,7 @@ def cmd_rules(args: argparse.Namespace) -> int:
 
     nodes_with_rules = [n for n in org if n.rules]
     if nodes_with_rules:
-        print(f"\nper-node rules:")
+        print("\nper-node rules:")
         for node in nodes_with_rules:
             print(f"  {node.name} [{node.role or '-'}]:")
             for rule in node.rules:
