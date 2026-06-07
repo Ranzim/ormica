@@ -25,6 +25,13 @@ from .observer import (
     LogObserver,
     Observer,
 )
+from .export import (
+    trace_to_dict,
+    trace_to_json,
+    traces_to_csv_detail,
+    traces_to_csv_summary,
+    traces_to_jsonl,
+)
 from .trace import THINK_RECORDED, Trace, TraceEntry, TraceObserver, emit_think_event
 
 __all__ = [
@@ -46,4 +53,9 @@ __all__ = [
     "TraceEntry",
     "TraceObserver",
     "emit_think_event",
+    "trace_to_dict",
+    "trace_to_json",
+    "traces_to_csv_detail",
+    "traces_to_csv_summary",
+    "traces_to_jsonl",
 ]

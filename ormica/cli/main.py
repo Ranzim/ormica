@@ -253,6 +253,11 @@ def cmd_trace(args: argparse.Namespace) -> int:
         )
         return 1
 
+    if args.format == "json":
+        from ormica.observe import trace_to_json
+        print(trace_to_json(trace))
+        return 0
+
     print(f"task_id:     {trace.task_id}")
     print(f"target:      {trace.target or '(root)'}")
     print(f"description: {trace.description}")
@@ -276,6 +281,56 @@ def cmd_trace(args: argparse.Namespace) -> int:
 
 def _truncate(s: str, n: int) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    """Bulk export every stored Thought Trail as JSONL or CSV."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found.", file=sys.stderr)
+        return 1
+
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+    except Exception as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    # Pull every persisted trace via the trace_for path so backend wrappers
+    # all kick in consistently.
+    task_ids: list[str] = [
+        e.key.split("/", 1)[1]
+        for e in org.memory.all()
+        if e.key.startswith("traces/")
+    ]
+    traces = [t for t in (org.trace_for(tid) for tid in task_ids) if t is not None]
+
+    from ormica.observe import (
+        traces_to_csv_detail,
+        traces_to_csv_summary,
+        traces_to_jsonl,
+    )
+
+    if args.format == "json":
+        body = traces_to_jsonl(traces)
+    elif args.mode == "detail":
+        body = traces_to_csv_detail(traces)
+    else:
+        body = traces_to_csv_summary(traces)
+
+    if args.out and args.out != "-":
+        Path(args.out).write_text(body)
+        print(
+            f"wrote {len(traces)} trace(s) to {args.out} "
+            f"({args.format}{'/' + args.mode if args.format == 'csv' else ''})",
+            file=sys.stderr,
+        )
+    else:
+        sys.stdout.write(body)
+        if not body.endswith("\n"):
+            sys.stdout.write("\n")
+    return 0
 
 
 # --- helpers ------------------------------------------------------------------
@@ -510,7 +565,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     trace.add_argument("task_id")
     trace.add_argument("--config", default=str(DEFAULT_CONFIG))
+    trace.add_argument(
+        "--format",
+        default="text",
+        choices=["text", "json"],
+        help="Output format (default text)",
+    )
     trace.set_defaults(func=cmd_trace)
+
+    export = sub.add_parser(
+        "export",
+        help="Bulk export every stored Thought Trail as JSONL or CSV",
+    )
+    export.add_argument("--config", default=str(DEFAULT_CONFIG))
+    export.add_argument(
+        "--format",
+        default="json",
+        choices=["json", "csv"],
+        help="json → JSON Lines (one trace per line); csv → CSV (see --mode)",
+    )
+    export.add_argument(
+        "--mode",
+        default="summary",
+        choices=["summary", "detail"],
+        help="CSV shape — summary (1 row/task) or detail (1 row/think call). Ignored when --format=json.",
+    )
+    export.add_argument(
+        "--out",
+        default="-",
+        help="Output path, or '-' for stdout (default).",
+    )
+    export.set_defaults(func=cmd_export)
 
     return parser
 
