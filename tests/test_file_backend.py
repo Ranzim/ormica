@@ -209,3 +209,11 @@ def test_ormica_explicit_memory_wins_over_memory_path(tmp_path: Path):
     org = Ormica("Acme", memory=explicit, memory_path=str(tmp_path / "ignored.json"))
     assert org.memory is explicit
     assert not (tmp_path / "ignored.json").exists()
+
+
+def test_memory_path_alone_uses_file_backend(tmp_path: Path):
+    from ormica import Ormica
+
+    file_path = tmp_path / "x.json"
+    org = Ormica("Acme", memory_path=str(file_path))
+    assert isinstance(org.memory.backend, FileBackend)
