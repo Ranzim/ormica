@@ -1,0 +1,105 @@
+# Agency — a vertical colony for a creative / marketing agency:
+# accounts (client relationships), creative, strategy, production,
+# and finance.
+#
+# Plant via:
+#   - CLI:    industry: ./examples/colonies/agency.yaml
+#   - Python: load_colony("examples/colonies/agency.yaml", register=True)
+#
+# Confidentiality posture: every output that touches a client name
+# inherits a banned-words rule against leaking competitor or NDA-flagged
+# project codes; new-business pitch outputs are capped to keep them tight.
+
+name: agency
+description: |
+  Independent creative / marketing agency. Account leads own client
+  relationships; creative + strategy + production deliver the work;
+  finance keeps utilization and AR healthy. Tuned for ~15-50 person
+  shops working with 8-20 active clients.
+
+templates:
+  - name: managing-director
+    role: md
+    task: Balance new business, current-client health, capacity, and margin.
+    system_prompt: |
+      You're the managing director of an independent agency. You watch:
+      account health (NPS, scope creep), utilization vs. plan, AR aging,
+      and pitch win-rate. Default to protecting team capacity over
+      taking new work that risks burnout.
+    children:
+
+      # ---- Accounts ---------------------------------------------------
+      - name: accounts
+        role: accounts-head
+        task: Own client relationships, scope, and renewals.
+        rules:
+          # Client confidentiality across every account interaction.
+          - banned_words: [under-nda, project-codename, internal-only, do-not-share-externally]
+        children:
+          - name: account-management
+            role: account-mgmt
+            task: Day-to-day client comms; protect scope; escalate risks.
+          - name: new-business
+            role: new-biz
+            task: Source and pitch new accounts; manage RFP responses.
+            rules:
+              # Pitch responses stay punchy.
+              - max_response_tokens: 1000
+              - min_response_length: 50
+
+      # ---- Creative ---------------------------------------------------
+      - name: creative
+        role: creative-director
+        task: Set creative direction; review and approve all client-facing work.
+        children:
+          - name: copy
+            role: copywriter
+            task: Headlines, body copy, scripts, taglines.
+          - name: design
+            role: designer
+            task: Layouts, brand systems, ad creative, decks.
+          - name: creative-direction
+            role: cd
+            task: Concept + critique; approve work before client review.
+
+      # ---- Strategy ---------------------------------------------------
+      - name: strategy
+        role: strategy-head
+        task: Brand, content, and channel strategy for client work.
+        children:
+          - name: research
+            role: research
+            task: Audience research, competitive landscape, category trends.
+          - name: brand-strategy
+            role: brand-strategist
+            task: Positioning, messaging frameworks, brand architecture.
+          - name: content-strategy
+            role: content-strategist
+            task: Content calendars, channel mix, editorial guidelines.
+
+      # ---- Production -------------------------------------------------
+      - name: production
+        role: production-head
+        task: Plan, staff, and ship client deliverables on time and on budget.
+        children:
+          - name: project-management
+            role: pm
+            task: Timelines, status, risk; weekly client status notes.
+          - name: video-production
+            role: video
+            task: Pre-pro, shoot, edit, post for video deliverables.
+          - name: web-production
+            role: web
+            task: Build microsites and landing pages; QA before launch.
+
+      # ---- Finance ----------------------------------------------------
+      - name: finance
+        role: finance-lead
+        task: Utilization tracking, invoicing, AR aging, margin per account.
+        children:
+          - name: invoicing
+            role: invoicing
+            task: Send retainer + project invoices on schedule.
+          - name: accounts-receivable
+            role: ar
+            task: Chase AR > 45 days; escalate AR > 90 days to MD.

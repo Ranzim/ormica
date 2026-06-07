@@ -1,0 +1,151 @@
+# SaaS Startup — a vertical colony for a B2B SaaS company at the
+# seed / Series-A stage: product, engineering, growth, customer success,
+# finance, and people.
+#
+# Plant via:
+#   - CLI:    industry: ./examples/colonies/saas-startup.yaml
+#   - Python: load_colony("examples/colonies/saas-startup.yaml", register=True)
+#
+# Security posture: engineering subnodes cannot echo credentials in any
+# response (apk_key, password, bearer_token, secret_token). Customer
+# success cannot promise refunds or SLAs that haven't been written down.
+
+name: saas-startup
+description: |
+  B2B SaaS at seed / Series-A scale. Product discovery → roadmap → ship;
+  outbound + inbound growth; CSM-led customer success; finance + people
+  ops. Tuned for a 10-30 person team with one engineering org.
+
+templates:
+  - name: cofounder-office
+    role: cofounder-coordination
+    task: Coordinate weekly across product, engineering, growth, CS, finance, and people.
+    system_prompt: |
+      You are the cofounder coordinator. Watch for: roadmap slippage,
+      sales/engineering capacity mismatches, churn risk in the largest
+      accounts. Default to flagging hard trade-offs, not resolving them
+      unilaterally.
+    children:
+
+      # ---- Product ----------------------------------------------------
+      - name: product
+        role: product-lead
+        task: Run discovery, prioritize roadmap, write specs.
+        children:
+          - name: discovery
+            role: research
+            task: User interviews; synthesize insights into problem statements.
+          - name: design
+            role: design
+            task: Wireframes, prototypes, and design QA before ship.
+          - name: roadmap
+            role: roadmap
+            task: Maintain rolling 6-week roadmap; flag dependencies.
+
+      # ---- Engineering ------------------------------------------------
+      - name: engineering
+        role: eng-lead
+        task: Ship features and keep the system reliable.
+        rules:
+          # Credentials must NEVER appear in any response — cascades to
+          # every engineering subnode.
+          - banned_words: [api_key, password, bearer_token, secret_token, private_key, aws_secret]
+          - max_response_tokens: 2000
+        children:
+          - name: backend
+            role: backend
+            task: API design, data model, background jobs.
+          - name: frontend
+            role: frontend
+            task: Web app — components, state, performance.
+          - name: platform
+            role: platform
+            task: Build / deploy infrastructure, observability, dev tooling.
+          - name: sre
+            role: sre
+            task: Production reliability, incident response, on-call rotation.
+            children:
+              - name: security
+                role: security
+                task: Threat model, vuln triage, dependency hygiene.
+              - name: deploys
+                role: deploys
+                task: Release management, rollbacks, feature flags.
+
+      # ---- Growth -----------------------------------------------------
+      - name: growth
+        role: growth-lead
+        task: Pipeline coverage from content, paid, outbound, and partnerships.
+        children:
+          - name: marketing
+            role: marketing
+            task: Content + brand + paid acquisition.
+            children:
+              - name: content
+                role: content
+                task: Blog posts, technical guides, customer case studies.
+              - name: seo
+                role: seo
+                task: Keyword strategy, technical SEO, backlinks.
+              - name: paid
+                role: paid
+                task: LinkedIn + Google ad spend; CAC reporting weekly.
+          - name: sales
+            role: sales
+            task: Convert pipeline to revenue.
+            children:
+              - name: outbound
+                role: sdr
+                task: SDR motion — prospecting, sequences, meeting booking.
+              - name: inbound
+                role: ae
+                task: AE motion — qualify inbound, demo, close.
+          - name: partnerships
+            role: partnerships
+            task: Integration partners, agencies, co-marketing.
+
+      # ---- Customer Success -------------------------------------------
+      - name: customer-success
+        role: cs-lead
+        task: Onboard, retain, and expand existing customers.
+        rules:
+          # CSMs cannot promise anything that isn't in the published SLA.
+          - banned_words: [guaranteed, uptime-promise, refund-guaranteed, will-not-fail]
+          - min_response_length: 30
+        children:
+          - name: onboarding
+            role: onboarding
+            task: First 30 days — kickoff, milestones, time-to-value.
+          - name: support
+            role: support
+            task: Reactive support tickets across email and in-app chat.
+          - name: csm
+            role: csm
+            task: Quarterly business reviews; renewal + expansion conversations.
+
+      # ---- Finance ----------------------------------------------------
+      - name: finance
+        role: finance-lead
+        task: Runway, ARR reporting, fundraising prep.
+        rules:
+          # No projections without ranges; minimum-length forces detail.
+          - min_response_length: 40
+        children:
+          - name: billing
+            role: billing
+            task: Stripe billing — invoicing, dunning, plan changes.
+          - name: fpa
+            role: fp-and-a
+            task: Monthly burn, ARR, magic number, runway model.
+
+      # ---- People -----------------------------------------------------
+      - name: people
+        role: people-lead
+        task: Hiring, onboarding, comp, and HR ops.
+        children:
+          - name: recruiting
+            role: recruiting
+            task: Source, screen, schedule; track pipeline by role.
+          - name: people-ops
+            role: people-ops
+            task: Onboarding, benefits, comp reviews, offboarding.

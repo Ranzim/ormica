@@ -236,6 +236,30 @@ templates:
         load_colony(yml)
 
 
+# --- bundled vertical colonies -----------------------------------------------
+
+_VERTICALS_DIR = Path(__file__).resolve().parents[1] / "examples" / "colonies"
+
+
+@pytest.mark.parametrize(
+    "vertical",
+    sorted(p.stem for p in _VERTICALS_DIR.glob("*.yaml"))
+    if _VERTICALS_DIR.exists() else [],
+)
+def test_bundled_vertical_loads_and_plants(vertical: str):
+    """Every yaml in examples/colonies/ must load + plant under max_depth=10.
+
+    Cheap contract test: new verticals get caught at PR time if they have
+    yaml syntax errors, unknown rule factories, or trees that overflow
+    a reasonable max_depth.
+    """
+    cls = load_colony(_VERTICALS_DIR / f"{vertical}.yaml")
+    org = Ormica(f"Demo {vertical}", max_depth=10)
+    nodes = cls().plant(org)
+    assert len(nodes) > 0, f"{vertical} planted zero nodes"
+    assert max(n.depth for n in org) <= 10
+
+
 # --- CLI integration ----------------------------------------------------------
 
 

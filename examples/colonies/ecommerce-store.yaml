@@ -1,0 +1,123 @@
+# Ecommerce Store — a vertical colony for a DTC online store (Shopify-style
+# operation): merchandising, marketing, operations, customer experience,
+# and finance.
+#
+# Plant via:
+#   - CLI:    industry: ./examples/colonies/ecommerce-store.yaml
+#   - Python: load_colony("examples/colonies/ecommerce-store.yaml", register=True)
+#
+# Compliance posture: FTC-style banned words cascade from marketing to all
+# campaign channels; customer-experience reps cannot reveal internal SKU
+# / fulfillment-system codes to shoppers.
+
+name: ecommerce-store
+description: |
+  Direct-to-consumer ecommerce — catalog & pricing, paid + lifecycle
+  marketing, inventory & fulfillment ops, customer experience, and
+  finance. Tuned for a single-brand store with ~3-10 person team.
+
+templates:
+  - name: store-office
+    role: chief-of-staff
+    task: Balance growth, margin, and inventory across merchandising, marketing, ops, CX, and finance.
+    system_prompt: |
+      You run a DTC online store. Trade-offs you watch: discount depth
+      vs. margin, paid spend vs. CAC, inventory depth vs. cash. Default
+      to protecting margin and cash position; flag conflicts early.
+    children:
+
+      # ---- Merchandising ----------------------------------------------
+      - name: merchandising
+        role: merch-head
+        task: Own catalog, pricing, and supplier mix.
+        children:
+          - name: catalog
+            role: catalog
+            task: Add new SKUs, write product copy, manage variants.
+          - name: pricing
+            role: pricing
+            task: Set list price, promo windows, and discount depth per SKU.
+            rules:
+              - max_response_tokens: 600
+          - name: suppliers
+            role: supplier-relations
+            task: Manage supplier orders, lead times, MOQs.
+
+      # ---- Marketing --------------------------------------------------
+      - name: marketing
+        role: marketing-lead
+        task: Drive qualified traffic and reactivate existing customers.
+        rules:
+          # FTC posture for every campaign channel below.
+          - banned_words: [guaranteed, miracle, cure, clinically-proven, lose-weight-fast]
+          - max_response_tokens: 1500
+        children:
+          - name: paid-acquisition
+            role: paid-media
+            task: Run Meta + Google campaigns; report blended ROAS weekly.
+            children:
+              - name: meta-ads
+                role: meta-ads
+                task: Manage Meta / Instagram ad sets and creative rotation.
+              - name: google-ads
+                role: google-ads
+                task: Manage Google Shopping + Search campaigns.
+          - name: lifecycle
+            role: email
+            task: Run email + SMS lifecycle flows (welcome, browse-abandon, post-purchase).
+          - name: content-seo
+            role: content-seo
+            task: Publish category guides and product comparison pages for organic search.
+
+      # ---- Operations -------------------------------------------------
+      - name: operations
+        role: ops-lead
+        task: Keep inventory accurate and orders shipping on time.
+        children:
+          - name: inventory
+            role: inventory
+            task: Reconcile stock counts; flag low-stock SKUs for reorder.
+          - name: fulfillment
+            role: fulfillment
+            task: Pick, pack, ship; manage 3PL relationship.
+            children:
+              - name: warehouse
+                role: warehouse
+                task: Floor ops — pick paths, pack stations, replenishment.
+              - name: shipping
+                role: shipping
+                task: Carrier mix, rate shopping, claims for lost packages.
+          - name: returns
+            role: returns
+            task: Process returns; track refund rate by SKU.
+
+      # ---- Customer Experience ----------------------------------------
+      - name: customer-experience
+        role: cx-lead
+        task: Answer customer questions across email, chat, and DMs.
+        rules:
+          # Reps must not paste internal codes into customer-facing replies.
+          - banned_words: [internal-sku, ops-only, do-not-share, warehouse-code]
+          - min_response_length: 25
+        children:
+          - name: support
+            role: support
+            task: Answer order-status, sizing, and returns questions.
+          - name: reviews
+            role: reviews
+            task: Moderate reviews; respond to 1-3 star reviews within 24h.
+
+      # ---- Finance ----------------------------------------------------
+      - name: finance
+        role: finance-lead
+        task: Track cash, margin, and sales tax.
+        children:
+          - name: accounts-payable
+            role: ap
+            task: Pay supplier invoices on terms; flag any over 60 days.
+          - name: sales-tax
+            role: tax
+            task: File sales tax in every nexus state; track threshold breaches.
+          - name: reporting
+            role: reporting
+            task: Weekly P&L snapshot; monthly cash + inventory roll-forward.

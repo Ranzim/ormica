@@ -1,0 +1,121 @@
+# Creator Studio — a vertical colony for a solo or small-team content
+# creator running content production, brand partnerships, community ops,
+# finance, and shoot logistics.
+#
+# Uses nested `children:` blocks (see ormica/colony/yaml_loader.py) so
+# the org is a real tree instead of a flat list. Spawned depth: 0..5.
+#
+# Plant via either:
+#   - CLI:    industry: ./examples/colonies/creator-studio.yaml
+#   - Python: load_colony("examples/colonies/creator-studio.yaml", register=True)
+#             then org.plant("creator-studio")
+#
+# Per-node `rules:` cascade to anything spawned under them — set once at
+# partnerships, every brand-deals / contracts-review subnode inherits it.
+
+name: creator-studio
+description: |
+  Solo or small-team content creator — content production (short-form,
+  long-form, newsletter), brand partnerships with deal flow + contract
+  review, community triage, finance (invoicing + tax), and shoot ops.
+
+templates:
+  - name: creator-office
+    role: chief-of-staff
+    task: Coordinate weekly priorities across content, partnerships, community, finance, and ops.
+    system_prompt: |
+      You are the chief of staff for a content creator's small operation.
+      Surface conflicts between deadlines and capacity. Default to
+      protecting the creator's filming time.
+    children:
+
+      # ---- Content ----------------------------------------------------
+      - name: content
+        role: content-head
+        task: Own the content calendar across short-form, long-form, and newsletter.
+        children:
+          - name: short-form
+            role: shorts-prod
+            task: Produce Reels, Shorts, and TikToks on the weekly schedule.
+            children:
+              - name: ideation
+                role: ideation-lead
+                task: Generate hook ideas from trending sounds and audience asks.
+              - name: editing
+                role: editor
+                task: Cut and caption short-form clips to the brand template.
+                rules:
+                  # Brand-safe captions — every cut goes through this rule.
+                  - banned_words: [guaranteed, miracle, cure, investment]
+          - name: long-form
+            role: youtube-prod
+            task: Plan, script, and ship one 8-15 min YouTube video per week.
+          - name: newsletter
+            role: newsletter
+            task: Draft and send the weekly Friday newsletter.
+
+      # ---- Partnerships -----------------------------------------------
+      - name: partnerships
+        role: brand-lead
+        task: Source, qualify, and close brand deals; protect the creator's voice.
+        rules:
+          # Compliance + brand voice — cascades to brand-deals, contracts-review, affiliate, ugc.
+          - banned_words: [guaranteed, miracle, cure, investment]
+          - max_response_tokens: 1500
+        children:
+          - name: brand-deals
+            role: dealflow
+            task: Maintain the active brand-deal pipeline; qualify inbound asks.
+            children:
+              - name: contracts-review
+                role: contracts
+                task: Flag exclusivity, IP, and morality clauses before signing.
+                system_prompt: |
+                  You review brand-deal contracts. Always flag: exclusivity
+                  windows >90 days, IP transfers, morality clauses, and any
+                  perpetual rights. Never approve without flagging these.
+          - name: affiliate
+            role: affiliate
+            task: Manage affiliate-link programs and FTC disclosure compliance.
+          - name: ugc-licensing
+            role: ugc
+            task: License the creator's content to brands; track usage rights and expiry.
+
+      # ---- Community --------------------------------------------------
+      - name: community
+        role: community-lead
+        task: Triage DMs and comments; surface what the creator needs to see.
+        children:
+          - name: dm-triage
+            role: dm-triage
+            task: Read DMs; escalate verified accounts, agents, and press.
+          - name: comment-mod
+            role: moderation
+            task: Hide spam, escalate threats, surface high-engagement comments.
+
+      # ---- Finance ----------------------------------------------------
+      - name: finance
+        role: finance-lead
+        task: Invoice, track expenses, prep quarterly taxes.
+        rules:
+          # Finance outputs must be concrete — no hand-waving.
+          - min_response_length: 30
+        children:
+          - name: invoicing
+            role: invoicing
+            task: Send and track invoices for closed brand deals.
+          - name: tax-prep
+            role: tax
+            task: Categorize expenses; prep quarterly estimated taxes.
+
+      # ---- Ops --------------------------------------------------------
+      - name: ops
+        role: ops-lead
+        task: Run the shoot calendar and travel logistics.
+        children:
+          - name: shoot-calendar
+            role: scheduling
+            task: Block out shoot days; protect non-shoot focus blocks.
+          - name: travel
+            role: travel
+            task: Book and track travel for campaigns and conferences.

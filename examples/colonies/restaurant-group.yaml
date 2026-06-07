@@ -1,0 +1,135 @@
+# Restaurant Group — a vertical colony for a multi-location restaurant
+# operator: operations across regions, kitchen, front-of-house,
+# marketing, finance, and HR.
+#
+# Plant via:
+#   - CLI:    industry: ./examples/colonies/restaurant-group.yaml
+#   - Python: load_colony("examples/colonies/restaurant-group.yaml", register=True)
+#
+# Safety + compliance posture: food-safety subnodes have a minimum
+# response length (no "looks fine" — must justify); kitchen menu copy
+# and marketing copy both inherit health-claim banned words.
+
+name: restaurant-group
+description: |
+  Multi-location restaurant operator (3-15 locations). Regional ops
+  managers cover groups of restaurants; kitchen owns menu, food safety,
+  and supplier mix; FOH owns service standards, reservations, and events;
+  marketing, finance, and HR centralized at HQ.
+
+templates:
+  - name: hq-office
+    role: chief-of-staff
+    task: Coordinate across regions, kitchen, FOH, marketing, finance, and HR.
+    system_prompt: |
+      You coordinate operations for a multi-unit restaurant group.
+      Trade-offs you watch: food cost vs. menu quality, labor cost vs.
+      service standards, marketing spend vs. cover counts. Default to
+      protecting food safety and labor compliance — never trade those off.
+    children:
+
+      # ---- Operations (multi-region) ----------------------------------
+      - name: operations
+        role: ops-head
+        task: Operate the restaurant portfolio — covers, costs, complaints.
+        children:
+          - name: north-region
+            role: regional-manager
+            task: Manage the 4 northern restaurants — weekly walk-throughs.
+            children:
+              - name: north-flagship
+                role: gm
+                task: General manager for the north flagship location.
+              - name: north-suburb
+                role: gm
+                task: General manager for the north suburb location.
+          - name: south-region
+            role: regional-manager
+            task: Manage the 3 southern restaurants — weekly walk-throughs.
+            children:
+              - name: south-downtown
+                role: gm
+                task: General manager for the south downtown location.
+
+      # ---- Kitchen ----------------------------------------------------
+      - name: kitchen
+        role: executive-chef
+        task: Menu, food safety, and supplier relationships.
+        rules:
+          # Health claims on menu copy and chef notes — FTC / FDA posture.
+          - banned_words: [cure, miracle, clinically-proven, weight-loss-guaranteed, prevents-disease]
+        children:
+          - name: menu-development
+            role: r-and-d
+            task: New dishes, seasonal rotations, plate costing.
+          - name: food-safety
+            role: food-safety
+            task: HACCP logs, temperature audits, allergen review.
+            rules:
+              # Force detail — no one-line dismissals on safety calls.
+              - min_response_length: 60
+          - name: suppliers
+            role: supplier-relations
+            task: Manage produce, protein, and dry-goods supplier mix.
+
+      # ---- Front of House ---------------------------------------------
+      - name: front-of-house
+        role: foh-head
+        task: Service standards, reservations, private events.
+        children:
+          - name: service-standards
+            role: standards
+            task: Maintain training, mystery-shopper feedback loop.
+          - name: reservations
+            role: reservations
+            task: OpenTable / Resy management; VIP and large-party handling.
+          - name: events
+            role: events
+            task: Sell and execute private events and buyouts.
+
+      # ---- Marketing --------------------------------------------------
+      - name: marketing
+        role: marketing-lead
+        task: Local marketing, social, loyalty program.
+        rules:
+          # Same health-claim posture as kitchen — anything that hits the
+          # public-facing channel inherits this.
+          - banned_words: [cure, miracle, clinically-proven, weight-loss-guaranteed]
+          - max_response_tokens: 1500
+        children:
+          - name: social
+            role: social
+            task: Instagram + TikTok content; restaurant-by-restaurant.
+          - name: local-marketing
+            role: local
+            task: Neighborhood partnerships, press, local-SEO.
+          - name: loyalty
+            role: loyalty
+            task: Loyalty program enrollment, win-back campaigns.
+
+      # ---- Finance ----------------------------------------------------
+      - name: finance
+        role: finance-lead
+        task: Daily sales close, food + labor cost, weekly P&L per location.
+        children:
+          - name: invoicing
+            role: invoicing
+            task: Catering + private-event invoicing.
+          - name: payroll-prep
+            role: payroll
+            task: Weekly payroll prep; tip allocation; overtime audit.
+
+      # ---- HR ---------------------------------------------------------
+      - name: hr
+        role: hr-lead
+        task: Hiring, scheduling, training across all locations.
+        children:
+          - name: hiring
+            role: hiring
+            task: Source line cooks, servers, dishwashers; track time-to-fill.
+          - name: scheduling
+            role: scheduling
+            task: Weekly schedules per location; OT compliance.
+          - name: training
+            role: training
+            task: Onboarding curriculum, ServSafe certification tracking.
