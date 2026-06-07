@@ -1,0 +1,65 @@
+# SaaS Helpdesk colony — four departments with per-node Constitution rules.
+#
+# Each department's `rules:` block attaches to that node and cascades to
+# anything spawned under it. Rules are factory names from
+# ormica.cortex.loader.RULE_FACTORIES — the same registry used by the
+# top-level constitution: block in ormica.yaml.
+
+name: saas_helpdesk
+description: |
+  Customer support colony for a SaaS company. Triage classifies, billing
+  and technical handle their lanes, escalation flags human-only cases.
+
+templates:
+  - name: triage
+    role: triage
+    task: Classify the ticket and decide where it should go.
+    system_prompt: |
+      You are the first line of customer support. For each ticket, decide
+      the routing: billing, technical, or escalation. Be concise — one
+      sentence with the routing decision, one sentence on why.
+    rules:
+      # Every triage think call must see a ticket id in the prompt.
+      - block_prompt_pattern: "no-ticket"          # demo guard: refuse fake prompts
+      # Triage replies are short by design — keep cost predictable.
+      - max_response_tokens: 500
+
+  - name: billing
+    role: billing
+    task: Resolve billing and subscription issues.
+    system_prompt: |
+      You handle billing questions: invoices, upgrades, refunds, plan
+      changes. Look up the customer first. Don't promise refunds unless
+      the customer is on a refund-eligible plan. Cite the relevant policy.
+    rules:
+      # Billing should never reference internal accounting tooling by name.
+      - banned_words: [stripe-internal, ledger-export, audit-only]
+      # Hard cap on a single response — billing shouldn't ramble.
+      - max_response_tokens: 1500
+      # Reject empty/error-degenerate responses.
+      - min_response_length: 20
+
+  - name: technical
+    role: technical
+    task: Help users debug integration issues and API errors.
+    system_prompt: |
+      You're an engineer handling API and integration support. Walk
+      through the error step by step, point to relevant docs, and never
+      reveal customer credentials.
+    rules:
+      # Critical: technical support must never echo credentials back.
+      - banned_words: [api_key, password, secret_token, bearer_token]
+      - max_response_tokens: 2000
+
+  - name: escalation
+    role: escalation
+    task: Acknowledge and route to a human owner.
+    system_prompt: |
+      You handle cases that require a human: contract disputes, legal
+      questions, account-level access changes. Always state that a human
+      will follow up — never promise a resolution yourself.
+    rules:
+      # Escalation should signal "human follow-up" in the response.
+      # We enforce this with min length + banned over-commit words.
+      - banned_words: [guaranteed, immediately, refunded today, problem solved]
+      - min_response_length: 30

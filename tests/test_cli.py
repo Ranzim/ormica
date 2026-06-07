@@ -226,7 +226,6 @@ def test_signals_lists_emitted_trails(tmp_path: Path, capsys):
 
     # Bootstrap some signals by direct emit, then re-load via CLI.
     from ormica import Ormica
-    from ormica.mycelium import Mycelium, SqliteBackend
     bootstrap = Ormica("Acme", memory_db=str(db))
     bootstrap.emit("hot_lead", strength=3.0)
     bootstrap.emit("cold_call", strength=0.5)

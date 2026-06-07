@@ -1,0 +1,63 @@
+# Top-level config for the SaaS helpdesk example.
+#
+# Wires the colony, brain (mock by default so you can run with no API
+# key), persistence (sqlite so `ormica trace <id>` works after the run),
+# and the org-wide Constitution.
+
+name: Acme SaaS Support
+owner: Head of Support
+industry: ./colony.yaml          # relative path → loaded as a YAML colony
+max_depth: 3
+memory_db: ./helpdesk.db
+
+brain:
+  type: mock
+  model: mock
+  # Scripted replies for the demo. In production, swap to:
+  #   type: claude       (or openai, gemini, ollama, openrouter, …)
+  # and remove `replies:` — the brain will think for real.
+  replies:
+    - "Route to billing: customer asks about an unexpected charge."
+    - "I see invoice #INV-2026-0042 reflects a plan upgrade on 2026-05-15. The charge is correct under the Growth plan terms."
+    - "Route to technical: 502 error from API integration."
+    - "Your 502s correlate with our 2026-06-06 incident; please retry the affected requests now and ping back if any still fail."
+    - "Route to escalation: customer asking for contract renegotiation."
+    - "Thank you for raising this. A human Account Director will follow up within one business day to discuss contract terms."
+
+# Org-wide Constitution. These rules apply to every node in every subtree;
+# per-department rules in colony.yaml compose on top.
+constitution:
+  rules:
+    # Bound growth: no agent should spawn deeper than this org allows.
+    - max_depth: 3
+    # Org-wide budget guard. Pre-stage rule reads ctx["budget"].used.
+    - max_tokens: 50000
+    # Don't ever spawn a legal-role agent — humans only for legal calls.
+    - block_role: legal
+    # Org-wide content guard: nothing labelled internal-only.
+    - banned_words: [internal-only, do not share, confidential-roadmap]
+
+tasks:
+  - description: "Ticket #T-1001 (acme-cust-001): My bill shows a charge I didn't authorize."
+    dept: triage
+    priority: normal
+
+  - description: "Ticket #T-1002 (acme-cust-001): Follow-up on the same billing question."
+    dept: billing
+    priority: high
+
+  - description: "Ticket #T-1003 (acme-cust-042): API 502s started ~ an hour ago."
+    dept: triage
+    priority: high
+
+  - description: "Ticket #T-1004 (acme-cust-042): Same outage — what's the status?"
+    dept: technical
+    priority: high
+
+  - description: "Ticket #T-1005 (acme-cust-088): We need contract terms revised."
+    dept: triage
+    priority: normal
+
+  - description: "Ticket #T-1006 (acme-cust-088): Same — when can a human discuss this?"
+    dept: escalation
+    priority: normal
