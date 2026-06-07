@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -201,20 +202,42 @@ def _build_brain(
         "together":   "https://api.together.xyz/v1",
         "deepseek":   "https://api.deepseek.com/v1",
     }
+    # Each provider documents its own env var (see ormica/brain/providers.py).
+    # Without this map the OpenAI SDK would silently fall back to
+    # OPENAI_API_KEY for every provider, contradicting the docs.
+    _PROVIDER_ENV_VARS = {
+        "openrouter": "OPENROUTER_API_KEY",
+        "groq":       "GROQ_API_KEY",
+        "together":   "TOGETHER_API_KEY",
+        "deepseek":   "DEEPSEEK_API_KEY",
+    }
     if type_name in _OPENAI_COMPAT:
         base_url = _OPENAI_COMPAT[type_name]
+        if type_name == "ollama":
+            # Ollama ignores the key but the OpenAI SDK requires a non-empty
+            # string. Match what ormica.brain.providers.ollama_brain does.
+            api_key: Optional[str] = "ollama"
+        else:
+            env_var = _PROVIDER_ENV_VARS.get(type_name)
+            # Prefer the provider's documented env var; fall back to
+            # OPENAI_API_KEY so users who already wired things that way
+            # (and the case where the provider isn't in the map) still work.
+            api_key = (os.environ.get(env_var) if env_var else None) \
+                or os.environ.get("OPENAI_API_KEY")
         if async_mode:
             from ormica.brain import AsyncUniversalBrain
 
             return AsyncUniversalBrain(
                 model=model or _DEFAULT_MODELS[type_name],
                 base_url=base_url,
+                api_key=api_key,
             )
         from ormica.brain import UniversalBrain
 
         return UniversalBrain(
             model=model or _DEFAULT_MODELS[type_name],
             base_url=base_url,
+            api_key=api_key,
         )
     if type_name == "gemini":
         if async_mode:

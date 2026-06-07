@@ -538,3 +538,113 @@ def test_run_with_gemini_builds_native_gemini_brain(tmp_path: Path, monkeypatch)
     rc = main(["run", "--config", str(out), "--brain", "gemini"])
     assert rc == 0
     assert constructed["model"] == "gemini-2.0-flash"
+
+
+# --- Provider env-var resolution (Issue #7) ---------------------------------
+
+
+def _make_universal_capture():
+    """Build a FakeUniversal that records the api_key passed in."""
+    captured: dict = {}
+
+    class FakeUniversal:
+        name = "universal"
+
+        def __init__(self, *, model, base_url=None, api_key=None):
+            captured["model"] = model
+            captured["base_url"] = base_url
+            captured["api_key"] = api_key
+            self.model = model
+
+        def think(self, prompt, *, system=None, max_tokens=1024, tools=None):
+            from ormica.brain import Response
+            return Response(content="ok", model=self.model, tokens_used=1)
+
+    return FakeUniversal, captured
+
+
+def _save_minimal_config(tmp_path: Path) -> Path:
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(name="Acme", tasks=[TaskConfig(description="hi")])
+    save_config(cfg, out)
+    return out
+
+
+def test_openrouter_uses_OPENROUTER_API_KEY_env(tmp_path: Path, monkeypatch):
+    """OPENROUTER_API_KEY (documented var) must reach UniversalBrain."""
+    out = _save_minimal_config(tmp_path)
+    FakeUniversal, captured = _make_universal_capture()
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test")
+
+    rc = main(["run", "--config", str(out), "--brain", "openrouter"])
+    assert rc == 0
+    assert captured["api_key"] == "sk-or-v1-test"
+
+
+def test_groq_uses_GROQ_API_KEY_env(tmp_path: Path, monkeypatch):
+    out = _save_minimal_config(tmp_path)
+    FakeUniversal, captured = _make_universal_capture()
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+
+    rc = main(["run", "--config", str(out), "--brain", "groq"])
+    assert rc == 0
+    assert captured["api_key"] == "gsk-test"
+
+
+def test_together_uses_TOGETHER_API_KEY_env(tmp_path: Path, monkeypatch):
+    out = _save_minimal_config(tmp_path)
+    FakeUniversal, captured = _make_universal_capture()
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("TOGETHER_API_KEY", "tg-test")
+
+    rc = main(["run", "--config", str(out), "--brain", "together"])
+    assert rc == 0
+    assert captured["api_key"] == "tg-test"
+
+
+def test_deepseek_uses_DEEPSEEK_API_KEY_env(tmp_path: Path, monkeypatch):
+    out = _save_minimal_config(tmp_path)
+    FakeUniversal, captured = _make_universal_capture()
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-test")
+
+    rc = main(["run", "--config", str(out), "--brain", "deepseek"])
+    assert rc == 0
+    assert captured["api_key"] == "ds-test"
+
+
+def test_openrouter_falls_back_to_OPENAI_API_KEY_when_provider_var_unset(
+    tmp_path: Path, monkeypatch
+):
+    """Backward compat: users who already set OPENAI_API_KEY for OpenRouter
+    continue to work even without changing anything."""
+    out = _save_minimal_config(tmp_path)
+    FakeUniversal, captured = _make_universal_capture()
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fallback")
+
+    rc = main(["run", "--config", str(out), "--brain", "openrouter"])
+    assert rc == 0
+    assert captured["api_key"] == "sk-fallback"
+
+
+def test_ollama_uses_literal_ollama_string_regardless_of_env(
+    tmp_path: Path, monkeypatch
+):
+    """Ollama ignores auth, but the OpenAI SDK requires a non-empty key."""
+    out = _save_minimal_config(tmp_path)
+    FakeUniversal, captured = _make_universal_capture()
+    monkeypatch.setattr("ormica.brain.UniversalBrain", FakeUniversal, raising=True)
+    monkeypatch.setenv("OPENAI_API_KEY", "should-not-be-used")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "should-not-be-used")
+
+    rc = main(["run", "--config", str(out), "--brain", "ollama"])
+    assert rc == 0
+    assert captured["api_key"] == "ollama"
