@@ -164,7 +164,9 @@ def test_nodes_can_emit_via_their_id():
     tree = Tree("HQ")
     scout = tree.spawn(tree.root, "scout")
     mem = Mycelium()
-    stig = Stigma(mem)
+    # Neutralise half-life decay — this test verifies wiring, not decay.
+    # See 6f2699a for the same pattern applied to test_emit_and_sense_use_stigma_when_wired.
+    stig = Stigma(mem, half_life=1e9)
 
     stig.emit("food_sighted", strength=1.0, by=scout.id)
     stig.reinforce("food_sighted", amount=0.5, by=scout.id)
