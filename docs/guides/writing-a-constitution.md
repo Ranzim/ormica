@@ -123,6 +123,29 @@ When `constitution=` is passed:
 - It's also wrapped as a `ConstitutionPolicy` and composed with any `SpawnPolicy` you supply — so `spawn`-stage rules govern tree growth.
 - Every runner-built `Agent` gets `constitution=org.constitution` — `pre`-stage rules fire before every `Brain.think`.
 
+## Per-node rule overrides
+
+Rules don't have to be org-wide. Attach them to any `Node` via `node.rules` and they **cascade down the subtree**: a rule on a department applies to that department and everything under it; a rule on the root behaves like an org-wide Constitution; siblings are unaffected.
+
+```python
+org = Ormica("Acme")
+sales = org.spawn("sales", role="sales")
+finance = org.spawn("finance", role="finance")
+
+# Tighter limits just for finance:
+finance.rules.append(max_tokens(10_000))
+finance.rules.append(banned_words({"speculative", "off-book"}))
+
+# Stricter spawn depth just for sales:
+sales.rules.append(max_depth(3))
+```
+
+What's evaluated for a node's think call:
+- the org-level `Constitution` (if any), **plus**
+- every rule attached to any node on the path from root to the acting node.
+
+Per-node spawn rules read the *parent's* ancestor chain (since the child doesn't exist yet). Per-node rules work even when `Ormica(constitution=)` is not set — no need to pass an empty Constitution as a workaround.
+
 ## What happens when a rule fails
 
 | Severity | Effect |

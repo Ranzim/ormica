@@ -39,13 +39,19 @@ class Ormica:
         signals_half_life: float = 60.0,
         constitution: Optional[Any] = None,
     ) -> None:
+        from ormica.cortex import Constitution as _Constitution
         from ormica.cortex import ConstitutionPolicy
         from ormica.observe import EventBus
 
         # If a Constitution is supplied, it governs spawn permission too —
-        # composing with any user-supplied SpawnPolicy.
+        # composing with any user-supplied SpawnPolicy. Without a Constitution
+        # and without an explicit policy, still install an empty
+        # ConstitutionPolicy so per-node spawn rules (attached to a Node via
+        # ``node.rules``) cascade by default.
         if constitution is not None:
             policy = ConstitutionPolicy(constitution, inner=policy)
+        elif policy is None:
+            policy = ConstitutionPolicy(_Constitution())
         self.constitution = constitution
         self.tree = Tree(name, owner=owner, max_depth=max_depth, policy=policy)
         if memory_db and memory_path:
