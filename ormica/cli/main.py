@@ -140,6 +140,30 @@ def cmd_colonies(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    """Start the web dashboard. Reads from the same ormica.yaml the other commands use."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found.", file=sys.stderr)
+        return 1
+
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+    except Exception as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    from ormica.dashboard import serve
+
+    try:
+        serve(org, host=args.host, port=args.port)
+    except OSError as exc:
+        print(f"error: failed to bind {args.host}:{args.port} — {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_rules(args: argparse.Namespace) -> int:
     """List the active Constitution — org-level + per-node rules."""
     path = Path(args.config)
@@ -451,6 +475,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     col = sub.add_parser("colonies", help="List available colonies")
     col.set_defaults(func=cmd_colonies)
+
+    dash = sub.add_parser(
+        "dashboard",
+        help="Start the web dashboard (stdlib-only HTTP server, view-only + live events)",
+    )
+    dash.add_argument("--config", default=str(DEFAULT_CONFIG))
+    dash.add_argument("--port", type=int, default=8000, help="default 8000")
+    dash.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="default 127.0.0.1 (use 0.0.0.0 to expose on LAN — there is no auth)",
+    )
+    dash.set_defaults(func=cmd_dashboard)
 
     rules = sub.add_parser(
         "rules",
