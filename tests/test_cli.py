@@ -118,6 +118,23 @@ def test_status_prints_tree_and_tasks(tmp_path: Path, capsys):
         assert dept in text
 
 
+def test_status_labels_tasks_as_defined_not_queued(tmp_path: Path, capsys):
+    """Issue #10: yaml-declared tasks aren't a runtime queue — don't call them 'queued'."""
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        tasks=[TaskConfig(description="t1", dept="sales")],
+    )
+    save_config(cfg, out)
+
+    rc = main(["status", "--config", str(out)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "tasks defined: 1" in text
+    assert "queued" not in text
+
+
 def test_status_with_unknown_industry_errors(tmp_path: Path, capsys):
     out = tmp_path / "ormica.yaml"
     save_config(OrmicaConfig(name="X", industry="does_not_exist"), out)

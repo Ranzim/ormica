@@ -196,7 +196,7 @@ tree (5 nodes):
     - marketing   [marketing]
     - finance     [finance]
 
-tasks queued: 2
+tasks defined: 2
   - [high]   sales:   Reach out to 3 SMB leads
   - [normal] finance: Forecast Q3 cash flow
 ```

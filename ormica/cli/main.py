@@ -114,7 +114,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         indent = "  " * node.depth
         role = node.role or "-"
         print(f"  {indent}- {node.name} [{role}]")
-    print(f"tasks queued: {len(config.tasks)}")
+    print(f"tasks defined: {len(config.tasks)}")
     for t in config.tasks:
         target = t.dept or t.target or "root"
         print(f"  - [{t.priority}] {target}: {t.description}")
@@ -309,7 +309,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.set_defaults(func=cmd_run)
 
-    status = sub.add_parser("status", help="Show the org's structure and queued tasks")
+    status = sub.add_parser("status", help="Show the org's structure and defined tasks")
     status.add_argument("--config", default=str(DEFAULT_CONFIG))
     status.set_defaults(func=cmd_status)
 

@@ -11,8 +11,8 @@ ormica <subcommand> [flags]
 | Command | What it does |
 |---|---|
 | [`init`](#ormica-init) | Create a starter `ormica.yaml`. |
-| [`run`](#ormica-run) | Process the config's queued tasks. Sync by default, async with `--async`. |
-| [`status`](#ormica-status) | Show the org's tree + queued tasks without running. |
+| [`run`](#ormica-run) | Process the config's defined tasks. Sync by default, async with `--async`. |
+| [`status`](#ormica-status) | Show the org's tree + defined tasks without running. |
 | [`colonies`](#ormica-colonies) | List registered colonies and their descriptions. |
 
 ---
@@ -112,7 +112,7 @@ tree (5 nodes):
     - sales [sales]
     - marketing [marketing]
     - finance [finance]
-tasks queued: 1
+tasks defined: 1
   - [high] sales: Reach out to 3 SMB leads
 ```
 
