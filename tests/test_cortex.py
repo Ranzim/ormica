@@ -264,6 +264,145 @@ def test_pre_stage_task_is_none_when_agent_driven_directly():
     assert seen["task_text"] == "watch"
 
 
+def test_post_stage_hard_rule_blocks_response_after_brain_call():
+    """Hard post-stage rule fires after brain.think and raises before return.
+
+    Brain IS called (tokens are real), but the response never leaves the agent
+    when a post rule rejects it. Node state is FAILED.
+    """
+    constitution = Constitution([
+        Rule(
+            name="ban_secret",
+            description="response must not mention 'secret'",
+            check=lambda ctx: "secret" not in ctx["response"].content.lower(),
+            stage="post",
+        ),
+    ])
+    org = Ormica("HQ")
+    node = org.spawn("scout", role="scout")
+    brain = MockBrain(replies=["the secret is 42"])
+    agent = Agent(node, brain, constitution=constitution)
+
+    with pytest.raises(RuleViolation):
+        agent.act("what's up")
+    assert brain.calls != []  # brain WAS called — post is post
+    assert node.state.value == "failed"
+
+
+def test_post_stage_soft_rule_lets_response_through_but_records_violation():
+    """Soft post-stage rules emit an event but don't block the response."""
+    from ormica.observe import CollectObserver, RULE_SOFT_VIOLATION
+
+    constitution = Constitution([
+        Rule(
+            name="prefer_short",
+            description="responses should be short",
+            check=lambda ctx: len(ctx["response"].content) <= 5,
+            stage="post",
+            severity="soft",
+        ),
+    ])
+    org = Ormica("HQ", constitution=constitution)
+    org.spawn("scout", role="scout")
+    collected = CollectObserver()
+    org.events.subscribe(collected)
+    org.task("look", dept="scout")
+    result = org.run(brain=MockBrain(replies=["a very long answer indeed"]))
+
+    assert result.succeeded == 1
+    assert result.failed == 0
+    soft_events = [e for e in collected.events if e.type == RULE_SOFT_VIOLATION]
+    assert len(soft_events) == 1
+    assert soft_events[0].payload["rule"] == "prefer_short"
+    assert soft_events[0].payload["stage"] == "post"
+
+
+def test_post_stage_context_exposes_response_and_runtime_task():
+    """Post-stage context schema: same as pre + `response`."""
+    seen: dict = {}
+
+    constitution = Constitution([
+        Rule(
+            name="capture",
+            description="capture post-stage context",
+            check=lambda ctx: seen.update(ctx) or True,
+            stage="post",
+        ),
+    ])
+    org = Ormica("HQ", constitution=constitution)
+    org.spawn("scout", role="scout", task="watch")
+    org.task("look north", dept="scout", priority="high")
+    org.run(brain=MockBrain(replies=["all clear"]))
+
+    assert seen["response"].content == "all clear"
+    assert seen["task_text"] == "watch"
+    assert isinstance(seen["task"], Task)
+    assert seen["task"].description == "look north"
+    assert seen["prompt"] == "look north"
+
+
+def test_post_stage_fires_only_on_final_response_of_tool_loop():
+    """In act_with_tools, intermediate tool-use responses don't trigger post-stage.
+
+    The rule should see the user-visible final answer, not the model's
+    decision to call a tool mid-loop.
+    """
+    from ormica.brain import ToolCall, tool
+
+    seen_responses: list = []
+    constitution = Constitution([
+        Rule(
+            name="capture_final",
+            description="capture every post-stage response",
+            check=lambda ctx: seen_responses.append(ctx["response"].content) or True,
+            stage="post",
+        ),
+    ])
+
+    @tool
+    def ping() -> str:
+        """Returns pong."""
+        return "pong"
+
+    org = Ormica("HQ")
+    node = org.spawn("scout", role="scout")
+    # First reply asks for a tool; second is plain text (the final answer).
+    brain = MockBrain(replies=[[ToolCall(id="1", name="ping", arguments={})], "pinged"])
+    agent = Agent(node, brain, constitution=constitution)
+
+    response = agent.act_with_tools("ping it", tools=[ping])
+    assert response.content == "pinged"
+    assert seen_responses == ["pinged"]  # only the final response, not the tool-use turn
+
+
+def test_run_loop_marks_task_failed_on_post_stage_hard_violation():
+    """A hard post-stage violation in the runner path: task is failed, run continues."""
+    constitution = Constitution([
+        Rule(
+            name="ban_secret",
+            description="response must not mention 'secret'",
+            check=lambda ctx: "secret" not in ctx["response"].content.lower(),
+            stage="post",
+        ),
+    ])
+    org = Ormica("HQ", constitution=constitution)
+    org.spawn("scout", role="scout")
+    org.spawn("hunter", role="hunter")
+    org.task("hunt", dept="hunter")
+    org.task("scout", dept="scout")
+    # Brain replies in queue order: hunter first ("ok"), scout second ("the secret").
+    # 'high' priority isn't set; alphabetic ordering doesn't apply — runtime sorts by
+    # priority bands then created_at, so hunt (created first) runs first.
+    result = org.run(brain=MockBrain(replies=["ok", "the secret"]))
+
+    assert result.processed == 2
+    assert result.succeeded == 1
+    assert result.failed == 1
+    by_target = {t.target: t for t in org.tasks}
+    assert by_target["hunter"].status == "done"
+    assert "RuleViolation" in by_target["scout"].error
+
+
 def test_run_loop_marks_task_failed_on_rule_violation():
     """If a task's agent violates a hard rule, the task fails — run keeps going."""
     constitution = Constitution([

@@ -107,6 +107,33 @@ class _AgentBase:
             },
             stage="pre",
         )
+        self._emit_soft_violations(soft, stage="pre")
+
+    def _enforce_constitution_post(self, prompt: Any, response: Any) -> None:
+        """Raise :class:`RuleViolation` for hard post-stage rules; emit events for soft.
+
+        Runs after a successful ``brain.think`` with the response available. For
+        ``act_with_tools`` this fires only on the final (text) response, not on
+        intermediate tool-use responses — the rule's view of "what the agent did"
+        should be the user-visible answer.
+        """
+        if self.constitution is None:
+            return
+        soft = self.constitution.enforce(
+            {
+                "node": self.node,
+                "role": self.node.role,
+                "task_text": self.node.task,
+                "task": self.runtime_task,
+                "prompt": prompt,
+                "response": response,
+                "budget": self.budget,
+            },
+            stage="post",
+        )
+        self._emit_soft_violations(soft, stage="post")
+
+    def _emit_soft_violations(self, soft: list, *, stage: str) -> None:
         if self.events is None or not soft:
             return
         from .observe import RULE_SOFT_VIOLATION
@@ -119,7 +146,7 @@ class _AgentBase:
                 reason=v.reason,
                 node=self.node.name,
                 task_id=self.task_id,
-                stage="pre",
+                stage=stage,
             )
 
     def _compose_system(self) -> Optional[str]:
@@ -191,9 +218,14 @@ class Agent(_AgentBase):
             raise
 
         self._record_think(messages, system, [], response)
-        self.node.state = NodeState.DONE
         if self.budget is not None:
             self.budget.consume(response.tokens_used)
+        try:
+            self._enforce_constitution_post(prompt, response)
+        except Exception:
+            self.node.state = NodeState.FAILED
+            raise
+        self.node.state = NodeState.DONE
         return response
 
     def act_with_tools(
@@ -225,6 +257,7 @@ class Agent(_AgentBase):
                 if self.budget is not None:
                     self.budget.consume(response.tokens_used)
                 if not response.wants_tools:
+                    self._enforce_constitution_post(prompt, response)
                     self.node.state = NodeState.DONE
                     return response
 
@@ -290,9 +323,14 @@ class AsyncAgent(_AgentBase):
             raise
 
         self._record_think(messages, system, [], response)
-        self.node.state = NodeState.DONE
         if self.budget is not None:
             self.budget.consume(response.tokens_used)
+        try:
+            self._enforce_constitution_post(prompt, response)
+        except Exception:
+            self.node.state = NodeState.FAILED
+            raise
+        self.node.state = NodeState.DONE
         return response
 
     async def act_with_tools(
@@ -319,6 +357,7 @@ class AsyncAgent(_AgentBase):
                 if self.budget is not None:
                     self.budget.consume(response.tokens_used)
                 if not response.wants_tools:
+                    self._enforce_constitution_post(prompt, response)
                     self.node.state = NodeState.DONE
                     return response
 

@@ -44,6 +44,15 @@ class Rule:
       by a runner; ``None`` when an Agent is used directly
     - ``prompt`` (``Prompt``) — the prompt passed to ``agent.act``
     - ``budget`` (``TokenBudget`` | ``None``) — the agent's token budget
+
+    ``stage="post"`` — built by the agent after a successful think call. For
+    ``act_with_tools`` this fires only on the final (text) response, not on
+    intermediate tool-use responses. Same keys as pre, plus:
+
+    - ``response`` (``Response``) — the brain's response; ``response.content``
+      is the model's text, ``response.tokens_used`` is the call's token cost
+    - ``budget`` here reflects post-debit: ``response.tokens_used`` has already
+      been consumed before the post-stage rule runs
     """
 
     name: str
