@@ -144,6 +144,10 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
     else:
         rules = ()
 
+    sense_prefixes = _parse_sense_prefixes(
+        spec.get("sense_prefixes"), path=path
+    )
+
     return type(
         _classname_for(base_name) + "Agent",
         (AgentTemplate,),
@@ -153,7 +157,47 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
             "task": spec.get("task", ""),
             "system_prompt": spec.get("system_prompt", ""),
             "rules": rules,
+            "sense_prefixes": sense_prefixes,
         },
+    )
+
+
+def _parse_sense_prefixes(raw: Any, *, path: Path) -> tuple[str, ...]:
+    """Normalize a sense_prefixes spec to a tuple of strings.
+
+    YAML quirk worth absorbing here: a bare trailing-colon scalar like
+    ``topic:`` parses as ``{topic: None}`` (an empty mapping value),
+    and ``[topic:, activity:]`` becomes a list of such mappings. Users
+    will write the obvious thing; the loader handles both forms instead
+    of forcing everyone to quote ("topic:").
+    """
+    if raw is None or raw == "":
+        return ()
+    if isinstance(raw, str):
+        return (raw,)
+    if isinstance(raw, dict):
+        # Single trailing-colon scalar parsed as a one-key mapping.
+        return tuple(_normalize_one(item, path=path) for item in [raw])
+    if isinstance(raw, (list, tuple)):
+        return tuple(_normalize_one(item, path=path) for item in raw)
+    raise ValueError(
+        f"colony YAML at {path}: 'sense_prefixes' must be a string or list, "
+        f"got {type(raw).__name__}"
+    )
+
+
+def _normalize_one(item: Any, *, path: Path) -> str:
+    if isinstance(item, str):
+        return item
+    # YAML form: `topic:` (no value) parses to {"topic": None}. Treat the
+    # single key as the prefix, re-appending the colon.
+    if isinstance(item, dict) and len(item) == 1:
+        key, value = next(iter(item.items()))
+        if value is None:
+            return f"{key}:"
+    raise ValueError(
+        f"colony YAML at {path}: each sense_prefixes entry must be a "
+        f"string, got {item!r}"
     )
 
 

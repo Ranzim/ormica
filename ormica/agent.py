@@ -54,6 +54,8 @@ class _AgentBase:
         system_prompt: str = "",
         budget: Optional[TokenBudget] = None,
         constitution: Optional[Constitution] = None,
+        sense_prefixes: tuple = (),
+        top_n_sensed: int = 5,
     ) -> None:
         self.node = node
         self.brain = brain
@@ -62,6 +64,15 @@ class _AgentBase:
         self.system_prompt = system_prompt
         self.budget = budget
         self.constitution = constitution
+        # Stigma sensing — when set, _compose_system injects live trails
+        # whose topic starts with any of these prefixes. Explicit kwarg
+        # wins; otherwise falls back to node.meta["sense_prefixes"]
+        # (stamped by colony templates that declare sense_prefixes:).
+        # Empty tuple = sensing off, preserving v0.1 behavior.
+        if not sense_prefixes:
+            sense_prefixes = tuple(node.meta.get("sense_prefixes", ()))
+        self.sense_prefixes: tuple = tuple(sense_prefixes)
+        self.top_n_sensed: int = top_n_sensed
         # Observability — set by runners so think calls flow into a Trace.
         self.events: Any = None
         self.task_id: str = ""
@@ -186,7 +197,31 @@ class _AgentBase:
             parts.append(f"Your role: {self.node.role}.")
         if self.node.task:
             parts.append(f"Your task: {self.node.task}")
+        sensed = self._sensed_block()
+        if sensed:
+            parts.append(sensed)
         return "\n\n".join(parts) if parts else None
+
+    def _sensed_block(self) -> Optional[str]:
+        """Render the top matching stigma trails as a system-prompt block.
+
+        Returns ``None`` when sensing is off (no prefixes or no Stigma)
+        or when no live trails match. The block lists trails strongest
+        first; the agent sees what the colony is currently doing without
+        having to query memory itself.
+        """
+        if self.signals is None or not self.sense_prefixes:
+            return None
+        relevant = [
+            s for s in self.signals.trails()
+            if any(s.topic.startswith(p) for p in self.sense_prefixes)
+        ][: self.top_n_sensed]
+        if not relevant:
+            return None
+        lines = "\n".join(
+            f"  - {s.topic} (strength {s.strength:.2f})" for s in relevant
+        )
+        return f"Active colony signals (strongest first):\n{lines}"
 
     def _check_budget(self) -> None:
         if self.budget is not None and self.budget.exhausted:

@@ -27,6 +27,13 @@ templates:
       You are the chief of staff for a content creator's small operation.
       Surface conflicts between deadlines and capacity. Default to
       protecting the creator's filming time.
+    # The chief of staff senses what's been busy across the colony. With
+    # stigma.auto_emit on, every task finalize reinforces topic:<target>
+    # and activity:<node> — so this list surfaces what's actually getting
+    # work this week, not what's on the static plan.
+    sense_prefixes:
+      - "topic:"
+      - "activity:"
     children:
 
       # ---- Content ----------------------------------------------------
@@ -41,6 +48,9 @@ templates:
               - name: ideation
                 role: ideation-lead
                 task: Generate hook ideas from trending sounds and audience asks.
+                # Ideation watches what content topics are currently hot in
+                # the colony — biases hook ideas toward areas with momentum.
+                sense_prefixes: ["topic:"]
               - name: editing
                 role: editor
                 task: Cut and caption short-form clips to the brand template.

@@ -29,6 +29,9 @@ class AgentTemplate:
     # time. Tuple by default so the empty class-level value is shared safely;
     # YAML-loaded templates supply a tuple of already-built Rule objects.
     rules: ClassVar = ()
+    # Stigma topic prefixes this template's agent reads into its system
+    # prompt at think time. Empty tuple = no sensing (back-compat).
+    sense_prefixes: ClassVar[tuple] = ()
 
     @classmethod
     def plant(
@@ -49,6 +52,8 @@ class AgentTemplate:
             node.meta["system_prompt"] = cls.system_prompt
         if cls.rules:
             node.rules.extend(cls.rules)
+        if cls.sense_prefixes:
+            node.meta["sense_prefixes"] = list(cls.sense_prefixes)
         node.meta["template"] = cls.__name__
         return node
 
