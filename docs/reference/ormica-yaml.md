@@ -58,7 +58,9 @@ A list of task definitions, each with these fields:
 | `dept` | str | `""` | Alias for `target` — easier to read for org-chart colonies. |
 | `priority` | str | `"normal"` | `high` · `normal` · `low`. |
 
-If both `target` and `dept` are set, `target` wins.
+If both `target` and `dept` are set on the same task, `dept` wins (see
+`ormica/cli/main.py`: the CLI promotes yaml tasks with `dept=t.dept or t.target`).
+Pick one or the other for a given task — setting both is a code smell.
 
 ## What's *not* in the YAML
 

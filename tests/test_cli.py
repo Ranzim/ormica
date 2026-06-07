@@ -648,3 +648,71 @@ def test_ollama_uses_literal_ollama_string_regardless_of_env(
     rc = main(["run", "--config", str(out), "--brain", "ollama"])
     assert rc == 0
     assert captured["api_key"] == "ollama"
+
+
+# --- dept / target aliasing (Issue #9) -------------------------------------
+
+
+def test_dept_and_target_route_to_the_same_node(tmp_path: Path):
+    """dept: X and target: X must produce identical Task.target on the org."""
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        tasks=[
+            TaskConfig(description="via dept", dept="sales"),
+            TaskConfig(description="via target", target="sales"),
+        ],
+    )
+    save_config(cfg, out)
+
+    config = load_config(out)
+    from ormica import Ormica
+    org = Ormica(config.name)
+    org.plant(config.industry)
+    for t in config.tasks:
+        org.task(t.description, dept=t.dept or t.target, priority=t.priority)
+
+    assert len(org.tasks) == 2
+    assert org.tasks[0].target == org.tasks[1].target == "sales"
+
+
+def test_dept_wins_when_both_dept_and_target_are_set(tmp_path: Path):
+    """Documented precedence (docs/reference/ormica-yaml.md): dept wins."""
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        tasks=[
+            TaskConfig(description="conflict", dept="sales", target="finance"),
+        ],
+    )
+    save_config(cfg, out)
+
+    config = load_config(out)
+    from ormica import Ormica
+    org = Ormica(config.name)
+    org.plant(config.industry)
+    for t in config.tasks:
+        org.task(t.description, dept=t.dept or t.target, priority=t.priority)
+
+    assert org.tasks[0].target == "sales"  # dept wins, not target
+
+
+def test_neither_dept_nor_target_lands_at_root(tmp_path: Path):
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        tasks=[TaskConfig(description="floating")],
+    )
+    save_config(cfg, out)
+
+    config = load_config(out)
+    from ormica import Ormica
+    org = Ormica(config.name)
+    org.plant(config.industry)
+    for t in config.tasks:
+        org.task(t.description, dept=t.dept or t.target, priority=t.priority)
+
+    assert org.tasks[0].target == ""  # routed to root
