@@ -14,6 +14,9 @@ ormica <subcommand> [flags]
 | [`run`](#ormica-run) | Process the config's defined tasks. Sync by default, async with `--async`. |
 | [`status`](#ormica-status) | Show the org's tree + defined tasks without running. |
 | [`colonies`](#ormica-colonies) | List registered colonies and their descriptions. |
+| [`rules`](#ormica-rules) | List the active Constitution — org-level + per-node rules. |
+| [`signals`](#ormica-signals) | List stigma trails currently in shared memory, sorted by strength. |
+| [`trace`](#ormica-trace) | Dump a stored Thought Trail for a task by id. |
 
 ---
 
