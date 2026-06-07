@@ -79,7 +79,9 @@ def test_registry_covers_all_library_factories():
     factory_names = {n for n in factory_names if n in {
         "max_depth", "block_role", "no_child_name", "unique_role_in_subtree",
         "max_tokens", "block_prompt_pattern", "min_task_description",
-        "banned_words", "max_response_tokens", "min_response_length", "require_json",
+        "min_runtime_task_description",
+        "banned_words", "banned_word_stems",
+        "max_response_tokens", "min_response_length", "require_json",
     }}
     assert factory_names == set(RULE_FACTORIES)
 

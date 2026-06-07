@@ -133,14 +133,56 @@ def block_prompt_pattern(pattern: Pattern) -> Rule:
 
 
 def min_task_description(n: int) -> Rule:
-    """Reject runs whose node carries a task string shorter than ``n`` chars.
+    """Reject runs whose node carries a *spawn-time* task string shorter than ``n``.
 
-    Reads ``ctx["task_text"]`` — the spawn-time ``Node.task`` string.
+    Reads ``ctx["task_text"]`` — the static ``Node.task`` set at spawn
+    time (e.g. via a colony template's ``task:`` field). This is NOT
+    the runtime task description submitted via ``org.task(description=…)``.
+    For that, use :func:`min_runtime_task_description`.
+
+    Why both exist: ``Node.task`` is a fixed role-description ("Handle
+    billing tickets"); the runtime task description is the specific ask
+    on each invocation ("Process refund for order #1234"). Same word,
+    two different things — easy to confuse, so we keep them as
+    sibling rules with names that read distinctly.
     """
     return Rule(
         name=f"min_task_description_{n}",
-        description=f"Node task description must be at least {n} characters.",
+        description=(
+            f"Node spawn-time task string must be at least {n} characters."
+        ),
         check=lambda ctx: len(ctx.get("task_text", "")) >= n,
+        stage="pre",
+    )
+
+
+def min_runtime_task_description(n: int) -> Rule:
+    """Reject runs whose runtime task description is shorter than ``n`` chars.
+
+    Reads ``ctx["task"].description`` — the per-invocation task string
+    set when the user called ``org.task(description=…)``. Use this when
+    you want to reject one-word briefs at submission time
+    ("update the doc" → too vague to act on).
+
+    For the static spawn-time variant (``Node.task``), use
+    :func:`min_task_description`.
+    """
+    def _check(ctx) -> bool:
+        task = ctx.get("task")
+        # When driven directly (no runner), ctx["task"] is None — treat as
+        # "no runtime task to inspect" and pass. Pre-stage rules running
+        # outside a runner don't have a description to enforce against.
+        if task is None:
+            return True
+        return len(getattr(task, "description", "") or "") >= n
+
+    return Rule(
+        name=f"min_runtime_task_description_{n}",
+        description=(
+            f"Runtime task description (org.task(description=...)) must be "
+            f"at least {n} characters."
+        ),
+        check=_check,
         stage="pre",
     )
 
@@ -149,9 +191,19 @@ def min_task_description(n: int) -> Rule:
 
 
 def banned_words(words: Iterable[str]) -> Rule:
-    """Reject responses containing any of ``words`` (case-insensitive substring).
+    """Reject responses containing any of ``words`` (case-insensitive *substring*).
 
-    Reads ``ctx["response"].content``.
+    Reads ``ctx["response"].content``. Substring match catches partial
+    phrases (``"unguaranteed"`` is caught by ``"guarantee"``) but does
+    NOT do morphological matching: ``"guaranteed"`` will not catch
+    ``"guaranteeing"``. List both stems when both matter, or use
+    :func:`banned_word_stems` for whole-word + suffix matching.
+
+    Cost: this is a post-stage rule, which means the LLM call has
+    already happened by the time the check runs — token spend is sunk
+    even if the response is rejected. For known-banned content where
+    you can match on the *prompt*, use ``block_prompt_pattern`` instead
+    to fail before the LLM call.
     """
     banned = {w.lower() for w in words}
     label = ",".join(sorted(banned))[:48]
@@ -161,6 +213,61 @@ def banned_words(words: Iterable[str]) -> Rule:
         check=lambda ctx: not any(
             w in ctx["response"].content.lower() for w in banned
         ),
+        stage="post",
+    )
+
+
+def banned_word_stems(words: Iterable[str]) -> Rule:
+    """Reject responses containing any of ``words`` *as whole words with
+    optional suffixes* (case-insensitive).
+
+    Compiles each entry as a regex ``\\bword\\w*\\b`` so a single stem
+    catches its common suffix-only inflections:
+
+      - ``"guarantee"`` → catches ``guarantee``, ``guarantees``,
+        ``guaranteed``, ``guaranteeing`` (all keep the literal stem)
+      - ``"miracle"`` → catches ``miracle``, ``miracles``,
+        ``miraculous``
+      - ``"cure"`` → catches ``cure``, ``cures``, ``cured`` but NOT
+        ``curing`` (silent ``e`` is dropped before ``-ing``)
+
+    Trade-offs vs :func:`banned_words` (substring): you GAIN catching
+    suffix-added inflections without listing them; you LOSE substring
+    matching inside other words (``"unguaranteed"`` is no longer
+    flagged); and you do NOT get morphological stemming — when a suffix
+    modifies the stem itself (silent-e drop before -ing/-ed, y→i
+    changes), list both forms explicitly: ``["cure", "curing"]``.
+
+    For most compliance use cases (FTC endorsements, health claims),
+    suffix-only is what you want for ~70% of English verbs and the
+    documented gotcha applies to the rest. If you need true linguistic
+    stemming, write a custom rule with a Porter / Snowball stemmer.
+
+    Cost: same post-stage caveat as :func:`banned_words` — the LLM has
+    already been called by the time the check runs.
+    """
+    import re
+
+    stems = [w.lower() for w in words if w]
+    if not stems:
+        # An empty-stems rule would pass every input — that's almost certainly
+        # not what the caller intended. Reject loudly.
+        raise ValueError("banned_word_stems requires at least one non-empty stem")
+    # Each stem becomes \bstem\w*\b so it matches the stem followed by
+    # zero-or-more word chars, bounded on both sides — catches
+    # guarantee, guarantees, guaranteed, guaranteeing for stem="guarantee".
+    pattern = re.compile(
+        r"\b(?:" + "|".join(re.escape(s) + r"\w*" for s in stems) + r")\b",
+        re.IGNORECASE,
+    )
+    label = ",".join(sorted(stems))[:48]
+    return Rule(
+        name=f"banned_word_stems_{label}",
+        description=(
+            f"Response must not contain any of these stems (with suffixes): "
+            f"{sorted(stems)}."
+        ),
+        check=lambda ctx: pattern.search(ctx["response"].content) is None,
         stage="post",
     )
 

@@ -49,8 +49,10 @@ RULE_FACTORIES: dict[str, Any] = {
     "max_tokens": _R.max_tokens,
     "block_prompt_pattern": _R.block_prompt_pattern,
     "min_task_description": _R.min_task_description,
+    "min_runtime_task_description": _R.min_runtime_task_description,
     # post
     "banned_words": _R.banned_words,
+    "banned_word_stems": _R.banned_word_stems,
     "max_response_tokens": _R.max_response_tokens,
     "min_response_length": _R.min_response_length,
     "require_json": _R.require_json,
