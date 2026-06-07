@@ -5,10 +5,11 @@
 > **Seed the colony. Let the organization emerge.**
 
 [![PyPI](https://img.shields.io/pypi/v/ormica.svg)](https://pypi.org/project/ormica/)
+[![CI](https://github.com/Ranzim/ormica/actions/workflows/ci.yml/badge.svg)](https://github.com/Ranzim/ormica/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Ranzim/ormica/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Ranzim/ormica/security/code-scanning)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Ranzim/ormica/badge)](https://securityscorecards.dev/viewer/?uri=github.com/Ranzim/ormica)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 362 passing](https://img.shields.io/badge/tests-361%20passing-success.svg)]()
-[![Status: v0.1](https://img.shields.io/badge/status-v0.1-orange.svg)]()
 [![Concept: Computational Stigmergy](https://img.shields.io/badge/concept-computational%20stigmergy-7a4cff.svg)]()
 
 </div>
@@ -108,6 +109,8 @@ Python 3.10+ required. **One install command, every major LLM.** See [docs/guide
 > pytest                       # full suite in <1s
 > ```
 
+> **Found a security issue?** Please use [GitHub Private Vulnerability Reporting](https://github.com/Ranzim/ormica/security/advisories/new) — the full policy lives in [SECURITY.md](./SECURITY.md).
+
 ---
 
 ## 🚀 30-Second Taste
@@ -185,7 +188,7 @@ Every transition emits an event onto the `EventBus`. A subscribed `TraceObserver
 $ ormica status
 
 name:     My SaaS
-owner:    Ranzim
+owner:    Founder
 industry: business
 brain:    claude (model=claude-opus-4-7)
 
@@ -250,7 +253,7 @@ docs/                                # the onboarding map
 └── guides/                           writing colonies, tools, rules, traces…
 ```
 
-`tests/` — **362 tests · ~650ms · no SDK deps required for CI.**
+`tests/` — **378 tests · <1s · no SDK deps required for CI.**
 
 ---
 
@@ -323,7 +326,7 @@ The `Brain` protocol has three native adapters (Claude, Gemini, GPT) plus one `U
 ## 🛣️ Roadmap
 
 - [x] **v0.1** — Four pillars + runtime + CLI + persistence + async + observability *(here)*
-- [ ] **v0.2** — YAML Constitutions · soft-violation events · per-node rule overrides
+- [ ] **v0.2** — YAML Constitutions · ~~soft-violation events~~ *(shipped early in v0.1)* · per-node rule overrides
 - [ ] **v0.3** — Async tools · streaming responses · first integrations (Gmail · Notion · GitHub · Stripe)
 - [ ] **v0.4** — ChromaDB backend (semantic mycelium) · vector signals
 - [ ] **v0.5** — **Colony Dashboard** (web UI) — signal intensity, branch depth, governance compliance, live Thought Trail
@@ -367,7 +370,7 @@ The colony is young; new contributors shape its character.
 ### 🧪 Before you push
 
 ```bash
-pytest              # 362 tests, ~650ms, all green
+pytest              # 378 tests, <1s, all green
 ruff check .        # lint clean
 ```
 
