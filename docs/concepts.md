@@ -8,11 +8,13 @@ Ants have no boss. Yet food gets found, paths get optimized, the colony thrives.
 
 In Ormica, agents leave **signals** in shared memory (`mycelium`). Other agents detect and reinforce them. The `stigma` module handles this. Coordination emerges without central commands.
 
-## 2. Random forest structure
+## 2. Random forest structure (conceptual; current implementation is single-tree)
 
 A random forest isn't one decision tree — it's many trees, each growing its own branches from a different angle, voting together. The diversity is the intelligence.
 
-In Ormica, a problem can be explored by multiple branches in parallel, each growing to whatever depth it needs (`arbor`). No fixed structure — the tree grows to fit the problem.
+Ormica draws on this intuition: **the parts of a problem can be explored by multiple branches in parallel, each growing to whatever depth it needs** (`arbor`). No fixed structure — branches grow to fit the work.
+
+In v0.1–v0.2, this happens **within one tree per `Ormica` instance**: parallelism is per-branch, not per-tree. The `Forest` abstraction (multiple parallel trees voting on a result) is roadmap territory (v0.5+). Until then, "many independent trees" is achieved by running several `Ormica` instances side-by-side and aggregating results in your own code.
 
 ## 3. Organizational theory
 
