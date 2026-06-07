@@ -147,6 +147,42 @@ def test_banned_words_handles_string_input_as_iterable():
     assert _run(rule, {"response": _FakeResponse("the secret")}) is not None
 
 
+def test_banned_words_defaults_to_word_boundary():
+    """List form defaults to word-boundary match — `secret` does NOT match `secretary`."""
+    rule = banned_words(["secret"])
+    assert _run(rule, {"response": _FakeResponse("the secretary called")}) is None
+    assert _run(rule, {"response": _FakeResponse("the secret formula")}) is not None
+
+
+def test_banned_words_word_mode_matches_multi_word_phrase():
+    """Word-boundary handles multi-word phrases correctly."""
+    rule = banned_words(["guaranteed reach"])
+    assert _run(rule, {"response": _FakeResponse("we offer guaranteed reach")}) is not None
+    assert _run(rule, {"response": _FakeResponse("we have great reach")}) is None
+
+
+def test_banned_words_word_mode_handles_trailing_punctuation():
+    """Phrases ending in non-word chars (e.g. `)`) still match — uses lookarounds."""
+    rule = banned_words(["link in bio (clickbait)"])
+    assert _run(rule, {"response": _FakeResponse("see link in bio (clickbait) now")}) is not None
+    # And does NOT misfire on the bare phrase
+    assert _run(rule, {"response": _FakeResponse("see link in bio for more")}) is None
+
+
+def test_banned_words_substring_mode_opt_in():
+    """Dict form with `match_mode: substring` preserves legacy behavior."""
+    rule = banned_words({"words": ["cret"], "match_mode": "substring"})
+    assert _run(rule, {"response": _FakeResponse("the secret")}) is not None
+    # Same rule under word mode would NOT match.
+    rule_word = banned_words({"words": ["cret"], "match_mode": "word"})
+    assert _run(rule_word, {"response": _FakeResponse("the secret")}) is None
+
+
+def test_banned_words_invalid_match_mode_raises():
+    with pytest.raises(ValueError, match="match_mode must be 'word' or 'substring'"):
+        banned_words({"words": ["x"], "match_mode": "fuzzy"})
+
+
 def test_max_response_tokens_caps_per_call():
     rule = max_response_tokens(50)
     assert _run(rule, {"response": _FakeResponse("ok", tokens_used=49)}) is None

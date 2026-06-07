@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 from .rule import Rule
 
@@ -148,19 +148,59 @@ def min_task_description(n: int) -> Rule:
 # --- post-stage rules ---------------------------------------------------------
 
 
-def banned_words(words: Iterable[str]) -> Rule:
-    """Reject responses containing any of ``words`` (case-insensitive substring).
+def banned_words(spec: Any) -> Rule:
+    """Reject responses containing any banned phrase (case-insensitive).
 
-    Reads ``ctx["response"].content``.
+    Accepts either:
+
+    - an iterable of phrases — ``banned_words(["secret", "internal"])``.
+      Defaults to ``match_mode="word"``: a phrase only matches when bounded
+      by non-word characters on both sides. Banning ``"secret"`` will reject
+      ``"secret formula"`` but not ``"secretary"``.
+
+    - a mapping ``{"words": [...], "match_mode": "word" | "substring"}`` —
+      use ``"substring"`` for the legacy raw-substring behavior (banning
+      ``"cret"`` rejects ``"secret"``). Useful for fragment-level guards
+      like prefix codes.
+
+    Word-boundary uses lookarounds for non-word chars so phrases that start
+    or end in punctuation still match correctly. Reads ``ctx["response"].content``.
     """
+    if isinstance(spec, dict):
+        words = spec.get("words", [])
+        match_mode = spec.get("match_mode", "word")
+    else:
+        words = spec
+        match_mode = "word"
+    if match_mode not in {"word", "substring"}:
+        raise ValueError(
+            f"banned_words match_mode must be 'word' or 'substring', "
+            f"got {match_mode!r}"
+        )
+
     banned = {w.lower() for w in words}
     label = ",".join(sorted(banned))[:48]
+
+    if match_mode == "substring":
+        def check(ctx: dict) -> bool:
+            content = ctx["response"].content.lower()
+            return not any(w in content for w in banned)
+    else:
+        patterns = [
+            re.compile(r"(?<!\w)" + re.escape(w) + r"(?!\w)")
+            for w in banned
+        ]
+        def check(ctx: dict) -> bool:
+            content = ctx["response"].content.lower()
+            return not any(p.search(content) for p in patterns)
+
     return Rule(
         name=f"banned_words_{label}",
-        description=f"Response must not contain any of: {sorted(banned)}.",
-        check=lambda ctx: not any(
-            w in ctx["response"].content.lower() for w in banned
+        description=(
+            f"Response must not contain any of: {sorted(banned)} "
+            f"(match: {match_mode})."
         ),
+        check=check,
         stage="post",
     )
 
