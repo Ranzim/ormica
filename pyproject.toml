@@ -9,8 +9,8 @@ description = "An Autonomous Coordination Engine — build self-organizing AI ag
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Ranzim", email = "ormica.maintainer@gmail.com" }]
-maintainers = [{ name = "Ranzim", email = "ormica.maintainer@gmail.com" }]
+authors = [{ name = "Ranzim", email = "u7459082338@id.gle" }]
+maintainers = [{ name = "Ranzim", email = "u7459082338@id.gle" }]
 keywords = [
     "ai",
     "agents",

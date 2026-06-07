@@ -21,7 +21,7 @@ If you've found a vulnerability — credential exposure, prompt-injection bypass
 
 It gives you a structured form, a private discussion thread tied to the repo, and an audit trail. No GitHub account? Email the maintainer instead:
 
-> 📧 **ormica.maintainer@gmail.com**
+> 📧 **u7459082338@id.gle**
 
 Include:
 
