@@ -154,6 +154,7 @@ In about five minutes you've installed Ormica, run a colony, swapped to a real L
 | Build **multiple rules** (per-department, soft vs hard, post-stage) | [Writing a Constitution](./guides/writing-a-constitution.md) |
 | Give agents **tools** they can call | [Writing tools](./guides/writing-tools.md) |
 | Debug an agent's reasoning | [Reading the Thought Trail](./guides/reading-the-thought-trail.md) |
+| **Watch the colony work** in a browser (tree, signals, live events) | [Dashboard](./guides/dashboard.md) |
 | Run async / parallel | [Async and routing](./guides/async-and-routing.md) |
 | Set up real persistence | [Persistence](./guides/persistence.md) |
 
