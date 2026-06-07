@@ -76,7 +76,7 @@ tree.spawn(tree.root, "finance")       # ROOT → DenyApprover says no → Spawn
 | `Canopy` | [`ormica/canopy/policy.py`](../../ormica/canopy/policy.py) | The SpawnPolicy impl |
 | `RiskLevel` | [`ormica/canopy/risk.py`](../../ormica/canopy/risk.py) | AUTO / CHAIN / ROOT enum |
 | `RoleRisk` / `StaticRisk` | [`ormica/canopy/risk.py`](../../ormica/canopy/risk.py) | RiskAssessor implementations |
-| `AutoApprover` / `DenyApprover` | [`ormica/canopy/approver.py`](../../ormica/canopy/approver.py) | Approver implementations (plug a real CLI / HTTP approver here) |
+| `AutoApprover` / `DenyApprover` / `ConsoleApprover` / `CallbackApprover` | [`ormica/canopy/approver.py`](../../ormica/canopy/approver.py) | Approver implementations — auto, deny, terminal-prompt, custom callable. See [Human approvals](../guides/human-approvals.md). |
 
 ## How they compose
 
@@ -101,3 +101,4 @@ org.plant("business")     # 4 departments; root permits each AUTO spawn
 - [Pillar 3 — Governance](./04-governance.md) — how `ConstitutionPolicy` composes with `Canopy`.
 - [Pillar 2 — Signaling](./02-signaling.md) — how nodes coordinate once they exist.
 - [Writing a Constitution](../guides/writing-a-constitution.md) — rules that gate spawn.
+- [Human approvals](../guides/human-approvals.md) — `ConsoleApprover` and `CallbackApprover` for keeping a person in the loop.
