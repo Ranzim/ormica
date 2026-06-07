@@ -106,6 +106,64 @@ def test_empty_templates_section_allowed(tmp_path: Path):
     assert cls().plant(org) == []
 
 
+def test_template_rules_attach_to_planted_node(tmp_path: Path):
+    """Per-template `rules:` in colony YAML drop onto the planted node's node.rules."""
+    yml = _write(
+        tmp_path / "with_rules.yaml",
+        """
+name: rule_demo
+templates:
+  - name: finance
+    role: finance
+    rules:
+      - max_tokens: 10000
+      - banned_words: [speculative]
+""",
+    )
+    cls = load_colony(yml)
+    org = Ormica("HQ")
+    [finance] = cls().plant(org)
+    # Two rules attached, each at the right stage.
+    assert len(finance.rules) == 2
+    stages = sorted(r.stage for r in finance.rules)
+    assert stages == ["post", "pre"]
+
+
+def test_template_rules_default_to_empty_tuple(tmp_path: Path):
+    """Templates without a `rules:` field plant nodes with empty node.rules."""
+    yml = _write(
+        tmp_path / "no_rules.yaml",
+        """
+name: plain_demo
+templates:
+  - name: ops
+    role: ops
+""",
+    )
+    cls = load_colony(yml)
+    org = Ormica("HQ")
+    [ops] = cls().plant(org)
+    assert ops.rules == []
+
+
+def test_template_rules_unknown_factory_errors_at_load_time(tmp_path: Path):
+    """Typos in colony YAML rule names surface as ValueError when loading."""
+    yml = _write(
+        tmp_path / "bad_rules.yaml",
+        """
+name: typo_demo
+templates:
+  - name: ops
+    role: ops
+    rules:
+      - not_a_real_rule: 1
+""",
+    )
+    import pytest as _pytest  # local alias since this file doesn't import pytest at top
+    with _pytest.raises(ValueError, match="not_a_real_rule"):
+        load_colony(yml)
+
+
 # --- CLI integration ----------------------------------------------------------
 
 

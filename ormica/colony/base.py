@@ -25,6 +25,10 @@ class AgentTemplate:
     role: ClassVar[str] = ""
     task: ClassVar[str] = ""
     system_prompt: ClassVar[str] = ""
+    # Per-template Constitution rules, copied onto ``node.rules`` at plant
+    # time. Tuple by default so the empty class-level value is shared safely;
+    # YAML-loaded templates supply a tuple of already-built Rule objects.
+    rules: ClassVar = ()
 
     @classmethod
     def plant(
@@ -43,6 +47,8 @@ class AgentTemplate:
         )
         if cls.system_prompt:
             node.meta["system_prompt"] = cls.system_prompt
+        if cls.rules:
+            node.rules.extend(cls.rules)
         node.meta["template"] = cls.__name__
         return node
 

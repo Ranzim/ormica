@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -39,6 +39,18 @@ class TaskConfig:
 
 
 @dataclass
+class ConstitutionConfig:
+    """Org-wide rules declared in ``ormica.yaml``.
+
+    Each entry in ``rules`` is a declarative spec consumed by
+    :func:`ormica.cortex.loader.build_rule` — either a bare factory name
+    (string) or a single-key mapping with the factory's positional arg.
+    """
+
+    rules: list = field(default_factory=list)
+
+
+@dataclass
 class OrmicaConfig:
     name: str = "My Company"
     owner: str = ""
@@ -48,14 +60,25 @@ class OrmicaConfig:
     memory_db: str = ""
     brain: BrainConfig = field(default_factory=BrainConfig)
     tasks: list[TaskConfig] = field(default_factory=list)
+    constitution: Optional[ConstitutionConfig] = None
 
 
 def load_config(path: Path) -> OrmicaConfig:
     data: dict[str, Any] = yaml.safe_load(path.read_text()) or {}
     brain = BrainConfig(**(data.pop("brain", None) or {}))
     tasks = [TaskConfig(**t) for t in (data.pop("tasks", None) or [])]
-    return OrmicaConfig(brain=brain, tasks=tasks, **data)
+    constitution_raw = data.pop("constitution", None)
+    constitution = (
+        ConstitutionConfig(**constitution_raw) if constitution_raw else None
+    )
+    return OrmicaConfig(
+        brain=brain, tasks=tasks, constitution=constitution, **data
+    )
 
 
 def save_config(config: OrmicaConfig, path: Path) -> None:
-    path.write_text(yaml.safe_dump(asdict(config), sort_keys=False))
+    payload = asdict(config)
+    # Drop ``constitution: null`` from the output — keeps init'd configs clean.
+    if payload.get("constitution") is None:
+        payload.pop("constitution", None)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False))

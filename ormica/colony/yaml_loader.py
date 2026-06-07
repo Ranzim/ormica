@@ -79,6 +79,14 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
         )
 
     base_name = spec.get("name") or spec.get("role")
+    rule_specs = spec.get("rules") or []
+    if rule_specs:
+        from ormica.cortex.loader import build_rule
+
+        rules = tuple(build_rule(r) for r in rule_specs)
+    else:
+        rules = ()
+
     return type(
         _classname_for(base_name) + "Agent",
         (AgentTemplate,),
@@ -87,6 +95,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
             "role": spec.get("role", ""),
             "task": spec.get("task", ""),
             "system_prompt": spec.get("system_prompt", ""),
+            "rules": rules,
         },
     )
 
