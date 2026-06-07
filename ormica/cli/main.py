@@ -8,7 +8,13 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from .config import BrainConfig, OrmicaConfig, load_config, save_config
+from .config import (
+    BrainConfig,
+    OrmicaConfig,
+    StigmaConfig,
+    load_config,
+    save_config,
+)
 
 DEFAULT_CONFIG = Path("ormica.yaml")
 
@@ -216,12 +222,29 @@ def cmd_signals(args: argparse.Namespace) -> int:
         return 1
 
     trails = org.signals.trails()
+    stored = sum(
+        1 for e in org.memory.all() if e.key.startswith(org.signals.KEY_PREFIX)
+    )
+    decayed = max(stored - len(trails), 0)
+    target = config.memory_db or config.memory_file or "(in-memory only)"
+
     if not trails:
-        target = config.memory_db or config.memory_file or "(in-memory only)"
-        print(f"no signals found. (backend: {target})")
+        if stored == 0:
+            print(
+                f"no signals found — nothing has been emitted. "
+                f"(backend: {target}; set stigma.auto_emit: true in {args.config} "
+                f"to reinforce trails on every task)"
+            )
+        else:
+            print(
+                f"no live signals — {stored} stored trail(s) all decayed below "
+                f"floor={org.signals.floor} (half_life={org.signals.half_life}s, "
+                f"backend: {target})"
+            )
         return 0
 
-    print(f"{len(trails)} signal(s):")
+    suffix = f" ({decayed} decayed)" if decayed > 0 else ""
+    print(f"{len(trails)} live signal(s){suffix}:")
     print(f"  {'topic':<24}  {'strength':>10}  sources")
     for s in trails[: args.top]:
         sources = ",".join(sorted(s.sources)) if s.sources else "-"
@@ -345,12 +368,16 @@ def _build_org(config: OrmicaConfig):
 
         constitution = build_constitution(config.constitution.rules)
 
+    stigma_cfg = config.stigma or StigmaConfig()
     org = Ormica(
         config.name,
         owner=config.owner,
         max_depth=config.max_depth,
         memory_path=config.memory_file or None,
         memory_db=config.memory_db or None,
+        signals_half_life=stigma_cfg.half_life,
+        signals_floor=stigma_cfg.floor,
+        signals_auto_emit=stigma_cfg.auto_emit,
         constitution=constitution,
     )
     if config.industry:

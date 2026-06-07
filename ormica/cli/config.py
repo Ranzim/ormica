@@ -51,6 +51,23 @@ class ConstitutionConfig:
 
 
 @dataclass
+class StigmaConfig:
+    """Pheromone-trail behavior declared in ``ormica.yaml``.
+
+    ``half_life`` and ``floor`` mirror :class:`ormica.stigma.Stigma`'s
+    constructor args. ``auto_emit`` controls whether the runtime
+    reinforces an ``activity:<node>`` and ``topic:<target>`` trail on every
+    task finalize — off in the bare :class:`Ormica` API for back-compat,
+    on by default when launched via the CLI so ``ormica signals`` shows
+    something useful out of the box.
+    """
+
+    half_life: float = 60.0
+    floor: float = 0.01
+    auto_emit: bool = True
+
+
+@dataclass
 class OrmicaConfig:
     name: str = "My Company"
     owner: str = ""
@@ -65,6 +82,7 @@ class OrmicaConfig:
     # declarative rule specs (same shape as ``constitution.rules``). Attached
     # at org build time and surfaced via ``ormica rules`` / the dashboard.
     node_rules: dict[str, list] = field(default_factory=dict)
+    stigma: Optional[StigmaConfig] = None
 
 
 def load_config(path: Path) -> OrmicaConfig:
@@ -81,20 +99,24 @@ def load_config(path: Path) -> OrmicaConfig:
             f"node_rules must be a mapping of node-name → [rule, ...], "
             f"got {type(node_rules).__name__}"
         )
+    stigma_raw = data.pop("stigma", None)
+    stigma = StigmaConfig(**stigma_raw) if stigma_raw else None
     return OrmicaConfig(
         brain=brain,
         tasks=tasks,
         constitution=constitution,
         node_rules=node_rules,
+        stigma=stigma,
         **data,
     )
 
 
 def save_config(config: OrmicaConfig, path: Path) -> None:
     payload = asdict(config)
-    # Drop ``constitution: null`` from the output — keeps init'd configs clean.
-    if payload.get("constitution") is None:
-        payload.pop("constitution", None)
+    # Drop empty / null fields from the output — keeps init'd configs clean.
+    for key in ("constitution", "stigma"):
+        if payload.get(key) is None:
+            payload.pop(key, None)
     if not payload.get("node_rules"):
         payload.pop("node_rules", None)
     path.write_text(yaml.safe_dump(payload, sort_keys=False))

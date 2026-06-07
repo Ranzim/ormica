@@ -89,6 +89,25 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
 
 
+def _maybe_auto_emit(org: "Ormica", task: Task, node: Node) -> None:
+    """Reinforce activity / topic trails after a task finalizes.
+
+    No-op unless ``org.signals_auto_emit`` is true. ``reinforce`` (not
+    ``emit``) so repeated work on the same node or target builds a real
+    trail instead of clobbering itself at strength=0.5 each time. Wrapped
+    in a swallow because a stigma write failure must never turn a
+    successful task into a failed one.
+    """
+    if not getattr(org, "signals_auto_emit", False):
+        return
+    try:
+        org.signals.reinforce(f"activity:{node.id}", amount=0.5, by=node.id)
+        if task.target:
+            org.signals.reinforce(f"topic:{task.target}", amount=0.5, by=node.id)
+    except Exception:
+        pass
+
+
 def _sorted_queue(tasks: list[Task], max_tasks: int) -> list[Task]:
     return sorted(
         tasks,
@@ -192,6 +211,7 @@ class TaskRunner:
             task.status = "failed"
         finally:
             _record_task(self.org, task, record_author)
+            _maybe_auto_emit(self.org, task, record_author)
             if task.status == "done":
                 self.org.events.emit(
                     TASK_DONE,
@@ -317,6 +337,7 @@ class AsyncTaskRunner:
             task.status = "failed"
         finally:
             _record_task(self.org, task, record_author)
+            _maybe_auto_emit(self.org, task, record_author)
             if task.status == "done":
                 self.org.events.emit(
                     TASK_DONE,

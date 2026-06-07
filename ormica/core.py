@@ -37,6 +37,8 @@ class Ormica:
         memory_path: Optional[str] = None,
         memory_db: Optional[str] = None,
         signals_half_life: float = 60.0,
+        signals_floor: float = 0.01,
+        signals_auto_emit: bool = False,
         constitution: Optional[Any] = None,
     ) -> None:
         from ormica.cortex import Constitution as _Constitution
@@ -68,7 +70,13 @@ class Ormica:
 
             memory = Mycelium(backend=FileBackend(memory_path))
         self.memory: Mycelium = memory if memory is not None else Mycelium()
-        self.signals = Stigma(self.memory, half_life=signals_half_life)
+        self.signals = Stigma(
+            self.memory, half_life=signals_half_life, floor=signals_floor
+        )
+        # Read by the runtime's task-finalize path. Off by default in the bare
+        # API so existing programmatic users see no behavior change; the CLI
+        # flips it on so ``ormica signals`` is meaningful after ``ormica run``.
+        self.signals_auto_emit: bool = signals_auto_emit
         self.events: EventBus = EventBus()
         self._tasks: list = []
 
