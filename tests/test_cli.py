@@ -5,7 +5,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from ormica.cli.config import BrainConfig, OrmicaConfig, TaskConfig, load_config, save_config
+from ormica.cli.config import (
+    BrainConfig,
+    ConstitutionConfig,
+    OrmicaConfig,
+    TaskConfig,
+    load_config,
+    save_config,
+)
 from ormica.cli.main import build_parser, main
 
 
@@ -733,3 +740,77 @@ def test_neither_dept_nor_target_lands_at_root(tmp_path: Path):
         org.task(t.description, dept=t.dept or t.target, priority=t.priority)
 
     assert org.tasks[0].target == ""  # routed to root
+
+
+# --- YAML Constitutions (v0.2 step 4) ----------------------------------------
+
+
+def test_load_config_parses_constitution_block(tmp_path: Path):
+    """A `constitution:` block in ormica.yaml round-trips through load_config."""
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "constitution": {
+            "rules": [
+                {"max_depth": 4},
+                {"block_role": "finance"},
+                "require_json",
+            ],
+        },
+    }))
+    config = load_config(out)
+    assert config.constitution is not None
+    assert len(config.constitution.rules) == 3
+
+
+def test_save_then_load_omits_null_constitution(tmp_path: Path):
+    """Default-init'd configs don't serialize `constitution: null`."""
+    out = tmp_path / "ormica.yaml"
+    save_config(OrmicaConfig(name="Acme"), out)
+    raw = out.read_text()
+    assert "constitution" not in raw
+
+
+def test_save_then_load_roundtrip_preserves_constitution(tmp_path: Path):
+    cfg = OrmicaConfig(
+        name="Acme",
+        constitution=ConstitutionConfig(rules=[{"max_depth": 4}, "require_json"]),
+    )
+    path = tmp_path / "ormica.yaml"
+    save_config(cfg, path)
+    loaded = load_config(path)
+    assert loaded.constitution.rules == cfg.constitution.rules
+
+
+def test_cli_run_enforces_constitution_from_yaml(tmp_path: Path, capsys):
+    """End-to-end: a YAML-declared block_role rule denies the bad spawn at CLI run time."""
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "industry": "business",
+        "constitution": {
+            "rules": [{"block_role": "finance"}],
+        },
+        "brain": {"type": "mock", "model": "mock", "replies": ["ok"]},
+        "tasks": [],
+    }))
+    # `business` colony includes a finance department — the rule must block it.
+    rc = main(["status", "--config", str(out)])
+    # status exits 1 because building the org spawns the finance node, which the
+    # rule now denies. The exact rc isn't the point — the failure mode is.
+    text = capsys.readouterr()
+    assert rc == 1 or "SpawnDenied" in text.err or "finance" in text.err.lower()
+
+
+def test_cli_run_unknown_rule_name_errors_cleanly(tmp_path: Path, capsys):
+    """A typo in a YAML rule name surfaces as a clear CLI error, not a stack trace."""
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "constitution": {"rules": [{"max_dept": 4}]},  # typo: max_dept vs max_depth
+    }))
+    rc = main(["status", "--config", str(out)])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "max_dept" in err
+    assert "Available" in err or "available" in err

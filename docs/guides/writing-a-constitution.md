@@ -201,6 +201,41 @@ def test_max_spend_blocks_when_over_limit():
     assert rule.evaluate({"budget": FakeBudget()}) is not None  # → Violation
 ```
 
+## Declaring rules in YAML
+
+Drop a `constitution:` block into `ormica.yaml` and the CLI builds the Constitution for you — no Python required for the common cases:
+
+```yaml
+name: My SaaS
+industry: business
+constitution:
+  rules:
+    - max_depth: 4
+    - max_tokens: 100000
+    - block_role: finance
+    - banned_words: [secret, confidential]
+    - require_json                # zero-arg form
+```
+
+Each entry is either a bare factory name (zero-arg) or a single-key mapping whose value becomes the factory's positional argument. Unknown names raise a clear `ValueError` listing what's available — so a typo like `max_dept` doesn't silently disable governance.
+
+For per-node rules, the colony YAML's template entries take the same shape:
+
+```yaml
+# industries/saas.yaml
+name: saas
+templates:
+  - name: finance
+    role: finance
+    rules:                                # ← attached to node.rules at plant time
+      - max_tokens: 10000
+      - banned_words: [speculative, off-book]
+  - name: ops
+    role: ops
+```
+
+The registry of nameable factories lives in `ormica.cortex.loader.RULE_FACTORIES`. To expose your own factory from YAML, register it there before loading the config.
+
 ## The standard rule library
 
 Most projects need the same primitives. `ormica.cortex.rules` ships them as one-liner factories so you don't re-implement them:

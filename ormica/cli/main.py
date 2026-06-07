@@ -136,12 +136,19 @@ def cmd_colonies(_: argparse.Namespace) -> int:
 def _build_org(config: OrmicaConfig):
     from ormica import Ormica
 
+    constitution = None
+    if config.constitution is not None and config.constitution.rules:
+        from ormica.cortex.loader import build_constitution
+
+        constitution = build_constitution(config.constitution.rules)
+
     org = Ormica(
         config.name,
         owner=config.owner,
         max_depth=config.max_depth,
         memory_path=config.memory_file or None,
         memory_db=config.memory_db or None,
+        constitution=constitution,
     )
     if config.industry:
         industry = config.industry
