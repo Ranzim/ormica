@@ -362,6 +362,24 @@ def _build_org(config: OrmicaConfig):
             org.plant(colony_cls.name)
         else:
             org.plant(industry)
+
+    if config.node_rules:
+        from ormica.cortex.loader import build_rule
+
+        by_name: dict[str, list] = {}
+        for node in org:
+            by_name.setdefault(node.name, []).append(node)
+        for node_name, specs in config.node_rules.items():
+            targets = by_name.get(node_name)
+            if not targets:
+                available = ", ".join(sorted(by_name)) or "(none)"
+                raise ValueError(
+                    f"node_rules: no node named {node_name!r}. "
+                    f"Available: {available}"
+                )
+            rules = [build_rule(spec) for spec in specs]
+            for node in targets:
+                node.rules.extend(rules)
     return org
 
 
