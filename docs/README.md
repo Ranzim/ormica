@@ -6,7 +6,9 @@ Start here if you're new to Ormica. Each page is one concept, with a code exampl
 
 ## 🚀 Getting started
 
-- [**Getting started**](./getting-started.md) — install, `ormica init`, first run in 5 minutes.
+- [**Onboarding — your first 5 minutes**](./onboarding.md) — plain-English tutorial. **Start here if you're new.**
+- [Getting started](./getting-started.md) — same path, terser.
+- [SaaS helpdesk example](../examples/saas_helpdesk/README.md) — production-style colony with four departments + real Constitution rules. **Read after onboarding to see it in context.**
 - [**Concepts**](./concepts.md) — the three biological metaphors fused into one framework.
 
 ## 🏗️ Architecture (the four pillars)
