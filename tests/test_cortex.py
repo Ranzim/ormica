@@ -11,6 +11,7 @@ from ormica.cortex import (
     RuleViolation,
     Violation,
 )
+from ormica.runtime import Task
 
 
 # --- Rule basic semantics -----------------------------------------------------
@@ -147,10 +148,37 @@ def test_constitution_via_ormica_facade_governs_spawn():
         org.spawn("finance")
 
 
+def test_spawn_stage_context_exposes_role_and_task_text():
+    """Spawn rules can reason about the child's role and task string (issue #5)."""
+    seen: dict = {}
+
+    def capture(ctx):
+        seen.update(ctx)
+        return ctx["role"] != "finance"
+
+    constitution = Constitution([
+        Rule(
+            name="no_finance",
+            description="block finance role at spawn",
+            check=capture,
+            stage="spawn",
+            severity="hard",
+        ),
+    ])
+    org = Ormica("HQ", constitution=constitution)
+
+    org.spawn("ops", role="ops", task="run the floor")
+    assert seen["role"] == "ops"
+    assert seen["task_text"] == "run the floor"
+
+    with pytest.raises(SpawnDenied):
+        org.spawn("treasury", role="finance", task="manage cash")
+
+
 def test_constitution_policy_composes_with_inner_policy():
     """If inner says no, ConstitutionPolicy says no — even when rules pass."""
     class AlwaysDenyInner:
-        def allow(self, parent, child_name):
+        def allow(self, parent, child_name, **_):
             return False
 
     policy = ConstitutionPolicy(Constitution(), inner=AlwaysDenyInner())
@@ -196,6 +224,44 @@ def test_agent_without_constitution_unaffected():
     node = org.spawn("scout")
     agent = Agent(node, MockBrain(replies=["ok"]))
     assert agent.act("hi").content == "ok"
+
+
+def test_pre_stage_context_separates_task_object_from_task_text():
+    """ctx["task"] is the runtime Task; ctx["task_text"] is the Node.task string (issue #6)."""
+    seen: dict = {}
+
+    constitution = Constitution([
+        Rule(
+            name="record_ctx",
+            description="capture pre-stage context shape",
+            check=lambda ctx: seen.update(ctx) or True,
+        ),
+    ])
+    org = Ormica("HQ", constitution=constitution)
+    org.spawn("scout", role="scout", task="watch the perimeter")
+    org.task("look north", dept="scout", priority="high")
+
+    org.run(brain=MockBrain(replies=["ok"]))
+
+    assert seen["task_text"] == "watch the perimeter"
+    assert isinstance(seen["task"], Task)
+    assert seen["task"].description == "look north"
+    assert seen["task"].priority == "high"
+
+
+def test_pre_stage_task_is_none_when_agent_driven_directly():
+    """Without a runner setting runtime_task, ctx["task"] is None (issue #6)."""
+    seen: dict = {}
+    constitution = Constitution([
+        Rule(name="snap", description="", check=lambda ctx: seen.update(ctx) or True),
+    ])
+    org = Ormica("HQ")
+    node = org.spawn("scout", role="scout", task="watch")
+    agent = Agent(node, MockBrain(replies=["ok"]), constitution=constitution)
+    agent.act("look")
+
+    assert seen["task"] is None
+    assert seen["task_text"] == "watch"
 
 
 def test_run_loop_marks_task_failed_on_rule_violation():

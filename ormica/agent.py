@@ -65,6 +65,11 @@ class _AgentBase:
         # Observability — set by runners so think calls flow into a Trace.
         self.events: Any = None
         self.task_id: str = ""
+        # Runtime Task object — set by runners so pre-stage rules can read
+        # ctx["task"].priority / .target etc. ``None`` when an Agent is
+        # driven directly (no runner), in which case rules should treat the
+        # absence as "no runtime task in this context".
+        self.runtime_task: Any = None
 
     def _record_think(
         self,
@@ -95,7 +100,8 @@ class _AgentBase:
             {
                 "node": self.node,
                 "role": self.node.role,
-                "task": self.node.task,
+                "task_text": self.node.task,
+                "task": self.runtime_task,
                 "prompt": prompt,
                 "budget": self.budget,
             },

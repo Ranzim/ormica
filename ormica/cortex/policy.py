@@ -29,15 +29,24 @@ class ConstitutionPolicy:
         self.constitution = constitution
         self.inner = inner
 
-    def allow(self, parent: Node, child_name: str) -> bool:
+    def allow(
+        self,
+        parent: Node,
+        child_name: str,
+        *,
+        role: str = "",
+        task: str = "",
+    ) -> bool:
         context = {
             "parent": parent,
             "child_name": child_name,
             "depth": parent.depth + 1,
+            "role": role,
+            "task_text": task,
         }
         violations = self.constitution.check(context, stage="spawn")
         if any(v.rule.severity == "hard" for v in violations):
             return False
         if self.inner is not None:
-            return self.inner.allow(parent, child_name)
+            return self.inner.allow(parent, child_name, role=role, task=task)
         return True

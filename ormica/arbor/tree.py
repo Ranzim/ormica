@@ -45,7 +45,7 @@ class Tree:
             raise MaxDepthExceeded(
                 f"spawning under {parent.name!r} would exceed max_depth={self.max_depth}"
             )
-        if not self.policy.allow(parent, name):
+        if not self.policy.allow(parent, name, role=role, task=task):
             raise SpawnDenied(f"policy denied spawn of {name!r} under {parent.name!r}")
 
         child = Node(name=name, role=role, task=task, parent=parent)

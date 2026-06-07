@@ -182,6 +182,7 @@ class TaskRunner:
             )
             agent.events = self.org.events
             agent.task_id = task.id
+            agent.runtime_task = task
             response = agent.act(task.description)
             tokens_used = response.tokens_used
             task.result = response.content
@@ -306,6 +307,7 @@ class AsyncTaskRunner:
             )
             agent.events = self.org.events
             agent.task_id = task.id
+            agent.runtime_task = task
             response = await agent.act(task.description)
             tokens_used = response.tokens_used
             task.result = response.content

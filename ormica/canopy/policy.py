@@ -38,7 +38,14 @@ class Canopy:
         self.root_approver: Approver = root_approver or AutoApprover()
         self.chain_levels = chain_levels
 
-    def allow(self, parent: Node, child_name: str) -> bool:
+    def allow(
+        self,
+        parent: Node,
+        child_name: str,
+        *,
+        role: str = "",  # noqa: ARG002
+        task: str = "",  # noqa: ARG002
+    ) -> bool:
         risk = self.assessor.assess(parent, child_name)
         request = SpawnRequest(parent=parent, child_name=child_name, risk=risk)
 

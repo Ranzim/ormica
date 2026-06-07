@@ -24,6 +24,26 @@ class Rule:
 
     ``severity`` is informational for observability; ``hard`` rules raise
     :class:`RuleViolation`, ``soft`` rules emit an event and the action proceeds.
+
+    **Context schema** (the dict passed to ``check``):
+
+    ``stage="spawn"`` — built by :class:`ConstitutionPolicy`:
+
+    - ``parent`` (``Node``) — the parent of the proposed child
+    - ``child_name`` (``str``) — name of the proposed child
+    - ``depth`` (``int``) — depth of the proposed child (``parent.depth + 1``)
+    - ``role`` (``str``) — role of the proposed child (empty string if none)
+    - ``task_text`` (``str``) — free-text task carried on the spawning node (empty if none)
+
+    ``stage="pre"`` — built by the agent before each think call:
+
+    - ``node`` (``Node``) — the agent's node
+    - ``role`` (``str``) — ``node.role``
+    - ``task_text`` (``str``) — ``node.task`` (the spawn-time string)
+    - ``task`` (``runtime.Task`` | ``None``) — the runtime Task object when driven
+      by a runner; ``None`` when an Agent is used directly
+    - ``prompt`` (``Prompt``) — the prompt passed to ``agent.act``
+    - ``budget`` (``TokenBudget`` | ``None``) — the agent's token budget
     """
 
     name: str

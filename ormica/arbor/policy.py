@@ -14,11 +14,25 @@ from .node import Node
 
 @runtime_checkable
 class SpawnPolicy(Protocol):
-    def allow(self, parent: Node, child_name: str) -> bool: ...
+    def allow(
+        self,
+        parent: Node,
+        child_name: str,
+        *,
+        role: str = "",
+        task: str = "",
+    ) -> bool: ...
 
 
 class AllowAllPolicy:
     """Permits every spawn. Used until canopy is wired in."""
 
-    def allow(self, parent: Node, child_name: str) -> bool:  # noqa: ARG002
+    def allow(
+        self,
+        parent: Node,
+        child_name: str,
+        *,
+        role: str = "",
+        task: str = "",
+    ) -> bool:  # noqa: ARG002
         return True
