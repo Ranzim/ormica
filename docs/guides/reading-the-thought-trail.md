@@ -129,6 +129,39 @@ org.run(brain=ClaudeBrain())
 # 2026-06-05T01:23:47Z run.completed src=runner processed=3 succeeded=3 failed=0
 ```
 
+## Exporting traces (audit, BI, archival)
+
+`ormica trace --format json` dumps one trace as a JSON document. `ormica export` bulk-exports every stored trace as JSON Lines or CSV — one trace per line in JSONL so the output stays streamable for large colonies.
+
+```bash
+# A single trace as portable JSON (full structure).
+ormica trace <task_id> --format json > one.json
+
+# Every persisted trace as JSON Lines (default).
+ormica export                              > traces.jsonl
+
+# CSV summary — one row per task; great for a quick BI import.
+ormica export --format csv                 > summary.csv
+
+# CSV detail — one row per think call, with per-call token cost.
+ormica export --format csv --mode detail   > calls.csv
+
+# Or write directly to a file (status reported on stderr).
+ormica export --format csv --out traces.csv
+```
+
+The same pure functions live in `ormica.observe` for Python use:
+
+| Function | Output |
+|---|---|
+| `trace_to_dict(trace)` | Plain dict (nested entries preserved) |
+| `trace_to_json(trace)` | Pretty-printed JSON string |
+| `traces_to_jsonl(iter)` | One compact JSON object per line |
+| `traces_to_csv_summary(iter)` | CSV string, one row per task |
+| `traces_to_csv_detail(iter)` | CSV string, one row per think call |
+
+CSV cells with newlines in the description or response are collapsed to single spaces so a multi-line value doesn't split the row. Detail-mode responses are truncated at 200 chars with a trailing ellipsis — the JSON forms keep the full text.
+
 ## What lives where
 
 | Where | What |

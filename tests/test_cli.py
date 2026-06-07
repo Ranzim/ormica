@@ -278,6 +278,92 @@ def test_run_then_trace_returns_thought_trail(tmp_path: Path, capsys):
     assert "scout" in text  # task description
 
 
+# --- trace --format json / export (v0.2 step 2 of Phase 2) ------------------
+
+
+def _run_and_get_task_id(tmp_path, capsys):
+    """Helper: spin up a run that persists at least one trace, return its config and id."""
+    import json as _json
+    out = tmp_path / "ormica.yaml"
+    db = tmp_path / "memory.db"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        memory_db=str(db),
+        brain=BrainConfig(type="mock", replies=["scouted"]),
+        tasks=[TaskConfig(description="scout", dept="sales")],
+    )
+    save_config(cfg, out)
+    rc = main(["run", "--config", str(out)])
+    assert rc == 0
+    capsys.readouterr()  # drain
+    from ormica.mycelium import Mycelium, SqliteBackend
+    mem = Mycelium(backend=SqliteBackend(str(db)))
+    task_id = next(
+        e.key.split("/", 1)[1]
+        for e in mem.all()
+        if e.key.startswith("traces/")
+    )
+    return out, task_id, _json
+
+
+def test_trace_format_json_emits_valid_json(tmp_path: Path, capsys):
+    out, task_id, _json = _run_and_get_task_id(tmp_path, capsys)
+    rc = main(["trace", task_id, "--config", str(out), "--format", "json"])
+    assert rc == 0
+    payload = _json.loads(capsys.readouterr().out)
+    assert payload["task_id"] == task_id
+    assert isinstance(payload["entries"], list)
+    assert payload["entries"][0]["response_content"] == "scouted"
+
+
+def test_export_json_writes_jsonl_to_stdout(tmp_path: Path, capsys):
+    out, task_id, _json = _run_and_get_task_id(tmp_path, capsys)
+    rc = main(["export", "--config", str(out), "--format", "json"])
+    assert rc == 0
+    text = capsys.readouterr().out.strip()
+    # Each line is a complete JSON object — JSON Lines.
+    for line in text.splitlines():
+        payload = _json.loads(line)
+        assert "task_id" in payload
+    # And our task is represented.
+    assert task_id in text
+
+
+def test_export_csv_summary_is_default_csv_shape(tmp_path: Path, capsys):
+    out, task_id, _ = _run_and_get_task_id(tmp_path, capsys)
+    rc = main(["export", "--config", str(out), "--format", "csv"])
+    assert rc == 0
+    text = capsys.readouterr().out
+    header, *rows = text.strip().splitlines()
+    assert header.startswith("task_id,target,description,status,n_think_calls")
+    assert any(task_id in row for row in rows)
+
+
+def test_export_csv_detail_one_row_per_call(tmp_path: Path, capsys):
+    out, task_id, _ = _run_and_get_task_id(tmp_path, capsys)
+    rc = main(["export", "--config", str(out), "--format", "csv", "--mode", "detail"])
+    assert rc == 0
+    text = capsys.readouterr().out
+    header, *rows = text.strip().splitlines()
+    assert header.startswith("task_id,target,task_status,call_index")
+    assert any(task_id in row for row in rows)
+
+
+def test_export_to_file_writes_and_reports(tmp_path: Path, capsys):
+    out, task_id, _json = _run_and_get_task_id(tmp_path, capsys)
+    dump_path = tmp_path / "traces.jsonl"
+    rc = main([
+        "export", "--config", str(out),
+        "--format", "json", "--out", str(dump_path),
+    ])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "wrote 1 trace(s)" in err or "wrote " in err
+    body = dump_path.read_text()
+    assert task_id in body
+
+
 # --- run ----------------------------------------------------------------------
 
 
