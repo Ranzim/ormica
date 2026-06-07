@@ -17,6 +17,16 @@ depth_cap = Rule(
 
 A rule is **one predicate**. It takes a context dict, returns `True` if the action is allowed. The context's contents depend on the stage.
 
+## When rules run
+
+| `stage` | When | Context includes | Typical use |
+|---|---|---|---|
+| `pre` (default) | Before each `brain.think` | `prompt`, `role`, `task`, `budget` | Block risky inputs; cap token spend |
+| `post` | After a successful `brain.think` (final response only in `act_with_tools`) | pre keys + `response` | Block disallowed response content; flag patterns for analytics |
+| `spawn` | Before a new node is created (`Tree.spawn`) | `parent`, `child_name`, `depth`, `role`, `task_text` | Cap tree depth; veto risky child roles |
+
+A hard violation at any stage raises `RuleViolation`. At `pre` and `spawn` this means the action never happens. At `post` the think call has already happened (tokens were spent) but the response is blocked from being used by the caller.
+
 ## The four common patterns
 
 ### 1. Block a role from acting
@@ -59,7 +69,20 @@ no_deep_growth = Rule(
 
 `stage="spawn"` context: `parent` · `child_name` · `depth`.
 
-### 4. Block specific agent names from spawning
+### 4. Block disallowed content in the response
+
+```python
+ban_secret = Rule(
+    name="ban_secret_word",
+    description="Responses must not mention 'secret'.",
+    check=lambda ctx: "secret" not in ctx["response"].content.lower(),
+    stage="post",
+)
+```
+
+`stage="post"` context adds `response` to the pre-stage keys. `response.content` is the model's text; `response.tokens_used` is the call's cost. Use `severity="soft"` if you want to flag-and-allow rather than block.
+
+### 5. Block specific agent names from spawning
 
 ```python
 no_finance_clones = Rule(
