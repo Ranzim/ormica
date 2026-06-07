@@ -69,6 +69,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
+    # Subscribe a TraceObserver so per-task Thought Trails persist to
+    # mycelium under traces/{task_id}. Without persistence configured
+    # they survive only for this process, but `ormica trace` can still
+    # read them while the same `ormica run` invocation is in scope.
+    from ormica.observe import TraceObserver
+
+    org.subscribe(TraceObserver(store=org.memory))
+
     for t in config.tasks:
         org.task(t.description, dept=t.dept or t.target, priority=t.priority)
 
@@ -128,6 +136,120 @@ def cmd_colonies(_: argparse.Namespace) -> int:
         cls = get_colony(name)
         print(f"{name}: {cls.description}")
     return 0
+
+
+def cmd_rules(args: argparse.Namespace) -> int:
+    """List the active Constitution — org-level + per-node rules."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found.", file=sys.stderr)
+        return 1
+
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+    except Exception as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    org_rules = list(org.constitution) if org.constitution is not None else []
+    if org_rules:
+        print(f"org-wide rules ({len(org_rules)}):")
+        for rule in org_rules:
+            print(f"  - [{rule.stage}/{rule.severity}] {rule.name} — {rule.description}")
+    else:
+        print("org-wide rules: (none)")
+
+    nodes_with_rules = [n for n in org if n.rules]
+    if nodes_with_rules:
+        print(f"\nper-node rules:")
+        for node in nodes_with_rules:
+            print(f"  {node.name} [{node.role or '-'}]:")
+            for rule in node.rules:
+                print(
+                    f"    - [{rule.stage}/{rule.severity}] {rule.name} "
+                    f"— {rule.description}"
+                )
+    else:
+        print("\nper-node rules: (none)")
+    return 0
+
+
+def cmd_signals(args: argparse.Namespace) -> int:
+    """List stigma trails currently in shared memory, sorted by strength."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found.", file=sys.stderr)
+        return 1
+
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+    except Exception as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    trails = org.signals.trails()
+    if not trails:
+        target = config.memory_db or config.memory_file or "(in-memory only)"
+        print(f"no signals found. (backend: {target})")
+        return 0
+
+    print(f"{len(trails)} signal(s):")
+    print(f"  {'topic':<24}  {'strength':>10}  sources")
+    for s in trails[: args.top]:
+        sources = ",".join(sorted(s.sources)) if s.sources else "-"
+        print(f"  {s.topic:<24}  {s.strength:>10.3f}  {sources}")
+    return 0
+
+
+def cmd_trace(args: argparse.Namespace) -> int:
+    """Dump a stored Thought Trail for a task by id."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found.", file=sys.stderr)
+        return 1
+
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+    except Exception as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    trace = org.trace_for(args.task_id)
+    if trace is None:
+        backend = config.memory_db or config.memory_file or "(in-memory only)"
+        print(
+            f"no trace found for task_id={args.task_id!r}. "
+            f"Backend: {backend}",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"task_id:     {trace.task_id}")
+    print(f"target:      {trace.target or '(root)'}")
+    print(f"description: {trace.description}")
+    print(f"status:      {trace.status}")
+    if trace.error:
+        print(f"error:       {trace.error}")
+    if trace.result:
+        print(f"result:      {trace.result}")
+    print(f"think calls: {len(trace.entries)}")
+    for i, entry in enumerate(trace.entries, start=1):
+        print(f"\n  [{i}] tokens={entry.tokens_used} tools={entry.tool_names or '-'}")
+        if entry.system:
+            print(f"      system: {_truncate(entry.system, 80)}")
+        for msg in entry.messages:
+            content = _truncate(str(msg.get("content", "")), 80)
+            print(f"      {msg.get('role', '?'):<8} {content}")
+        if entry.response_content:
+            print(f"      → {_truncate(entry.response_content, 80)}")
+    return 0
+
+
+def _truncate(s: str, n: int) -> str:
+    return s if len(s) <= n else s[: n - 1] + "…"
 
 
 # --- helpers ------------------------------------------------------------------
@@ -322,6 +444,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     col = sub.add_parser("colonies", help="List available colonies")
     col.set_defaults(func=cmd_colonies)
+
+    rules = sub.add_parser(
+        "rules",
+        help="List the active Constitution — org-level + per-node rules",
+    )
+    rules.add_argument("--config", default=str(DEFAULT_CONFIG))
+    rules.set_defaults(func=cmd_rules)
+
+    signals = sub.add_parser(
+        "signals",
+        help="List stigma trails currently in shared memory, sorted by strength",
+    )
+    signals.add_argument("--config", default=str(DEFAULT_CONFIG))
+    signals.add_argument("--top", type=int, default=20, help="Limit to top N (default 20)")
+    signals.set_defaults(func=cmd_signals)
+
+    trace = sub.add_parser(
+        "trace",
+        help="Dump a stored Thought Trail for a task by id",
+    )
+    trace.add_argument("task_id")
+    trace.add_argument("--config", default=str(DEFAULT_CONFIG))
+    trace.set_defaults(func=cmd_trace)
 
     return parser
 

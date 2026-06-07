@@ -150,6 +150,135 @@ def test_status_with_unknown_industry_errors(tmp_path: Path, capsys):
     assert "Unknown colony" in capsys.readouterr().err
 
 
+# --- rules / signals / trace (v0.2 step 5) ----------------------------------
+
+
+def test_rules_lists_org_wide_constitution(tmp_path: Path, capsys):
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        constitution=ConstitutionConfig(
+            rules=[{"max_depth": 4}, "require_json"],
+        ),
+    )
+    save_config(cfg, out)
+
+    rc = main(["rules", "--config", str(out)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "org-wide rules (2)" in text
+    assert "max_depth_4" in text
+    assert "require_json" in text
+
+
+def test_rules_lists_per_node_rules_from_colony_yaml(tmp_path: Path, capsys):
+    """Per-template rules attached via colony YAML show up under per-node rules."""
+    industry_yaml = tmp_path / "ind.yaml"
+    industry_yaml.write_text(yaml.safe_dump({
+        "name": "rules_demo",
+        "templates": [
+            {"name": "finance", "role": "finance",
+             "rules": [{"max_tokens": 10000}]},
+        ],
+    }))
+    cfg_path = tmp_path / "ormica.yaml"
+    save_config(OrmicaConfig(name="Acme", industry=str(industry_yaml)), cfg_path)
+
+    try:
+        rc = main(["rules", "--config", str(cfg_path)])
+        assert rc == 0
+        text = capsys.readouterr().out
+        assert "per-node rules" in text
+        assert "finance" in text
+        assert "max_tokens_10000" in text
+    finally:
+        from ormica.colony.registry import _COLONIES
+        _COLONIES.pop("rules_demo", None)
+
+
+def test_rules_when_no_rules_exist(tmp_path: Path, capsys):
+    out = tmp_path / "ormica.yaml"
+    save_config(OrmicaConfig(name="Acme"), out)
+    rc = main(["rules", "--config", str(out)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "org-wide rules: (none)" in text
+    assert "per-node rules: (none)" in text
+
+
+def test_signals_reports_no_trails_on_fresh_config(tmp_path: Path, capsys):
+    out = tmp_path / "ormica.yaml"
+    save_config(OrmicaConfig(name="Acme"), out)
+    rc = main(["signals", "--config", str(out)])
+    assert rc == 0
+    assert "no signals found" in capsys.readouterr().out
+
+
+def test_signals_lists_emitted_trails(tmp_path: Path, capsys):
+    """After a run that emits signals, `ormica signals` lists them sorted by strength."""
+    out = tmp_path / "ormica.yaml"
+    db = tmp_path / "memory.db"
+    cfg = OrmicaConfig(
+        name="Acme",
+        memory_db=str(db),
+    )
+    save_config(cfg, out)
+
+    # Bootstrap some signals by direct emit, then re-load via CLI.
+    from ormica import Ormica
+    from ormica.mycelium import Mycelium, SqliteBackend
+    bootstrap = Ormica("Acme", memory_db=str(db))
+    bootstrap.emit("hot_lead", strength=3.0)
+    bootstrap.emit("cold_call", strength=0.5)
+
+    rc = main(["signals", "--config", str(out)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "hot_lead" in text
+    assert "cold_call" in text
+    # hot_lead has the higher strength; it should appear first.
+    assert text.index("hot_lead") < text.index("cold_call")
+
+
+def test_trace_reports_missing_trace(tmp_path: Path, capsys):
+    out = tmp_path / "ormica.yaml"
+    save_config(OrmicaConfig(name="Acme"), out)
+    rc = main(["trace", "ghost-task-id", "--config", str(out)])
+    assert rc == 1
+    assert "no trace found" in capsys.readouterr().err
+
+
+def test_run_then_trace_returns_thought_trail(tmp_path: Path, capsys):
+    """End-to-end: ormica run persists traces to mycelium; ormica trace reads them."""
+    out = tmp_path / "ormica.yaml"
+    db = tmp_path / "memory.db"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        memory_db=str(db),
+        brain=BrainConfig(type="mock", replies=["scouted"]),
+        tasks=[TaskConfig(description="scout", dept="sales")],
+    )
+    save_config(cfg, out)
+
+    rc = main(["run", "--config", str(out)])
+    assert rc == 0
+    # Grab the task id from the persisted state (the runner saved it to memory).
+    from ormica.mycelium import Mycelium, SqliteBackend
+    mem = Mycelium(backend=SqliteBackend(str(db)))
+    task_entries = [e for e in mem.all() if e.key.startswith("tasks/")]
+    assert task_entries, "expected at least one persisted task"
+    task_id = task_entries[0].key.split("/", 1)[1]
+
+    # Now `ormica trace <id>` should print something.
+    capsys.readouterr()  # drain
+    rc = main(["trace", task_id, "--config", str(out)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert task_id in text
+    assert "scout" in text  # task description
+
+
 # --- run ----------------------------------------------------------------------
 
 
