@@ -39,6 +39,7 @@ class Ormica:
         signals_half_life: float = 60.0,
         signals_floor: float = 0.01,
         signals_auto_emit: bool = False,
+        signals_auto_evaporate: bool = False,
         constitution: Optional[Any] = None,
     ) -> None:
         from ormica.cortex import Constitution as _Constitution
@@ -77,6 +78,10 @@ class Ormica:
         # API so existing programmatic users see no behavior change; the CLI
         # flips it on so ``ormica signals`` is meaningful after ``ormica run``.
         self.signals_auto_emit: bool = signals_auto_emit
+        # When true, ``run`` / ``arun`` call ``signals.evaporate()`` after
+        # processing all tasks — drops trails below floor so persistent
+        # backends (sqlite) don't accumulate stale data across invocations.
+        self.signals_auto_evaporate: bool = signals_auto_evaporate
         self.events: EventBus = EventBus()
         self._tasks: list = []
 
@@ -204,7 +209,9 @@ class Ormica:
             on_task_start=on_task_start,
             on_task_done=on_task_done,
         )
-        return runner.run(self.pending_tasks())
+        result = runner.run(self.pending_tasks())
+        self._maybe_evaporate()
+        return result
 
     async def arun(
         self,
@@ -232,7 +239,21 @@ class Ormica:
             on_task_start=on_task_start,
             on_task_done=on_task_done,
         )
-        return await runner.run(self.pending_tasks())
+        result = await runner.run(self.pending_tasks())
+        self._maybe_evaporate()
+        return result
+
+    def _maybe_evaporate(self) -> None:
+        """Drop trails below floor if ``signals_auto_evaporate`` is set.
+
+        Swallow failures so an evaporate hiccup never masks a successful run.
+        """
+        if not getattr(self, "signals_auto_evaporate", False):
+            return
+        try:
+            self.signals.evaporate()
+        except Exception:
+            pass
 
     # --- memory ergonomics ---
 

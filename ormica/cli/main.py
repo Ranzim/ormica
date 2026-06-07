@@ -221,6 +221,14 @@ def cmd_signals(args: argparse.Namespace) -> int:
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
+    # --evaporate is a write — do it before listing so the print
+    # reflects what the user just chose to keep.
+    if getattr(args, "evaporate", False):
+        dropped = org.signals.evaporate()
+        print(
+            f"evaporated {dropped} trail(s) below floor={org.signals.floor}"
+        )
+
     trails = org.signals.trails()
     stored = sum(
         1 for e in org.memory.all() if e.key.startswith(org.signals.KEY_PREFIX)
@@ -388,6 +396,7 @@ def _build_org(config: OrmicaConfig):
         signals_half_life=stigma_cfg.half_life,
         signals_floor=stigma_cfg.floor,
         signals_auto_emit=stigma_cfg.auto_emit,
+        signals_auto_evaporate=stigma_cfg.auto_evaporate,
         constitution=constitution,
     )
     if config.industry:
@@ -612,6 +621,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     signals.add_argument("--config", default=str(DEFAULT_CONFIG))
     signals.add_argument("--top", type=int, default=20, help="Limit to top N (default 20)")
+    signals.add_argument(
+        "--evaporate",
+        action="store_true",
+        help="Drop trails whose decayed strength is below floor before listing. "
+        "Useful when a persistent backend has accumulated stale trails across runs.",
+    )
     signals.set_defaults(func=cmd_signals)
 
     trace = sub.add_parser(

@@ -71,6 +71,12 @@ class StigmaConfig:
     half_life: float = 60.0
     floor: float = 0.01
     auto_emit: bool = True
+    # When true, the runtime calls signals.evaporate() at the end of
+    # every ``ormica run`` — drops trails whose decayed strength has
+    # fallen below floor. Without this, persistent backends (sqlite)
+    # accumulate stale trails across invocations: yesterday's
+    # signals dominate today's view until natural decay catches up.
+    auto_evaporate: bool = False
 
 
 @dataclass
