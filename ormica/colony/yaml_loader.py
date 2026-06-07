@@ -2,12 +2,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Optional, Union
+
+from ormica.arbor import Node
 
 import yaml
 
 from .base import AgentTemplate, Colony
 from .registry import register as register_fn
+
+# Blueprint = list of (template_cls, [child_blueprint, ...]) tuples.
+# Built once at load_colony() time; walked at plant() time to spawn
+# nodes in pre-order under the chosen parent.
+_Blueprint = list[tuple[type[AgentTemplate], "list"]]
 
 
 def load_colony(
@@ -17,19 +24,25 @@ def load_colony(
 ) -> type[Colony]:
     """Build a :class:`Colony` subclass from a YAML spec.
 
-    YAML shape::
+    YAML shape — flat (existing) or nested via ``children:``::
 
-        name: saas
-        description: B2B SaaS organization
+        name: creator-studio
+        description: Solo creator running content + partnerships + finance
         templates:
-          - name: product
-            role: product
-            task: Define and ship features
-            system_prompt: |
-              You lead product. Prioritize, scope, and ship.
-          - name: engineering
-            role: engineering
-            ...
+          - name: creator-office
+            role: chief-of-staff
+            children:
+              - name: content
+                role: content-head
+                children:
+                  - name: short-form
+                    role: shorts-prod
+              - name: finance
+                role: finance-lead
+
+    Each ``children:`` entry has the same shape as a top-level template
+    and is planted under its parent. ``children:`` is optional — colonies
+    without it behave exactly like before.
 
     If ``register=True``, the colony is added to the global registry
     and can be planted via ``org.plant(name)``.
@@ -47,9 +60,15 @@ def load_colony(
             f"colony YAML at {path}: 'templates' must be a list, got {type(raw_templates).__name__}"
         )
 
-    templates: list[type[AgentTemplate]] = [
-        _make_template(spec, path=path) for spec in raw_templates
-    ]
+    blueprint: _Blueprint = [_make_blueprint(spec, path=path) for spec in raw_templates]
+    # Flat list of top-level template classes — preserved so existing
+    # ``colony.templates()`` callers (and any external code that walked
+    # them) keep working unchanged.
+    top_templates: list[type[AgentTemplate]] = [b[0] for b in blueprint]
+
+    def _plant(self, org, *, under: Optional[Node] = None) -> list[Node]:
+        parent = under if under is not None else org.root
+        return _plant_blueprint(blueprint, org, parent)
 
     description = data.get("description", "")
     colony_cls = type(
@@ -58,7 +77,8 @@ def load_colony(
         {
             "name": name,
             "description": description,
-            "templates": (lambda _ts=tuple(templates): lambda self: list(_ts))(),
+            "plant": _plant,
+            "templates": (lambda _ts=tuple(top_templates): lambda self: list(_ts))(),
         },
     )
 
@@ -66,6 +86,43 @@ def load_colony(
         register_fn(colony_cls)
 
     return colony_cls
+
+
+def _make_blueprint(spec: Any, *, path: Path) -> tuple[type[AgentTemplate], _Blueprint]:
+    """Build one ``(template_cls, [child_blueprint, ...])`` tuple from a spec.
+
+    Recurses into ``spec["children"]``. Validation of the spec itself
+    (must be a mapping, must have name or role) is delegated to
+    :func:`_make_template`.
+    """
+    template_cls = _make_template(spec, path=path)
+    children_specs = spec.get("children") if isinstance(spec, dict) else None
+    if children_specs is None:
+        return (template_cls, [])
+    if not isinstance(children_specs, list):
+        raise ValueError(
+            f"colony YAML at {path}: 'children' must be a list, "
+            f"got {type(children_specs).__name__}"
+        )
+    return (template_cls, [_make_blueprint(c, path=path) for c in children_specs])
+
+
+def _plant_blueprint(
+    blueprint: _Blueprint, org, parent: Node
+) -> list[Node]:
+    """Pre-order walk of a blueprint, returning every spawned node.
+
+    Returns parents *and* descendants — the most useful contract for a
+    deep colony (lets the caller inspect total node count, depth, etc.).
+    Flat colonies (no ``children:``) return the same shape as before.
+    """
+    planted: list[Node] = []
+    for template_cls, children in blueprint:
+        node = template_cls.plant(org, under=parent)
+        planted.append(node)
+        if children:
+            planted.extend(_plant_blueprint(children, org, node))
+    return planted
 
 
 def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:

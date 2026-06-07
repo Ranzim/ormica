@@ -146,6 +146,78 @@ templates:
     assert ops.rules == []
 
 
+def test_nested_children_plant_under_parent(tmp_path: Path):
+    """`children:` blocks plant nested subtrees, returning every spawned node."""
+    yml = _write(
+        tmp_path / "nested.yaml",
+        """
+name: nested_demo
+templates:
+  - name: dept-a
+    role: lead
+    children:
+      - name: team-1
+        role: ic
+        children:
+          - name: ic-1
+            role: ic-jr
+      - name: team-2
+        role: ic
+""",
+    )
+    cls = load_colony(yml)
+    org = Ormica("Acme", max_depth=10)
+    nodes = cls().plant(org)
+    # Pre-order: dept-a, team-1, ic-1, team-2
+    assert [n.name for n in nodes] == ["dept-a", "team-1", "ic-1", "team-2"]
+    assert [n.depth for n in nodes] == [1, 2, 3, 2]
+    # And each child is actually under its parent in the tree
+    team_1 = org.find("team-1")
+    ic_1 = org.find("ic-1")
+    assert ic_1.parent is team_1
+
+
+def test_children_must_be_list(tmp_path: Path):
+    yml = _write(
+        tmp_path / "bad.yaml",
+        """
+name: bad
+templates:
+  - name: a
+    role: a
+    children: not a list
+""",
+    )
+    with pytest.raises(ValueError, match="'children' must be a list"):
+        load_colony(yml)
+
+
+def test_nested_rules_attach_at_each_level(tmp_path: Path):
+    """Per-node rules in nested templates land on the correct node."""
+    yml = _write(
+        tmp_path / "rules-nested.yaml",
+        """
+name: layered
+templates:
+  - name: top
+    role: top
+    rules:
+      - max_response_tokens: 1500
+    children:
+      - name: mid
+        role: mid
+        rules:
+          - banned_words: [secret]
+""",
+    )
+    cls = load_colony(yml)
+    org = Ormica("X")
+    cls().plant(org)
+    assert len(org.find("top").rules) == 1
+    assert len(org.find("mid").rules) == 1
+    assert org.find("mid").rules[0].name.startswith("banned_words_")
+
+
 def test_template_rules_unknown_factory_errors_at_load_time(tmp_path: Path):
     """Typos in colony YAML rule names surface as ValueError when loading."""
     yml = _write(
