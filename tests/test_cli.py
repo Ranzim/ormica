@@ -1065,3 +1065,73 @@ def test_cli_run_unknown_rule_name_errors_cleanly(tmp_path: Path, capsys):
     assert rc == 1
     assert "max_dept" in err
     assert "Available" in err or "available" in err
+
+
+# --- per-node rules from YAML ------------------------------------------------
+
+
+def test_load_config_parses_node_rules(tmp_path: Path):
+    """A `node_rules:` block round-trips through load_config."""
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "node_rules": {
+            "finance": [{"min_response_length": 50}],
+            "sales": [{"banned_words": ["discount"]}],
+        },
+    }))
+    config = load_config(out)
+    assert config.node_rules == {
+        "finance": [{"min_response_length": 50}],
+        "sales": [{"banned_words": ["discount"]}],
+    }
+
+
+def test_load_config_rejects_non_mapping_node_rules(tmp_path: Path):
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "node_rules": [{"finance": [{"min_response_length": 50}]}],  # list, not mapping
+    }))
+    with pytest.raises(ValueError, match="node_rules must be a mapping"):
+        load_config(out)
+
+
+def test_save_config_drops_empty_node_rules(tmp_path: Path):
+    """Default-init'd configs don't serialize `node_rules: {}`."""
+    out = tmp_path / "ormica.yaml"
+    save_config(OrmicaConfig(name="Acme"), out)
+    raw = out.read_text()
+    assert "node_rules" not in raw
+
+
+def test_cli_rules_lists_per_node_rules_from_yaml(tmp_path: Path, capsys):
+    """End-to-end: `ormica rules` surfaces a YAML-declared per-node rule."""
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "industry": "business",
+        "brain": {"type": "mock", "model": "mock", "replies": ["ok"]},
+        "node_rules": {"finance": [{"min_response_length": 50}]},
+    }))
+    rc = main(["rules", "--config", str(out)])
+    out_text = capsys.readouterr().out
+    assert rc == 0
+    assert "per-node rules" in out_text
+    assert "finance" in out_text
+    assert "min_response_length_50" in out_text
+
+
+def test_cli_unknown_node_name_errors_cleanly(tmp_path: Path, capsys):
+    """A typo in a node_rules key surfaces as a clear error listing real node names."""
+    out = tmp_path / "ormica.yaml"
+    out.write_text(yaml.safe_dump({
+        "name": "Acme",
+        "industry": "business",
+        "node_rules": {"finanace": [{"min_response_length": 50}]},  # typo
+    }))
+    rc = main(["rules", "--config", str(out)])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "finanace" in err
+    assert "finance" in err  # the real node name should be listed

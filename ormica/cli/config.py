@@ -61,6 +61,10 @@ class OrmicaConfig:
     brain: BrainConfig = field(default_factory=BrainConfig)
     tasks: list[TaskConfig] = field(default_factory=list)
     constitution: Optional[ConstitutionConfig] = None
+    # Per-node rule overrides, keyed by node name. Each value is a list of
+    # declarative rule specs (same shape as ``constitution.rules``). Attached
+    # at org build time and surfaced via ``ormica rules`` / the dashboard.
+    node_rules: dict[str, list] = field(default_factory=dict)
 
 
 def load_config(path: Path) -> OrmicaConfig:
@@ -71,8 +75,18 @@ def load_config(path: Path) -> OrmicaConfig:
     constitution = (
         ConstitutionConfig(**constitution_raw) if constitution_raw else None
     )
+    node_rules = data.pop("node_rules", None) or {}
+    if not isinstance(node_rules, dict):
+        raise ValueError(
+            f"node_rules must be a mapping of node-name → [rule, ...], "
+            f"got {type(node_rules).__name__}"
+        )
     return OrmicaConfig(
-        brain=brain, tasks=tasks, constitution=constitution, **data
+        brain=brain,
+        tasks=tasks,
+        constitution=constitution,
+        node_rules=node_rules,
+        **data,
     )
 
 
@@ -81,4 +95,6 @@ def save_config(config: OrmicaConfig, path: Path) -> None:
     # Drop ``constitution: null`` from the output — keeps init'd configs clean.
     if payload.get("constitution") is None:
         payload.pop("constitution", None)
+    if not payload.get("node_rules"):
+        payload.pop("node_rules", None)
     path.write_text(yaml.safe_dump(payload, sort_keys=False))
