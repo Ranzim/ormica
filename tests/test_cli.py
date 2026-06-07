@@ -282,6 +282,43 @@ def test_run_then_trace_returns_thought_trail(tmp_path: Path, capsys):
 # --- run ----------------------------------------------------------------------
 
 
+def test_run_prints_live_console_ticker_by_default(tmp_path: Path, capsys):
+    """`ormica run` subscribes a ConsoleObserver by default (v0.2 step 6)."""
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        brain=BrainConfig(type="mock", replies=["ok"]),
+        tasks=[TaskConfig(description="hi", dept="sales")],
+    )
+    save_config(cfg, out)
+
+    rc = main(["run", "--config", str(out)])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "» task" in text  # TASK_STARTED line
+    assert "✓ task" in text  # TASK_DONE line
+
+
+def test_run_quiet_suppresses_console_ticker(tmp_path: Path, capsys):
+    """`--quiet` skips subscribing the ConsoleObserver."""
+    out = tmp_path / "ormica.yaml"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        brain=BrainConfig(type="mock", replies=["ok"]),
+        tasks=[TaskConfig(description="hi", dept="sales")],
+    )
+    save_config(cfg, out)
+
+    rc = main(["run", "--config", str(out), "--quiet"])
+    assert rc == 0
+    text = capsys.readouterr().out
+    assert "processed=1" in text       # final summary still prints
+    assert "» task" not in text         # ticker silenced
+    assert "✓ task" not in text
+
+
 def test_run_uses_mock_cortex_and_completes_tasks(tmp_path: Path, capsys):
     out = tmp_path / "ormica.yaml"
     cfg = OrmicaConfig(

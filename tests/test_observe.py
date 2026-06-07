@@ -115,6 +115,87 @@ def test_observer_protocol_recognises_builtins():
         assert isinstance(obs, Observer)
 
 
+# --- ConsoleObserver ----------------------------------------------------------
+
+
+def test_console_observer_renders_task_started():
+    from ormica.observe import ConsoleObserver, TASK_STARTED
+    stream = io.StringIO()
+    obs = ConsoleObserver(stream=stream)
+    obs.notify(Event(
+        type=TASK_STARTED,
+        source="runner",
+        payload={"task_id": "abc12345xyz", "target": "sales", "priority": "high",
+                 "description": "scout the area"},
+    ))
+    text = stream.getvalue()
+    assert "» task abc12345 started" in text
+    assert "target=sales" in text
+    assert "priority=high" in text
+    assert "scout the area" in text
+
+
+def test_console_observer_renders_task_done():
+    from ormica.observe import ConsoleObserver, TASK_DONE
+    stream = io.StringIO()
+    ConsoleObserver(stream=stream).notify(Event(
+        type=TASK_DONE,
+        source="runner",
+        payload={"task_id": "abc12345", "tokens_used": 42},
+    ))
+    assert "✓ task abc12345 done" in stream.getvalue()
+    assert "tokens=42" in stream.getvalue()
+
+
+def test_console_observer_renders_task_failed():
+    from ormica.observe import ConsoleObserver, TASK_FAILED
+    stream = io.StringIO()
+    ConsoleObserver(stream=stream).notify(Event(
+        type=TASK_FAILED,
+        source="runner",
+        payload={"task_id": "def67890", "error": "RuleViolation: boom"},
+    ))
+    assert "✗ task def67890 failed" in stream.getvalue()
+    assert "RuleViolation" in stream.getvalue()
+
+
+def test_console_observer_renders_soft_rule():
+    from ormica.observe import ConsoleObserver, RULE_SOFT_VIOLATION
+    stream = io.StringIO()
+    ConsoleObserver(stream=stream).notify(Event(
+        type=RULE_SOFT_VIOLATION,
+        source="constitution",
+        payload={"rule": "prefer_short", "stage": "post", "node": "scout"},
+    ))
+    text = stream.getvalue()
+    assert "⚠ rule.soft fired" in text
+    assert "rule=prefer_short" in text
+
+
+def test_console_observer_skips_run_events_by_default():
+    """Run summary lines only render when include_run=True."""
+    from ormica.observe import ConsoleObserver, RUN_STARTED, RUN_COMPLETED
+    stream = io.StringIO()
+    obs = ConsoleObserver(stream=stream)
+    for et in (RUN_STARTED, RUN_COMPLETED):
+        obs.notify(Event(type=et, source="runner", payload={}))
+    assert stream.getvalue() == ""  # silenced
+
+
+def test_console_observer_renders_run_events_when_opted_in():
+    from ormica.observe import ConsoleObserver, RUN_STARTED, RUN_COMPLETED
+    stream = io.StringIO()
+    obs = ConsoleObserver(stream=stream, include_run=True)
+    obs.notify(Event(type=RUN_STARTED, source="runner",
+                     payload={"n_tasks": 3, "mode": "sync"}))
+    obs.notify(Event(type=RUN_COMPLETED, source="runner",
+                     payload={"processed": 3, "succeeded": 2, "failed": 1}))
+    text = stream.getvalue()
+    assert "▶ run started" in text
+    assert "■ run complete" in text
+    assert "succeeded=2" in text
+
+
 # --- Ormica.events integration -----------------------------------------------
 
 

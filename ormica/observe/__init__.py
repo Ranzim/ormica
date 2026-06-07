@@ -18,11 +18,18 @@ from .event import (
     TASK_STARTED,
     Event,
 )
-from .observer import CollectObserver, CounterObserver, LogObserver, Observer
+from .observer import (
+    CollectObserver,
+    ConsoleObserver,
+    CounterObserver,
+    LogObserver,
+    Observer,
+)
 from .trace import THINK_RECORDED, Trace, TraceEntry, TraceObserver, emit_think_event
 
 __all__ = [
     "CollectObserver",
+    "ConsoleObserver",
     "CounterObserver",
     "Event",
     "EventBus",
