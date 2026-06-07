@@ -41,6 +41,14 @@ The runtime layer that sits on top of the four pillars:
 - [Reading the Thought Trail](./guides/reading-the-thought-trail.md) — debugging an agent's reasoning.
 - [Persistence](./guides/persistence.md) — `FileBackend` vs `SqliteBackend`.
 - [Async runs and multi-provider routing](./guides/async-and-routing.md) — `Router` + `org.arun`.
+- [Web dashboard](./guides/dashboard.md) — view tree, signals, rules, traces; watch events live via SSE.
+- [Human approvals](./guides/human-approvals.md) — `ConsoleApprover` for dev, `CallbackApprover` for Slack/web/queue.
+
+### Integrations
+
+- [Slack — send messages from your colony](./guides/integrations/slack.md) — incoming webhooks via stdlib, no extra deps.
+- [Email — send mail via SMTP](./guides/integrations/email.md) — Gmail / SES / Postmark / Mailgun.
+- [Run fully local with Ollama](./guides/integrations/ollama-local.md) — no API keys, no cloud, same Constitution + traces.
 
 ## 📖 Reference
 
