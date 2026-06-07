@@ -16,7 +16,7 @@ This Code of Conduct applies in all project spaces:
 
 If you observe or experience behaviour that conflicts with this Code, please report it privately to the project maintainer:
 
-> **ranzimthekare123@gmail.com**
+> **ormica.maintainer@gmail.com**
 
 Reports are handled confidentially. The maintainer will respond as quickly as possible and discuss next steps with the reporter.
 

@@ -15,9 +15,13 @@ Ormica is in early development. Until `v1.0`, **only the latest minor release** 
 
 **Please do not file a public GitHub issue for security problems.**
 
-If you've found a vulnerability — credential exposure, prompt-injection bypass, sandbox escape via tool execution, authentication weakness, dependency CVE, anything — report it privately:
+If you've found a vulnerability — credential exposure, prompt-injection bypass, sandbox escape via tool execution, authentication weakness, dependency CVE, anything — report it privately. The preferred channel is GitHub Private Vulnerability Reporting:
 
-> 📧 **ranzimthekare123@gmail.com**
+> 🔒 **[Report a vulnerability](https://github.com/Ranzim/ormica/security/advisories/new)**
+
+It gives you a structured form, a private discussion thread tied to the repo, and an audit trail. No GitHub account? Email the maintainer instead:
+
+> 📧 **ormica.maintainer@gmail.com**
 
 Include:
 
