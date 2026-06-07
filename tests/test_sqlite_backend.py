@@ -160,16 +160,27 @@ def test_ormica_memory_db_auto_builds_sqlite(tmp_path: Path):
     assert org2.remember("k") == "v"
 
 
-def test_memory_db_wins_over_memory_path_when_both_given(tmp_path: Path):
+def test_memory_db_and_memory_path_both_given_raises(tmp_path: Path):
+    """Previously memory_db won silently and memory_path was discarded;
+    caller intent is ambiguous, so Ormica.__init__ now raises ValueError."""
     from ormica import Ormica
-    from ormica.mycelium import SqliteBackend as Sb
 
     db_path = tmp_path / "primary.db"
     file_path = tmp_path / "ignored.json"
-    org = Ormica("Acme", memory_db=str(db_path), memory_path=str(file_path))
+    with pytest.raises(ValueError, match="memory_db OR memory_path"):
+        Ormica("Acme", memory_db=str(db_path), memory_path=str(file_path))
+    assert not db_path.exists()
+    assert not file_path.exists()
+
+
+def test_memory_db_alone_uses_sqlite_backend(tmp_path: Path):
+    from ormica import Ormica
+    from ormica.mycelium import SqliteBackend as Sb
+
+    db_path = tmp_path / "x.db"
+    org = Ormica("Acme", memory_db=str(db_path))
     assert isinstance(org.memory.backend, Sb)
     assert db_path.exists()
-    assert not file_path.exists()
 
 
 # --- Context manager / close -------------------------------------------------

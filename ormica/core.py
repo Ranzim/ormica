@@ -48,6 +48,11 @@ class Ormica:
             policy = ConstitutionPolicy(constitution, inner=policy)
         self.constitution = constitution
         self.tree = Tree(name, owner=owner, max_depth=max_depth, policy=policy)
+        if memory_db and memory_path:
+            raise ValueError(
+                "set memory_db OR memory_path, not both — got "
+                f"memory_db={memory_db!r}, memory_path={memory_path!r}"
+            )
         if memory is None and memory_db:
             from ormica.mycelium import SqliteBackend
 
