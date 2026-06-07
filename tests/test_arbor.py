@@ -47,7 +47,7 @@ def test_depth_limit_blocks_excess_spawning():
 
 def test_spawn_policy_can_deny():
     class DenyPolicy:
-        def allow(self, parent: Node, child_name: str) -> bool:
+        def allow(self, parent: Node, child_name: str, **_: object) -> bool:
             return child_name != "forbidden"
 
     tree = Tree("HQ", policy=DenyPolicy())
