@@ -278,6 +278,72 @@ def test_run_then_trace_returns_thought_trail(tmp_path: Path, capsys):
     assert "scout" in text  # task description
 
 
+def test_trace_full_disables_truncation(tmp_path: Path, capsys):
+    """`--full` shows complete content; without it, long fields get an ellipsis.
+
+    Uses a reply long enough to overflow the default 80-char window so the
+    truncation is observable.
+    """
+    out = tmp_path / "ormica.yaml"
+    db = tmp_path / "memory.db"
+    long_reply = "x" * 200  # well past the default 80-char width
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        memory_db=str(db),
+        brain=BrainConfig(type="mock", replies=[long_reply]),
+        tasks=[TaskConfig(description="scout", dept="sales")],
+    )
+    save_config(cfg, out)
+
+    rc = main(["run", "--config", str(out)])
+    assert rc == 0
+    from ormica.mycelium import Mycelium, SqliteBackend
+    mem = Mycelium(backend=SqliteBackend(str(db)))
+    task_id = next(
+        e.key.split("/", 1)[1] for e in mem.all() if e.key.startswith("tasks/")
+    )
+
+    # Default: truncated — ellipsis present, full 200-char reply absent.
+    capsys.readouterr()
+    main(["trace", task_id, "--config", str(out)])
+    default_out = capsys.readouterr().out
+    assert "…" in default_out
+    assert long_reply not in default_out
+
+    # --full: no truncation — the full reply must appear verbatim.
+    main(["trace", task_id, "--config", str(out), "--full"])
+    full_out = capsys.readouterr().out
+    assert long_reply in full_out
+
+
+def test_trace_width_controls_truncation_threshold(tmp_path: Path, capsys):
+    """`--width N` lets the user tune truncation per terminal."""
+    out = tmp_path / "ormica.yaml"
+    db = tmp_path / "memory.db"
+    cfg = OrmicaConfig(
+        name="Acme",
+        industry="business",
+        memory_db=str(db),
+        brain=BrainConfig(type="mock", replies=["a short reply"]),
+        tasks=[TaskConfig(description="scout", dept="sales")],
+    )
+    save_config(cfg, out)
+    main(["run", "--config", str(out)])
+    from ormica.mycelium import Mycelium, SqliteBackend
+    mem = Mycelium(backend=SqliteBackend(str(db)))
+    task_id = next(
+        e.key.split("/", 1)[1] for e in mem.all() if e.key.startswith("tasks/")
+    )
+
+    # Width 5 should clip even a short reply.
+    capsys.readouterr()
+    main(["trace", task_id, "--config", str(out), "--width", "5"])
+    narrow = capsys.readouterr().out
+    assert "…" in narrow
+    assert "a short reply" not in narrow
+
+
 # --- trace --format json / export (v0.2 step 2 of Phase 2) ------------------
 
 

@@ -31,6 +31,12 @@ templates:
     # stigma.auto_emit on, every task finalize reinforces topic:<target>
     # and activity:<node> — so this list surfaces what's actually getting
     # work this week, not what's on the static plan.
+    #
+    # NOTE on yaml: prefixes ending in `:` must be quoted ("topic:"),
+    # otherwise yaml's scanner reads the colon as a mapping operator.
+    # The loader DOES normalise the unquoted list form [topic:, activity:]
+    # but quoting is clearer and avoids the next confused reader. See
+    # README "Yaml Gotchas" for the full footgun list.
     sense_prefixes:
       - "topic:"
       - "activity:"
