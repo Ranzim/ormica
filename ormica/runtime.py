@@ -89,6 +89,22 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
 
 
+def _build_emit_tool(org: "Ormica", node: Node):
+    """If the node declares emit_tool_config, build a fresh EmitToolBuilder + Tool.
+
+    Per-task — each task gets a new builder so the rate-limit counter
+    starts at zero. Returns ``(builder, tool)`` or ``(None, None)`` when
+    the node has no emit_tool declared (back-compat path).
+    """
+    cfg = node.meta.get("emit_tool_config")
+    if cfg is None:
+        return None, None
+    from ormica.stigma import EmitToolBuilder
+
+    builder = EmitToolBuilder(org.signals, node, cfg)
+    return builder, builder.as_tool()
+
+
 def _maybe_auto_emit(org: "Ormica", task: Task, node: Node) -> None:
     """Reinforce stigma trails after a task finalizes.
 
@@ -217,7 +233,13 @@ class TaskRunner:
             agent.events = self.org.events
             agent.task_id = task.id
             agent.runtime_task = task
-            response = agent.act(task.description)
+            emit_builder, emit_tool = _build_emit_tool(self.org, node)
+            if emit_tool is not None:
+                response = agent.act_with_tools(
+                    task.description, tools=[emit_tool]
+                )
+            else:
+                response = agent.act(task.description)
             tokens_used = response.tokens_used
             task.result = response.content
             task.status = "done"
@@ -343,7 +365,13 @@ class AsyncTaskRunner:
             agent.events = self.org.events
             agent.task_id = task.id
             agent.runtime_task = task
-            response = await agent.act(task.description)
+            emit_builder, emit_tool = _build_emit_tool(self.org, node)
+            if emit_tool is not None:
+                response = await agent.act_with_tools(
+                    task.description, tools=[emit_tool]
+                )
+            else:
+                response = await agent.act(task.description)
             tokens_used = response.tokens_used
             task.result = response.content
             task.status = "done"

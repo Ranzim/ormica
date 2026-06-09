@@ -37,6 +37,11 @@ class AgentTemplate:
     # author declare a domain-meaningful topic vocabulary without writing
     # a custom Agent. Empty tuple = no static emits (back-compat).
     emits: ClassVar[tuple] = ()
+    # LLM-facing emit_signal tool config (Option D). When set, the
+    # runtime switches this node's agent from ``act`` to ``act_with_tools``
+    # and gives the LLM a typed ``emit_signal(topic, strength)`` tool
+    # bound to the declared vocabulary. ``None`` = no tool (back-compat).
+    emit_tool_config: ClassVar = None
 
     @classmethod
     def plant(
@@ -62,6 +67,10 @@ class AgentTemplate:
         if cls.emits:
             # Store as list-of-lists for JSON / yaml round-trip cleanliness.
             node.meta["emits"] = [list(pair) for pair in cls.emits]
+        if cls.emit_tool_config is not None:
+            # Stash the EmitToolConfig dataclass; runtime reads + builds the
+            # Tool per-task (per-task state, per-task rate-limit reset).
+            node.meta["emit_tool_config"] = cls.emit_tool_config
         node.meta["template"] = cls.__name__
         return node
 

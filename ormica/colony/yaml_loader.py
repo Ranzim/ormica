@@ -148,6 +148,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
         spec.get("sense_prefixes"), path=path
     )
     emits = _parse_emits(spec.get("emits"), path=path)
+    emit_tool_config = _parse_emit_tool(spec.get("emit_tool"), path=path)
 
     return type(
         _classname_for(base_name) + "Agent",
@@ -160,6 +161,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
             "rules": rules,
             "sense_prefixes": sense_prefixes,
             "emits": emits,
+            "emit_tool_config": emit_tool_config,
         },
     )
 
@@ -283,6 +285,68 @@ def _validate_strength(value: Any, *, path: Path, topic: str) -> float:
             f"got {v}"
         )
     return v
+
+
+def _parse_emit_tool(raw: Any, *, path: Path):
+    """Normalize an emit_tool: spec to an :class:`EmitToolConfig` or None.
+
+    Two forms supported:
+
+        # Compact — vocabulary only, defaults for the rest
+        emit_tool: [trending, brief, needs-review]
+
+        # Explicit — full config
+        emit_tool:
+          vocabulary: [trending, brief, needs-review]
+          max_per_turn: 3
+          max_strength: 3.0
+          default_strength: 1.0
+
+    Returning ``None`` for missing/empty input is what AgentTemplate's
+    ClassVar default expects — no runtime switch into act_with_tools.
+    """
+    if raw is None or raw == "":
+        return None
+    # Local import keeps colony loader from depending on stigma at module
+    # import time (avoids any circular-import risk down the road).
+    from ormica.stigma import EmitToolConfig
+
+    if isinstance(raw, list):
+        vocabulary = tuple(raw)
+        try:
+            return EmitToolConfig(vocabulary=vocabulary)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"colony YAML at {path}: invalid emit_tool vocabulary "
+                f"{raw!r}: {exc}"
+            ) from None
+    if isinstance(raw, dict):
+        vocabulary = raw.get("vocabulary")
+        if vocabulary is None:
+            raise ValueError(
+                f"colony YAML at {path}: emit_tool mapping must include a "
+                f"'vocabulary' list, got {raw!r}"
+            )
+        if not isinstance(vocabulary, (list, tuple)):
+            raise ValueError(
+                f"colony YAML at {path}: emit_tool 'vocabulary' must be a "
+                f"list, got {type(vocabulary).__name__}"
+            )
+        kwargs = {"vocabulary": tuple(vocabulary)}
+        for opt in ("max_per_turn", "max_strength", "default_strength"):
+            if opt in raw:
+                kwargs[opt] = raw[opt]
+        try:
+            return EmitToolConfig(**kwargs)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"colony YAML at {path}: invalid emit_tool config "
+                f"{raw!r}: {exc}"
+            ) from None
+    raise ValueError(
+        f"colony YAML at {path}: 'emit_tool' must be a list (vocabulary "
+        f"shorthand) or a mapping, got {type(raw).__name__}"
+    )
 
 
 def _classname_for(name: str) -> str:

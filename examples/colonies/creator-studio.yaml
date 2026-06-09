@@ -56,6 +56,14 @@ templates:
                 # Marks that a brief was drafted — editing watches this.
                 emits:
                   - {topic: "brief:drafted", strength: 1.0}
+                # LLM-driven emits: ideation can call emit_signal during its
+                # turn to flag what it actually noticed about the trend
+                # landscape. Bounded vocabulary so the topic set is
+                # auditable; max 3 per turn so one task can't flood signals.
+                emit_tool:
+                  vocabulary: [trend-strong, trend-fading, audience-ask-rising]
+                  max_per_turn: 3
+                  max_strength: 2.0
               - name: editing
                 role: editor
                 task: Cut and caption short-form clips to the brand template.
