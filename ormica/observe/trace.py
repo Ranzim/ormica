@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .event import (
+    RULE_SOFT_VIOLATION,
     RUN_COMPLETED,
     TASK_DONE,
     TASK_FAILED,
@@ -57,6 +58,11 @@ class Trace:
     result: Optional[str] = None
     error: Optional[str] = None
     entries: list[TraceEntry] = field(default_factory=list)
+    # Soft-rule violations that fired during this task. Each item carries
+    # ``rule``, ``stage``, and ``reason``. Soft rules don't fail the task —
+    # but they should still be auditable, so we surface them here so
+    # ``ormica trace <id>`` and exporters can show "shipped with warnings".
+    warnings: list[dict] = field(default_factory=list)
 
 
 def _msg_to_dict(m: Any) -> dict:
@@ -97,6 +103,8 @@ class TraceObserver:
             self._on_task_started(event)
         elif event.type == THINK_RECORDED:
             self._on_think(event)
+        elif event.type == RULE_SOFT_VIOLATION:
+            self._on_soft_violation(event)
         elif event.type == TASK_DONE:
             self._on_task_finished(event, status="done")
         elif event.type == TASK_FAILED:
@@ -144,6 +152,16 @@ class TraceObserver:
                 finish_reason=event.payload.get("finish_reason", ""),
             )
         )
+
+    def _on_soft_violation(self, event: Event) -> None:
+        task_id = event.payload.get("task_id", "")
+        if not task_id or task_id not in self._open:
+            return
+        self._open[task_id].warnings.append({
+            "rule": event.payload.get("rule", ""),
+            "stage": event.payload.get("stage", ""),
+            "reason": event.payload.get("reason", ""),
+        })
 
     def _on_task_finished(self, event: Event, *, status: str) -> None:
         task_id = event.payload.get("task_id", "")

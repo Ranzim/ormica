@@ -13,11 +13,18 @@ YAML::
         - block_role: finance
         - banned_words: [secret, confidential]
         - require_json                # zero-arg form
+        - {max_response_tokens: 800, severity: soft}   # warn + record, no fail
 
 Each entry is either:
 
 - a bare string — names a zero-arg factory
 - a single-key mapping — names a factory; the value is its positional arg
+- a two-key mapping with ``severity: hard|soft`` alongside the factory key —
+  overrides the default ``"hard"`` severity. ``soft`` rules emit a
+  ``rule.soft_violation`` event and the action proceeds; ``hard`` rules
+  (default) raise :class:`RuleViolation`. Soft is for guidance you want
+  surfaced and audited but not enforced ("this response was unusually long
+  but we shipped it anyway"); hard is for non-negotiable constraints.
 
 Complex args (compiled regex, custom predicate code) require Python; the
 YAML form covers the common cases. To extend the registry from a plugin,
@@ -25,6 +32,7 @@ add an entry to :data:`RULE_FACTORIES` before loading.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Iterable
 
 from . import rules as _R
@@ -34,6 +42,8 @@ from .rule import Rule
 # Sentinel: "no argument was provided in the YAML" (distinct from `None`,
 # which a future zero-arg factory might legitimately accept as `arg=None`).
 _MISSING = object()
+
+_VALID_SEVERITIES = ("hard", "soft")
 
 
 # Public registry of rule factories nameable from YAML.
@@ -62,18 +72,42 @@ RULE_FACTORIES: dict[str, Any] = {
 def build_rule(spec: Any) -> Rule:
     """Translate one declarative rule spec into a :class:`Rule`.
 
-    Accepts either a bare factory name (string) or a single-key mapping
-    whose key is the factory name and value is the positional argument.
-    Raises :class:`ValueError` for unknown factories or malformed specs.
+    Accepts:
+
+    - a bare factory name (string) — e.g. ``"require_json"``
+    - a single-key mapping — e.g. ``{"max_depth": 4}``
+    - a mapping with ``severity: hard|soft`` plus exactly one factory
+      key — e.g. ``{"max_response_tokens": 800, "severity": "soft"}``
+
+    Raises :class:`ValueError` for unknown factories, malformed specs,
+    or unrecognized severity values.
     """
+    severity = "hard"  # the default; overridden if spec carries `severity:`
     if isinstance(spec, str):
         name, arg = spec, _MISSING
-    elif isinstance(spec, dict) and len(spec) == 1:
-        name, raw = next(iter(spec.items()))
-        arg = _MISSING if raw is None else raw
+    elif isinstance(spec, dict):
+        # Extract a severity sibling if present, leaving the rest of the
+        # mapping to look like a single-key spec for normal handling.
+        rest = dict(spec)
+        if "severity" in rest:
+            severity = rest.pop("severity")
+            if severity not in _VALID_SEVERITIES:
+                raise ValueError(
+                    f"rule severity must be one of {list(_VALID_SEVERITIES)}, "
+                    f"got {severity!r}"
+                )
+        if len(rest) == 1:
+            name, raw = next(iter(rest.items()))
+            arg = _MISSING if raw is None else raw
+        else:
+            raise ValueError(
+                f"rule spec must be a string, a single-key mapping, or a "
+                f"two-key mapping with 'severity' + one factory key; "
+                f"got {spec!r}"
+            )
     else:
         raise ValueError(
-            f"rule spec must be a string or single-key mapping, got {spec!r}"
+            f"rule spec must be a string or mapping, got {spec!r}"
         )
 
     factory = RULE_FACTORIES.get(name)
@@ -83,7 +117,13 @@ def build_rule(spec: Any) -> Rule:
             f"unknown rule {name!r}. Available: {available}"
         )
 
-    return factory() if arg is _MISSING else factory(arg)
+    rule = factory() if arg is _MISSING else factory(arg)
+    if severity != "hard":
+        # Rule is a frozen dataclass; replace() returns a new instance
+        # with the severity field overridden, keeping name/description/
+        # check/stage intact.
+        rule = replace(rule, severity=severity)
+    return rule
 
 
 def build_constitution(specs: Iterable[Any]) -> Constitution:

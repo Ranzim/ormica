@@ -88,6 +88,10 @@ templates:
           # Compliance + brand voice — cascades to brand-deals, contracts-review, affiliate, ugc.
           - banned_words: [guaranteed, miracle, cure, investment]
           - max_response_tokens: 1500
+          # Soft cap: pitches over 800 tokens still ship, but the soft
+          # violation lands in trace.warnings so reviewers can spot
+          # bloated outreach copy without blocking the workflow.
+          - {max_response_tokens: 800, severity: soft}
         children:
           - name: brand-deals
             role: dealflow
