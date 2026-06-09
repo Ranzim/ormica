@@ -49,7 +49,12 @@ templates:
         rules:
           # Credentials must NEVER appear in any response — cascades to
           # every engineering subnode.
-          - banned_words: [api_key, password, bearer_token, secret_token, private_key, aws_secret]
+          # Substring mode: catches credential placeholders embedded in larger
+          # identifiers (INTERNAL_API_KEY, MY_APP_PASSWORD, etc.). Word-boundary
+          # mode would only catch the bare token.
+          - banned_words:
+              match_mode: substring
+              words: [api_key, password, bearer_token, secret_token, private_key, aws_secret]
           - max_response_tokens: 2000
         children:
           - name: backend

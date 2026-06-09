@@ -151,14 +151,35 @@ def test_banned_word_stems_handles_regex_special_chars():
     assert rule.check(_ctx_with_response("Hello there.")) is True
 
 
-def test_banned_words_substring_behavior_unchanged():
-    """Back-compat: the old factory keeps substring semantics, including
-    the inflection blind spot that motivated banned_word_stems."""
-    rule = banned_words(["guaranteed"])
-    # Old rule does NOT catch "guaranteeing" (substring miss).
-    assert rule.check(_ctx_with_response("guaranteeing")) is True
-    # But DOES catch substring inside other words.
-    assert rule.check(_ctx_with_response("UNGUARANTEED")) is False
+def test_banned_words_three_factories_distinguished():
+    """Lock in the three matching behaviors and how they differ. This is
+    the canonical compare-and-contrast for the factory family.
+
+    `banned_words(list)` defaults to word-boundary mode (post-reconciliation
+    with feat/banned-words-word-boundary). `banned_words({words, match_mode})`
+    opts into substring. `banned_word_stems(list)` matches stem + suffixes.
+    """
+    word = banned_words(["guaranteed"])                          # default = word
+    sub = banned_words({"words": ["guaranteed"], "match_mode": "substring"})
+    stems = banned_word_stems(["guarantee"])
+
+    # "guaranteeing" — word: NO (different word), substring: NO
+    # (substring of "guaranteed" doesn't appear), stems: YES (suffix of "guarantee")
+    assert word.check(_ctx_with_response("guaranteeing")) is True   # passes (not matched)
+    assert sub.check(_ctx_with_response("guaranteeing")) is True    # passes
+    assert stems.check(_ctx_with_response("guaranteeing")) is False  # blocked
+
+    # "UNGUARANTEED" — word: NO, substring: YES (contains "guaranteed"),
+    # stems: NO (must be whole word starting with stem)
+    assert word.check(_ctx_with_response("UNGUARANTEED")) is True   # passes
+    assert sub.check(_ctx_with_response("UNGUARANTEED")) is False   # blocked (substring)
+    assert stems.check(_ctx_with_response("UNGUARANTEED")) is True  # passes
+
+    # "we guaranteed delivery" — word: YES (whole word match),
+    # substring: YES, stems: YES (whole-word stem)
+    assert word.check(_ctx_with_response("we guaranteed delivery")) is False
+    assert sub.check(_ctx_with_response("we guaranteed delivery")) is False
+    assert stems.check(_ctx_with_response("we guaranteed delivery")) is False
 
 
 def test_banned_word_stems_registered_in_loader():

@@ -97,7 +97,11 @@ templates:
         task: Answer customer questions across email, chat, and DMs.
         rules:
           # Reps must not paste internal codes into customer-facing replies.
-          - banned_words: [internal-sku, ops-only, do-not-share, warehouse-code]
+          # Substring mode: SKU prefixes and internal codes commonly appear
+          # embedded in larger identifiers (warehouse-code-A47, ops-only-sku).
+          - banned_words:
+              match_mode: substring
+              words: [internal-sku, ops-only, do-not-share, warehouse-code]
           - min_response_length: 25
         children:
           - name: support

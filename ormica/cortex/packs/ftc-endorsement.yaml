@@ -3,9 +3,19 @@
 # FTC Endorsement Guides (16 CFR Part 255) and the FTC's "Made in USA"
 # and income-claim guidance.
 #
-# NOTE: banned_words is case-insensitive *substring* match, not a stem
-# match — adding "guaranteed" does NOT catch "guarantees" or
-# "guaranteeing". List both forms when both matter. (See v-next finding.)
+# NOTE: banned_words defaults to *word-boundary* match (case-insensitive)
+# — each phrase only matches when bounded by non-word characters. So
+# "guarantee" matches "we guarantee X" but NOT "guaranteed" (different
+# whole word) or "unguaranteed" (substring inside another word). For
+# stem-with-suffix matching ("guarantee" → guaranteed/guaranteeing/
+# guarantees) use the separate banned_word_stems factory. For fragment
+# matching inside larger identifiers, opt into substring via the dict
+# form: `{words: [cret], match_mode: substring}`.
+#
+# This pack lists each stem variant explicitly because FTC banned
+# phrasings tend to vary across "guaranteed results", "we guarantee",
+# "guaranteeing income" etc. — a maintainer reviewing the pack should
+# see the full vocabulary in one place rather than rely on inflection.
 #
 # Use cases: creator / influencer captions, brand-deal copy, ad copy.
 

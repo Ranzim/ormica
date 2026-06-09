@@ -34,7 +34,11 @@ templates:
         task: Own client relationships, scope, and renewals.
         rules:
           # Client confidentiality across every account interaction.
-          - banned_words: [under-nda, project-codename, internal-only, do-not-share-externally]
+          # Substring mode: NDA tags and codenames may appear embedded inside
+          # longer strings (project-codename-alpha, internal-only-draft).
+          - banned_words:
+              match_mode: substring
+              words: [under-nda, project-codename, internal-only, do-not-share-externally]
         children:
           - name: account-management
             role: account-mgmt
