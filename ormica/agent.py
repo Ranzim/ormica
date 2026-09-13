@@ -241,6 +241,17 @@ class _AgentBase:
             return default
         return self.memory.get(key, default=default)
 
+    def recall_relevant(self, query: str, k: int = 5) -> list:
+        """Relevance-recall: the ``k`` entries most related to ``query``.
+
+        Returns a list of :class:`~ormica.mycelium.Match` (empty without a
+        mycelium). Requires a searchable backend — see
+        :class:`~ormica.mycelium.InMemorySemanticBackend`.
+        """
+        if self.memory is None:
+            return []
+        return self.memory.search(query, k=k)
+
     # --- signal shortcuts (no-ops without a stigma) ---
 
     def emit(self, topic: str, *, strength: float = 1.0) -> None:

@@ -57,7 +57,9 @@ gemini = ["google-generativeai>=0.8"]
 # openai SDK under the hood, so installing [openai] is what you need for
 # every OpenAI-compatible provider — including local LLMs via Ollama.
 universal = ["openai>=1.0"]
-memory = ["chromadb>=0.5"]
+# Semantic memory: sentence-transformers powers SentenceTransformerEmbedder;
+# chromadb is the intended vector-store backend for SearchableBackend.
+memory = ["chromadb>=0.5", "sentence-transformers>=2.2"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -70,6 +72,7 @@ all = [
     "openai>=1.0",
     "google-generativeai>=0.8",
     "chromadb>=0.5",
+    "sentence-transformers>=2.2",
 ]
 
 [project.urls]
