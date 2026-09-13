@@ -310,6 +310,36 @@ class Ormica:
         self._maybe_evaporate()
         return result
 
+    async def arun_dag(
+        self,
+        *,
+        brain,
+        max_tasks: int = 100,
+        concurrency: int = 5,
+        on_task_start=None,
+        on_task_done=None,
+    ):
+        """DAG-aware async run — honors each task's ``depends_on``.
+
+        A task runs only after every task it depends on is ``done``; independent
+        tasks run concurrently (capped by ``concurrency``); tasks downstream of a
+        failure are skipped. Pair with :meth:`plan` + :meth:`enqueue_plan`, which
+        wire the plan's dependencies onto the tasks.
+        """
+        from ormica.runtime import AsyncDagRunner
+
+        runner = AsyncDagRunner(
+            self,
+            brain=brain,
+            max_tasks=max_tasks,
+            concurrency=concurrency,
+            on_task_start=on_task_start,
+            on_task_done=on_task_done,
+        )
+        result = await runner.run(self.pending_tasks())
+        self._maybe_evaporate()
+        return result
+
     def _maybe_evaporate(self) -> None:
         """Drop trails below floor if ``signals_auto_evaporate`` is set.
 

@@ -27,11 +27,12 @@ from ormica.planner import (
     Planner,
 )
 from ormica.postbox import Message, Postbox
-from ormica.runtime import RunResult, Task
+from ormica.runtime import AsyncDagRunner, RunResult, Task
 
 __all__ = [
     "Agent",
     "AsyncAgent",
+    "AsyncDagRunner",
     "AsyncPlanner",
     "Message",
     "Ormica",

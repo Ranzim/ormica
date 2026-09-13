@@ -96,29 +96,65 @@ class Plan:
         return _toposort(self.steps)
 
     def to_tasks(self) -> list[Task]:
-        """Flatten leaves into runnable Tasks in dependency-respecting order.
+        """Flatten leaves into runnable Tasks, carrying dependencies as task ids.
 
-        Each level is topologically sorted by ``depends_on``; the tree is
-        walked depth-first so a parent's subtree runs as a contiguous, ordered
-        block. The sequential runner then executes them in this order.
+        Each level is topologically sorted by ``depends_on``; the tree is walked
+        depth-first so a parent's subtree is a contiguous, ordered block (the
+        sequential runner executes in this order). Each leaf Task's
+        ``depends_on`` is set to the ids of the leaf Tasks it must wait on — its
+        own step dependencies **plus** any inherited from ancestor steps, and a
+        dependency on a decomposed step expands to all that step's leaves. Feed
+        the result to :meth:`Ormica.arun_dag` for parallel, DAG-aware execution.
         """
-        tasks: list[Task] = []
+        leaf_task: dict[str, Task] = {}
+        ordered: list[Task] = []
 
-        def walk(steps: list[PlannedStep]) -> None:
+        # Pass 1: a Task per leaf, in dependency-respecting DFS order.
+        def build(steps: list[PlannedStep]) -> None:
             for s in _toposort(steps):
                 if s.is_leaf:
-                    tasks.append(
-                        Task(
-                            description=s.description,
-                            target=s.target,
-                            priority=s.priority,
-                        )
+                    t = Task(
+                        description=s.description,
+                        target=s.target,
+                        priority=s.priority,
                     )
+                    leaf_task[s.id] = t
+                    ordered.append(t)
                 else:
-                    walk(s.substeps)
+                    build(s.substeps)
 
-        walk(self.steps)
-        return tasks
+        build(self.steps)
+
+        # Index: every step id -> the leaf Task ids in its subtree.
+        leaves_by_step: dict[str, list[str]] = {}
+
+        def index(steps: list[PlannedStep]) -> list[str]:
+            collected: list[str] = []
+            for s in steps:
+                under = [leaf_task[s.id].id] if s.is_leaf else index(s.substeps)
+                leaves_by_step[s.id] = under
+                collected.extend(under)
+            return collected
+
+        index(self.steps)
+
+        # Pass 2: attach dependencies (own + inherited), translated to task ids.
+        def attach(steps: list[PlannedStep], inherited: list[str]) -> None:
+            for s in steps:
+                dep_step_ids = inherited + list(s.depends_on)
+                if s.is_leaf:
+                    task = leaf_task[s.id]
+                    dep_task_ids: list[str] = []
+                    for dsid in dep_step_ids:
+                        dep_task_ids.extend(leaves_by_step.get(dsid, []))
+                    task.depends_on = [
+                        d for d in dict.fromkeys(dep_task_ids) if d != task.id
+                    ]
+                else:
+                    attach(s.substeps, dep_step_ids)
+
+        attach(self.steps, [])
+        return ordered
 
     def pretty(self) -> str:
         """A human-readable tree render of the plan."""

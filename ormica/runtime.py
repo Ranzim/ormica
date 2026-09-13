@@ -46,6 +46,10 @@ class Task:
     result: Optional[str] = None
     error: Optional[str] = None
     created_at: float = field(default_factory=time)
+    # ids of tasks that must reach ``done`` before this one may run. Empty for
+    # a flat queue; populated by the planner (or you) to form a DAG that
+    # :class:`AsyncDagRunner` executes with maximum safe parallelism.
+    depends_on: list[str] = field(default_factory=list)
 
     @classmethod
     def from_record(cls, payload: dict) -> "Task":
@@ -59,6 +63,7 @@ class Task:
             result=payload.get("result"),
             error=payload.get("error"),
             created_at=payload.get("created_at", time()),
+            depends_on=list(payload.get("depends_on", [])),
         )
 
 
@@ -100,6 +105,7 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
         "result": task.result,
         "error": task.error,
         "created_at": task.created_at,
+        "depends_on": list(task.depends_on),
     }
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
 
@@ -457,3 +463,127 @@ class AsyncTaskRunner:
                 )
             if self.on_task_done is not None:
                 self.on_task_done(task)
+
+
+# --- DAG runner ---------------------------------------------------------------
+
+
+def _detect_cycle(deps: dict[str, list[str]]) -> None:
+    """Raise ValueError if the dependency graph has a cycle (Kahn's)."""
+    indeg = {tid: len(ds) for tid, ds in deps.items()}
+    dependents: dict[str, list[str]] = {tid: [] for tid in deps}
+    for tid, ds in deps.items():
+        for d in ds:
+            dependents[d].append(tid)
+    ready = [tid for tid, n in indeg.items() if n == 0]
+    seen = 0
+    while ready:
+        cur = ready.pop()
+        seen += 1
+        for nxt in dependents[cur]:
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                ready.append(nxt)
+    if seen != len(deps):
+        raise ValueError("task graph has a dependency cycle")
+
+
+class AsyncDagRunner(AsyncTaskRunner):
+    """Runs tasks respecting ``depends_on`` — maximum safe parallelism.
+
+    A task runs only once every task it depends on has reached ``done``.
+    Independent tasks race concurrently (capped by ``concurrency``). If a
+    prerequisite ``failed``, every task downstream of it is skipped (marked
+    failed with a "prerequisite failed" reason) rather than run against an
+    incomplete input. Reuses :class:`AsyncTaskRunner`'s per-task execution.
+    """
+
+    async def run(self, tasks: list[Task]) -> RunResult:
+        queue = _sorted_queue(tasks, self.max_tasks)
+        _checkpoint_queue(self.org, queue)
+        by_id = {t.id: t for t in queue}
+        # Only honor dependencies that point inside this queue.
+        deps = {t.id: [d for d in t.depends_on if d in by_id] for t in queue}
+        _detect_cycle(deps)
+
+        indeg = {tid: len(deps[tid]) for tid in by_id}
+        dependents: dict[str, list[str]] = {tid: [] for tid in by_id}
+        for tid, ds in deps.items():
+            for d in ds:
+                dependents[d].append(tid)
+
+        self.org.events.emit(
+            RUN_STARTED,
+            source="runner",
+            n_tasks=len(queue),
+            mode="dag",
+            concurrency=self.concurrency,
+        )
+
+        remaining = set(by_id)
+        launched: set[str] = set()
+        sem = asyncio.Semaphore(self.concurrency)
+
+        async def _run_one(t: Task) -> Task:
+            await self._bounded(t, sem)
+            return t
+
+        def _block_downstream(failed_id: str) -> None:
+            stack = list(dependents[failed_id])
+            while stack:
+                tid = stack.pop()
+                if tid not in remaining or tid in launched:
+                    continue
+                blocked = by_id[tid]
+                blocked.status = "failed"
+                blocked.error = f"skipped: prerequisite {failed_id} failed"
+                _record_task(self.org, blocked, self.org.root)
+                self.org.events.emit(
+                    TASK_FAILED,
+                    source="runner",
+                    task_id=tid,
+                    target=blocked.target,
+                    error=blocked.error,
+                )
+                remaining.discard(tid)
+                launched.add(tid)
+                stack.extend(dependents[tid])
+
+        def _schedule_ready(pending_aws: set) -> None:
+            order = sorted(
+                remaining,
+                key=lambda i: (
+                    _PRIORITY_RANK.get(by_id[i].priority, 99),
+                    by_id[i].created_at,
+                ),
+            )
+            for tid in order:
+                if tid not in launched and indeg[tid] == 0:
+                    launched.add(tid)
+                    pending_aws.add(asyncio.create_task(_run_one(by_id[tid])))
+
+        aws: set = set()
+        _schedule_ready(aws)
+        while aws:
+            done, aws = await asyncio.wait(
+                aws, return_when=asyncio.FIRST_COMPLETED
+            )
+            for fut in done:
+                finished = fut.result()
+                remaining.discard(finished.id)
+                if finished.status == "done":
+                    for dep in dependents[finished.id]:
+                        indeg[dep] -= 1
+                else:
+                    _block_downstream(finished.id)
+            _schedule_ready(aws)
+
+        result = _tally(queue)
+        self.org.events.emit(
+            RUN_COMPLETED,
+            source="runner",
+            processed=result.processed,
+            succeeded=result.succeeded,
+            failed=result.failed,
+        )
+        return result
