@@ -105,6 +105,23 @@ org.task("Coordinate the launch with the other teams", target="engineering")
 org.run(brain=brain)   # the agent may now call send_message("sales", "...")
 ```
 
+### In colony YAML
+
+Declare it on a template — compact (recipients only) or full mapping, mirroring
+`emit_tool`:
+
+```yaml
+templates:
+  - name: engineering
+    message_tool: [sales, support]        # compact
+
+  - name: sales
+    message_tool:                          # explicit
+      recipients: [engineering, support]
+      max_per_turn: 3
+      max_body_chars: 2000
+```
+
 Or build it by hand for a direct `act_with_tools` call:
 
 ```python

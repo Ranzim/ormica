@@ -149,6 +149,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
     )
     emits = _parse_emits(spec.get("emits"), path=path)
     emit_tool_config = _parse_emit_tool(spec.get("emit_tool"), path=path)
+    message_tool_config = _parse_message_tool(spec.get("message_tool"), path=path)
 
     return type(
         _classname_for(base_name) + "Agent",
@@ -162,6 +163,7 @@ def _make_template(spec: Any, *, path: Path) -> type[AgentTemplate]:
             "sense_prefixes": sense_prefixes,
             "emits": emits,
             "emit_tool_config": emit_tool_config,
+            "message_tool_config": message_tool_config,
         },
     )
 
@@ -345,6 +347,64 @@ def _parse_emit_tool(raw: Any, *, path: Path):
             ) from None
     raise ValueError(
         f"colony YAML at {path}: 'emit_tool' must be a list (vocabulary "
+        f"shorthand) or a mapping, got {type(raw).__name__}"
+    )
+
+
+def _parse_message_tool(raw: Any, *, path: Path):
+    """Normalize a message_tool: spec to a :class:`MessageToolConfig` or None.
+
+    Two forms, mirroring ``emit_tool``:
+
+        # Compact — recipients only, defaults for the rest
+        message_tool: [sales, support]
+
+        # Explicit — full config
+        message_tool:
+          recipients: [sales, support]
+          max_per_turn: 3
+          max_body_chars: 2000
+
+    Returning ``None`` for missing/empty input keeps the back-compat default
+    (no send_message tool on this node).
+    """
+    if raw is None or raw == "":
+        return None
+    from ormica.postbox import MessageToolConfig
+
+    if isinstance(raw, list):
+        try:
+            return MessageToolConfig(recipients=tuple(raw))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"colony YAML at {path}: invalid message_tool recipients "
+                f"{raw!r}: {exc}"
+            ) from None
+    if isinstance(raw, dict):
+        recipients = raw.get("recipients")
+        if recipients is None:
+            raise ValueError(
+                f"colony YAML at {path}: message_tool mapping must include a "
+                f"'recipients' list, got {raw!r}"
+            )
+        if not isinstance(recipients, (list, tuple)):
+            raise ValueError(
+                f"colony YAML at {path}: message_tool 'recipients' must be a "
+                f"list, got {type(recipients).__name__}"
+            )
+        kwargs = {"recipients": tuple(recipients)}
+        for opt in ("max_per_turn", "max_body_chars"):
+            if opt in raw:
+                kwargs[opt] = raw[opt]
+        try:
+            return MessageToolConfig(**kwargs)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"colony YAML at {path}: invalid message_tool config "
+                f"{raw!r}: {exc}"
+            ) from None
+    raise ValueError(
+        f"colony YAML at {path}: 'message_tool' must be a list (recipients "
         f"shorthand) or a mapping, got {type(raw).__name__}"
     )
 
