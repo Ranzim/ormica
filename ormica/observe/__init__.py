@@ -16,6 +16,8 @@ from .event import (
     TASK_DONE,
     TASK_FAILED,
     TASK_STARTED,
+    VERIFY_FAILED,
+    VERIFY_RETRY,
     Event,
 )
 from .observer import (
@@ -49,6 +51,8 @@ __all__ = [
     "TASK_FAILED",
     "TASK_STARTED",
     "THINK_RECORDED",
+    "VERIFY_FAILED",
+    "VERIFY_RETRY",
     "Trace",
     "TraceEntry",
     "TraceObserver",

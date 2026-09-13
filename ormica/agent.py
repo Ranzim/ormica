@@ -15,7 +15,7 @@ from .brain import (
     ToolCall,
     TokenBudget,
 )
-from .cortex import Constitution
+from .cortex import Constitution, VerificationFailed
 from .mycelium import Mycelium
 from .stigma import Signal, Stigma
 
@@ -186,6 +186,83 @@ class _AgentBase:
                 stage=stage,
             )
 
+    # --- verify stage (check-and-retry) ---
+
+    def _has_verify_rules(self) -> bool:
+        return len(self._merged_constitution("verify")) > 0
+
+    def _verify_check(self, prompt: Any, response: Any, attempt: int):
+        """Run verify-stage rules. Returns ``(hard, soft)`` violation lists."""
+        merged = self._merged_constitution("verify")
+        violations = merged.check(
+            {
+                "node": self.node,
+                "role": self.node.role,
+                "task_text": self.node.task,
+                "task": self.runtime_task,
+                "prompt": prompt,
+                "response": response,
+                "attempt": attempt,
+                "budget": self.budget,
+            },
+            stage="verify",
+        )
+        hard = [v for v in violations if v.rule.severity == "hard"]
+        soft = [v for v in violations if v.rule.severity == "soft"]
+        return hard, soft
+
+    def _verify_feedback_prompt(self, prompt: Any, response: Any, violations: list):
+        """Build the retry prompt: original + failed answer + correction note.
+
+        The note carries each failed rule's human-readable description (and the
+        raw reason) so the model knows what to fix, not just that it failed.
+        """
+        reasons = "; ".join(
+            f"{v.rule.description or v.rule.name} ({v.reason})" for v in violations
+        )
+        messages = list(_initial_messages(prompt))
+        messages.append(Message(role="assistant", content=response.content))
+        messages.append(
+            Message(
+                role="user",
+                content=(
+                    "Your previous answer failed verification: "
+                    f"{reasons}. Correct the issue and answer again."
+                ),
+            )
+        )
+        return messages
+
+    def _emit_verify_retry(self, violations: list, attempt: int) -> None:
+        if self.events is None:
+            return
+        from .observe import VERIFY_RETRY
+
+        self.events.emit(
+            VERIFY_RETRY,
+            source="verify",
+            node=self.node.name,
+            task_id=self.task_id,
+            attempt=attempt,
+            rules=[v.rule.name for v in violations],
+            reasons=[v.reason for v in violations],
+        )
+
+    def _emit_verify_failed(self, violations: list, attempts: int) -> None:
+        if self.events is None:
+            return
+        from .observe import VERIFY_FAILED
+
+        self.events.emit(
+            VERIFY_FAILED,
+            source="verify",
+            node=self.node.name,
+            task_id=self.task_id,
+            attempts=attempts,
+            rules=[v.rule.name for v in violations],
+            reasons=[v.reason for v in violations],
+        )
+
     def _compose_system(self) -> Optional[str]:
         parts: list[str] = []
         # Colonies stamp a default system prompt onto node.meta when they
@@ -277,23 +354,45 @@ class Agent(_AgentBase):
 
     brain: Brain  # type: ignore[assignment]
 
-    def act(self, prompt: Prompt, *, max_tokens: int = 1024) -> Response:
-        self._check_budget()
+    def act(
+        self,
+        prompt: Prompt,
+        *,
+        max_tokens: int = 1024,
+        max_verify_attempts: int = 3,
+    ) -> Response:
+        if max_verify_attempts < 1:
+            raise ValueError("max_verify_attempts must be >= 1")
         self._enforce_constitution(prompt)
         system = self._compose_system()
         self.node.state = NodeState.WORKING
-        messages = _initial_messages(prompt)
+        has_verify = self._has_verify_rules()
+        attempt_prompt: Prompt = prompt
         try:
-            response = self.brain.think(prompt, system=system, max_tokens=max_tokens)
-        except Exception:
-            self.node.state = NodeState.FAILED
-            raise
-
-        self._record_think(messages, system, [], response)
-        if self.budget is not None:
-            self.budget.consume(response.tokens_used)
-        try:
-            self._enforce_constitution_post(prompt, response)
+            for attempt in range(1, max_verify_attempts + 1):
+                self._check_budget()
+                messages = _initial_messages(attempt_prompt)
+                response = self.brain.think(
+                    attempt_prompt, system=system, max_tokens=max_tokens
+                )
+                self._record_think(messages, system, [], response)
+                if self.budget is not None:
+                    self.budget.consume(response.tokens_used)
+                self._enforce_constitution_post(prompt, response)
+                if not has_verify:
+                    break
+                hard, soft = self._verify_check(prompt, response, attempt)
+                self._emit_soft_violations(soft, stage="verify")
+                if not hard:
+                    break
+                if attempt < max_verify_attempts:
+                    self._emit_verify_retry(hard, attempt)
+                    attempt_prompt = self._verify_feedback_prompt(
+                        prompt, response, hard
+                    )
+                else:
+                    self._emit_verify_failed(hard, attempt)
+                    raise VerificationFailed(hard, attempts=attempt)
         except Exception:
             self.node.state = NodeState.FAILED
             raise
@@ -380,25 +479,45 @@ class AsyncAgent(_AgentBase):
 
     brain: AsyncBrain  # type: ignore[assignment]
 
-    async def act(self, prompt: Prompt, *, max_tokens: int = 1024) -> Response:
-        self._check_budget()
+    async def act(
+        self,
+        prompt: Prompt,
+        *,
+        max_tokens: int = 1024,
+        max_verify_attempts: int = 3,
+    ) -> Response:
+        if max_verify_attempts < 1:
+            raise ValueError("max_verify_attempts must be >= 1")
         self._enforce_constitution(prompt)
         system = self._compose_system()
         self.node.state = NodeState.WORKING
-        messages = _initial_messages(prompt)
+        has_verify = self._has_verify_rules()
+        attempt_prompt: Prompt = prompt
         try:
-            response = await self.brain.think(
-                prompt, system=system, max_tokens=max_tokens
-            )
-        except Exception:
-            self.node.state = NodeState.FAILED
-            raise
-
-        self._record_think(messages, system, [], response)
-        if self.budget is not None:
-            self.budget.consume(response.tokens_used)
-        try:
-            self._enforce_constitution_post(prompt, response)
+            for attempt in range(1, max_verify_attempts + 1):
+                self._check_budget()
+                messages = _initial_messages(attempt_prompt)
+                response = await self.brain.think(
+                    attempt_prompt, system=system, max_tokens=max_tokens
+                )
+                self._record_think(messages, system, [], response)
+                if self.budget is not None:
+                    self.budget.consume(response.tokens_used)
+                self._enforce_constitution_post(prompt, response)
+                if not has_verify:
+                    break
+                hard, soft = self._verify_check(prompt, response, attempt)
+                self._emit_soft_violations(soft, stage="verify")
+                if not hard:
+                    break
+                if attempt < max_verify_attempts:
+                    self._emit_verify_retry(hard, attempt)
+                    attempt_prompt = self._verify_feedback_prompt(
+                        prompt, response, hard
+                    )
+                else:
+                    self._emit_verify_failed(hard, attempt)
+                    raise VerificationFailed(hard, attempts=attempt)
         except Exception:
             self.node.state = NodeState.FAILED
             raise
