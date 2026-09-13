@@ -1,10 +1,17 @@
 # Planning — decompose a complex goal into runnable tasks
 
-A colony only succeeds on a hard task if the task is split into a good tree of
-smaller, executable pieces. Ormica's tasks are otherwise hand-written and flat;
-the **planner** closes that gap: give it a goal and a brain, and it asks the
-brain to break the goal into concrete subtasks — with routing and dependencies —
-then turns that into runnable `Task`s in the right order.
+> **Opt-in — a top-down alternative to emergent growth.** Ormica's default model
+> is *emergent*: you define goals and the colony grows its own tree by spawning —
+> "no fixed graphs, no predefined chains" (see the
+> [philosophy](../../README.md)). The planner is the deliberate opposite:
+> explicit, up-front decomposition into a fixed DAG. Reach for it when you want a
+> plan you can **inspect and approve before it runs** — auditability, compliance,
+> cost estimation — rather than trusting emergence. It's an optional layer, off
+> unless you call `org.plan(...)`.
+
+The **planner** takes a goal and a brain, asks the brain to break the goal into
+concrete subtasks — with routing and dependencies — then turns that into runnable
+`Task`s in the right order.
 
 ## Quick start
 

@@ -1,8 +1,17 @@
 # Messaging — direct agent-to-agent handoffs
 
+> **Opt-in — not Ormica's default coordination model.** Ormica coordinates
+> through **stigmergy**: agents post to a shared pheromone field and coordination
+> *emerges*, rather than through direct message-passing (see the
+> [philosophy](../../README.md)). The postbox is the deliberate *alternative* for
+> the narrow cases where emergence isn't enough and you need a specific, addressed
+> handoff. **Prefer [signals](./reading-the-thought-trail.md) + shared memory
+> first**; use the postbox only when a direct request is genuinely required. It is
+> off unless you wire it in.
+
 Stigmergy ([signals](../architecture/02-signaling.md)) is *indirect*
-coordination: an agent drops a pheromone and whoever cares senses it. But hard
-tasks also need *direct* handoffs — "Agent A, I need this specific result before
+coordination: an agent drops a pheromone and whoever cares senses it. But some
+hard tasks need a *direct* handoff — "Agent A, I need this specific result before
 I can continue." The **postbox** provides that: addressed messages, replies, and
 threads.
 

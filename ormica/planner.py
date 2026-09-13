@@ -1,12 +1,18 @@
 """Planner — decompose a complex goal into an ordered plan of subtasks.
 
-A colony only succeeds on a hard task if the task is split into a good tree of
-smaller, executable pieces. Today tasks are hand-written and flat; the planner
-closes that gap: give it a goal and a brain, and it asks the brain to break the
-goal into concrete subtasks — with optional routing (``target``) and
-dependencies (``depends_on``) — parses the result into a :class:`Plan`, and
-converts it into runtime :class:`~ormica.runtime.Task` objects in
-dependency-respecting order.
+.. note:: **Opt-in — a top-down alternative to emergent growth.** Ormica's core
+   model is *emergent*: you define goals and the colony grows its own tree by
+   spawning ("no fixed graphs, no predefined chains"). The planner is the
+   deliberate *opposite* — explicit, up-front decomposition into a fixed DAG.
+   Use it when you want a plan you can **inspect and approve before running**
+   (auditability, compliance, cost estimation) rather than trusting emergence.
+   It's an optional layer on top of the runtime, not the default path, and it's
+   off unless you call :meth:`Ormica.plan`.
+
+Give it a goal and a brain, and it asks the brain to break the goal into concrete
+subtasks — with optional routing (``target``) and dependencies (``depends_on``) —
+parses the result into a :class:`Plan`, and converts it into runtime
+:class:`~ormica.runtime.Task` objects in dependency-respecting order.
 
     from ormica import Ormica
     from ormica.brain import ClaudeBrain

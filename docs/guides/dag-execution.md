@@ -1,5 +1,10 @@
 # Parallel, DAG-aware execution
 
+> **Opt-in — pairs with the [planner](./planning.md), a top-down alternative to
+> Ormica's default emergent growth.** Use it when you deliberately want an
+> explicit dependency graph executed efficiently; the native model is emergent
+> spawning, not predefined DAGs.
+
 The planner turns a goal into subtasks with dependencies. The default runners
 execute a queue in order; `arun_dag` instead runs that dependency graph with
 **maximum safe parallelism** — a task starts the moment its prerequisites are

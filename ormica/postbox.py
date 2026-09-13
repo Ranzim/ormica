@@ -1,9 +1,17 @@
 """Postbox — direct, addressed messaging between agents.
 
+.. note:: **Opt-in — not the default coordination model.** Ormica's core
+   philosophy is *stigmergic* coordination: agents post to a shared pheromone
+   field (``stigma`` + ``mycelium``) and coordination emerges, rather than
+   relying on direct message-passing. The postbox deliberately provides the
+   *other* model for the narrow cases where emergence isn't enough — a tight,
+   specific handoff ("Agent A, I need exactly this before I continue"). Reach
+   for signals + shared memory first; use the postbox only when a direct,
+   addressed request is genuinely required. It is off unless you wire it in.
+
 Stigmergy (``stigma``) is *indirect* coordination: an agent drops a signal and
-whoever cares senses it. But hard tasks also need *direct* handoffs — "Agent A,
-I need this specific sub-result before I can continue." That's what the postbox
-provides: addressed messages with replies and threads.
+whoever cares senses it. The postbox is the direct alternative — addressed
+messages with replies and threads.
 
 Like :class:`~ormica.stigma.Stigma`, it's a thin layer over
 :class:`~ormica.mycelium.Mycelium` — messages live under the ``mailbox/``
