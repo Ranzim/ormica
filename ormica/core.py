@@ -32,6 +32,8 @@ class Ormica:
         owner: str = "",
         *,
         policy: Optional[SpawnPolicy] = None,
+        spawn_governor: Optional[SpawnPolicy] = None,
+        budget: Optional[Any] = None,
         max_depth: int = 8,
         memory: Optional[Mycelium] = None,
         memory_path: Optional[str] = None,
@@ -51,11 +53,22 @@ class Ormica:
         # and without an explicit policy, still install an empty
         # ConstitutionPolicy so per-node spawn rules (attached to a Node via
         # ``node.rules``) cascade by default.
-        if constitution is not None:
+        # A spawn governor (economic ceilings) composes as the inner policy:
+        # it chains the user's policy and is itself wrapped by ConstitutionPolicy
+        # so per-node spawn rules still cascade.
+        if spawn_governor is not None:
+            if policy is not None and getattr(spawn_governor, "inner", None) is None:
+                spawn_governor.inner = policy
+            base = constitution if constitution is not None else _Constitution()
+            policy = ConstitutionPolicy(base, inner=spawn_governor)
+        elif constitution is not None:
             policy = ConstitutionPolicy(constitution, inner=policy)
         elif policy is None:
             policy = ConstitutionPolicy(_Constitution())
         self.constitution = constitution
+        # Optional shared token budget: handed to every agent by the runner, so
+        # spend accumulates colony-wide and a BudgetGovernor can gate spawns on it.
+        self.budget = budget
         self.tree = Tree(name, owner=owner, max_depth=max_depth, policy=policy)
         if memory_db and memory_path:
             raise ValueError(

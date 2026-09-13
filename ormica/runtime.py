@@ -293,6 +293,7 @@ class TaskRunner:
                 memory=self.org.memory,
                 signals=self.org.signals,
                 constitution=self.org.constitution,
+                budget=self.org.budget,
             )
             agent.events = self.org.events
             agent.task_id = task.id
@@ -425,6 +426,7 @@ class AsyncTaskRunner:
                 memory=self.org.memory,
                 signals=self.org.signals,
                 constitution=self.org.constitution,
+                budget=self.org.budget,
             )
             agent.events = self.org.events
             agent.task_id = task.id
