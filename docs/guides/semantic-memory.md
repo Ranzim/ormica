@@ -65,26 +65,33 @@ The default model is `all-MiniLM-L6-v2` (384-dim, small and fast); pass
 `embed(text) -> list[float]` method (and a `dim` attribute) satisfies the
 `Embedder` protocol, so a bespoke or API-backed embedder drops in the same way.
 
-## Going to a real vector store
+## Persisting at scale — `ChromaBackend`
 
 `InMemorySemanticBackend` holds vectors in RAM — fine for a prototype, not for
-scale or persistence. For production, implement the same `SearchableBackend`
-protocol over a vector database (ChromaDB is the intended v0.4 backend):
+scale or persistence. `ChromaBackend` implements the same `SearchableBackend`
+protocol over a ChromaDB vector store that persists to disk. It's behind the
+`memory` extra:
 
-```python
-from ormica.mycelium import SearchableBackend, Match
-
-class ChromaBackend:  # satisfies Backend + SearchableBackend
-    def get(self, key): ...
-    def set(self, entry): ...        # embed + upsert into the collection
-    def delete(self, key): ...
-    def items(self): ...
-    def __contains__(self, key): ...
-    def __len__(self): ...
-    def search(self, query, k=5) -> list[Match]: ...   # collection.query(...)
+```bash
+pip install ormica[memory]
 ```
 
-`Mycelium` calls only those methods, so nothing above the backend changes.
+```python
+from ormica.mycelium import Mycelium, ChromaBackend, SentenceTransformerEmbedder
+
+# Compute embeddings ourselves (deterministic, provider-agnostic):
+backend = ChromaBackend("./colony-memory", embedder=SentenceTransformerEmbedder())
+
+# ...or let Chroma embed with its own configured function:
+backend = ChromaBackend("./colony-memory")   # embedder=None
+
+memory = Mycelium(backend)
+```
+
+Because it satisfies the same protocol, `Mycelium`, `Agent.recall_relevant`,
+and everything above the backend are unchanged — swapping in persistence is a
+one-line constructor change. The collection uses cosine space, so `Match.score`
+stays a similarity (higher = more relevant).
 
 ## Related
 
