@@ -47,6 +47,20 @@ class Task:
     error: Optional[str] = None
     created_at: float = field(default_factory=time)
 
+    @classmethod
+    def from_record(cls, payload: dict) -> "Task":
+        """Reconstruct a Task from a persisted ``tasks/{id}`` record."""
+        return cls(
+            description=payload["description"],
+            target=payload.get("target", ""),
+            priority=payload.get("priority", "normal"),
+            id=payload["id"],
+            status=payload.get("status", "pending"),
+            result=payload.get("result"),
+            error=payload.get("error"),
+            created_at=payload.get("created_at", time()),
+        )
+
 
 @dataclass
 class RunResult:
@@ -85,8 +99,20 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
         "status": task.status,
         "result": task.result,
         "error": task.error,
+        "created_at": task.created_at,
     }
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
+
+
+def _checkpoint_queue(org: "Ormica", queue: list[Task]) -> None:
+    """Persist every queued task up front so a crash before/mid-run is resumable.
+
+    Without this, only tasks that have *finished* are durable; pending tasks
+    live only in RAM. Recording them at run start means :meth:`Ormica.resume`
+    can reload the full queue and re-run whatever didn't reach ``done``.
+    """
+    for task in queue:
+        _record_task(org, task, org.root)
 
 
 def _build_emit_tool(org: "Ormica", node: Node):
@@ -221,6 +247,7 @@ class TaskRunner:
 
     def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
+        _checkpoint_queue(self.org, queue)
         self.org.events.emit(RUN_STARTED, source="runner", n_tasks=len(queue), mode="sync")
         for task in queue:
             self._process(task)
@@ -236,6 +263,7 @@ class TaskRunner:
 
     def _process(self, task: Task) -> None:
         task.status = "running"
+        _record_task(self.org, task, self.org.root)  # durable "running" checkpoint
         self.org.events.emit(
             TASK_STARTED,
             source="runner",
@@ -332,6 +360,7 @@ class AsyncTaskRunner:
 
     async def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
+        _checkpoint_queue(self.org, queue)
         self.org.events.emit(
             RUN_STARTED,
             source="runner",
@@ -366,6 +395,7 @@ class AsyncTaskRunner:
 
     async def _process(self, task: Task) -> None:
         task.status = "running"
+        _record_task(self.org, task, self.org.root)  # durable "running" checkpoint
         self.org.events.emit(
             TASK_STARTED,
             source="runner",

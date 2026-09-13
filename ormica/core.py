@@ -220,6 +220,44 @@ class Ormica:
     def pending_tasks(self) -> list:
         return [t for t in self._tasks if t.status == "pending"]
 
+    # --- durability / resume ---
+
+    def load_tasks(self) -> list:
+        """Rebuild the task queue from persisted ``tasks/{id}`` records.
+
+        Replaces the in-memory queue with what's on the (persistent) backend —
+        the basis for resuming a run in a fresh process. Order is restored by
+        ``created_at``. Requires a durable backend (sqlite/file) to survive a
+        restart; with the default in-memory backend it only reflects this
+        process. Returns the loaded tasks.
+        """
+        from ormica.runtime import Task
+
+        loaded = [
+            Task.from_record(e.value)
+            for e in self.memory.all()
+            if e.key.startswith("tasks/") and isinstance(e.value, dict)
+        ]
+        loaded.sort(key=lambda t: t.created_at)
+        self._tasks = loaded
+        return loaded
+
+    def resume(self, *, brain, retry_failed: bool = False, **run_kwargs):
+        """Reload persisted tasks and re-run whatever didn't finish.
+
+        ``done`` tasks are skipped; tasks interrupted mid-flight (``running``)
+        are reset to ``pending`` and re-run. Set ``retry_failed=True`` to also
+        re-run tasks that previously ``failed``. Accepts the same keyword
+        arguments as :meth:`run`.
+        """
+        for task in self.load_tasks():
+            if task.status == "running":
+                task.status = "pending"
+            elif task.status == "failed" and retry_failed:
+                task.status = "pending"
+                task.error = None
+        return self.run(brain=brain, **run_kwargs)
+
     def run(
         self,
         *,
