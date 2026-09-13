@@ -26,17 +26,20 @@ from ormica.planner import (
     PlannedStep,
     Planner,
 )
+from ormica.postbox import Message, Postbox
 from ormica.runtime import RunResult, Task
 
 __all__ = [
     "Agent",
     "AsyncAgent",
     "AsyncPlanner",
+    "Message",
     "Ormica",
     "Plan",
     "PlanError",
     "PlannedStep",
     "Planner",
+    "Postbox",
     "RunResult",
     "Task",
     "__version__",

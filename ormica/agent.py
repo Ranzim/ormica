@@ -342,6 +342,55 @@ class _AgentBase:
     def sense(self, topic: str) -> Optional[Signal]:
         return self.signals.sense(topic) if self.signals is not None else None
 
+    # --- direct messaging (no-ops without a mycelium) ---
+
+    def _postbox(self):
+        if self.memory is None:
+            return None
+        from .postbox import Postbox
+
+        return Postbox(self.memory)
+
+    def send(self, to: Any, body: str, *, subject: str = "", in_reply_to: Optional[str] = None):
+        """Send a direct message to another node (a Node or node id)."""
+        box = self._postbox()
+        if box is None:
+            return None
+        msg = box.send(
+            self.node.id, to, body, subject=subject, in_reply_to=in_reply_to
+        )
+        if self.events is not None:
+            from .observe import MESSAGE_SENT
+
+            self.events.emit(
+                MESSAGE_SENT,
+                source="postbox",
+                sender=self.node.id,
+                recipient=msg.recipient,
+                subject=subject,
+                task_id=self.task_id,
+                message_id=msg.id,
+            )
+        return msg
+
+    def reply(self, message: Any, body: str, *, subject: Optional[str] = None):
+        """Reply to a received :class:`~ormica.postbox.Message`."""
+        box = self._postbox()
+        return None if box is None else box.reply(message, body, subject=subject)
+
+    def inbox(self, *, unread_only: bool = False) -> list:
+        box = self._postbox()
+        return [] if box is None else box.inbox(self.node.id, unread_only=unread_only)
+
+    def unread(self) -> list:
+        box = self._postbox()
+        return [] if box is None else box.unread(self.node.id)
+
+    def fetch_messages(self) -> list:
+        """Return unread messages and mark them read (drain the inbox)."""
+        box = self._postbox()
+        return [] if box is None else box.fetch(self.node.id)
+
 
 class Agent(_AgentBase):
     """A thinking entity in the colony — sync.

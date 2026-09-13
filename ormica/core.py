@@ -334,6 +334,39 @@ class Ormica:
     def top_signals(self, n: int = 1) -> list[Signal]:
         return self.signals.top(n)
 
+    # --- direct messaging ---
+
+    @property
+    def postbox(self):
+        """A :class:`~ormica.postbox.Postbox` over this org's shared memory."""
+        from ormica.postbox import Postbox
+
+        return Postbox(self.memory)
+
+    def send(
+        self,
+        sender: NodeRef,
+        recipient: NodeRef,
+        body: str,
+        *,
+        subject: str = "",
+        in_reply_to: Optional[str] = None,
+    ):
+        """Send a direct message. ``sender``/``recipient`` are Nodes or names."""
+        return self.postbox.send(
+            self._resolve_node(sender).id,
+            self._resolve_node(recipient).id,
+            body,
+            subject=subject,
+            in_reply_to=in_reply_to,
+        )
+
+    def inbox(self, recipient: NodeRef, *, unread_only: bool = False) -> list:
+        """Messages addressed to ``recipient`` (a Node or a name)."""
+        return self.postbox.inbox(
+            self._resolve_node(recipient).id, unread_only=unread_only
+        )
+
     # --- iteration ---
 
     def __iter__(self) -> Iterator[Node]:
