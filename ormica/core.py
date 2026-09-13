@@ -184,6 +184,35 @@ class Ormica:
         self._tasks.append(task)
         return task
 
+    def plan(
+        self,
+        goal: str,
+        *,
+        brain,
+        targets: Optional[list] = None,
+        max_depth: int = 1,
+        max_tokens: int = 1024,
+    ):
+        """Decompose ``goal`` into a :class:`~ormica.planner.Plan` via ``brain``.
+
+        Does not enqueue anything — inspect the plan (``plan.pretty()``) and
+        call :meth:`enqueue_plan` when you're happy with it.
+        """
+        from ormica.planner import Planner
+
+        return Planner(brain, max_tokens=max_tokens).plan(
+            goal, targets=targets, max_depth=max_depth
+        )
+
+    def enqueue_plan(self, plan) -> list:
+        """Append a plan's leaf steps to the queue as Tasks (dependency order).
+
+        Returns the Tasks added, ready for a subsequent :meth:`run`.
+        """
+        tasks = plan.to_tasks()
+        self._tasks.extend(tasks)
+        return tasks
+
     @property
     def tasks(self) -> list:
         return list(self._tasks)

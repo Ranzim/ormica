@@ -19,12 +19,24 @@ __version__ = "0.2.0"
 
 from ormica.agent import Agent, AsyncAgent
 from ormica.core import Ormica
+from ormica.planner import (
+    AsyncPlanner,
+    Plan,
+    PlanError,
+    PlannedStep,
+    Planner,
+)
 from ormica.runtime import RunResult, Task
 
 __all__ = [
     "Agent",
     "AsyncAgent",
+    "AsyncPlanner",
     "Ormica",
+    "Plan",
+    "PlanError",
+    "PlannedStep",
+    "Planner",
     "RunResult",
     "Task",
     "__version__",
