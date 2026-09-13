@@ -55,6 +55,32 @@ await org.arun_dag(brain=brain, concurrency=4)
 # a, then b+c together, then d — faster than running all four in sequence.
 ```
 
+## Dependent tasks receive their prerequisites' results
+
+A dependency isn't just ordering — the downstream task needs its inputs. When a
+task runs under `arun_dag`, the results of the tasks it `depends_on` are
+prepended to its prompt:
+
+```
+Results from prerequisite tasks:
+
+[fetch the raw sales numbers]
+Q3 revenue was $1.2M across 340 accounts
+
+[fetch the cost figures]
+Q3 costs were $780K
+
+Your task: compute the gross margin
+```
+
+So the "compute the gross margin" agent sees both upstream results and what
+produced them — no manual plumbing. A fan-in step (`depends_on: [a, b, c]`)
+receives all three. Independent tasks (no deps) get their description unchanged.
+
+Because results are persisted with each task record, this survives a
+[resume](./durable-runs.md): a re-run reloads completed prerequisites' results
+and re-injects them.
+
 ## Failure blocks the downstream, not the siblings
 
 If a task fails, every task **downstream** of it is skipped (marked `failed`

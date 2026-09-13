@@ -267,6 +267,11 @@ class TaskRunner:
         )
         return result
 
+    def _task_prompt(self, task: Task) -> str:
+        """The prompt handed to the agent. Overridden by DAG runners to inject
+        prerequisite results. Default: the task's own description."""
+        return task.description
+
     def _process(self, task: Task) -> None:
         task.status = "running"
         _record_task(self.org, task, self.org.root)  # durable "running" checkpoint
@@ -299,10 +304,11 @@ class TaskRunner:
             agent.task_id = task.id
             agent.runtime_task = task
             tools = _build_tools(self.org, node)
+            prompt = self._task_prompt(task)
             if tools:
-                response = agent.act_with_tools(task.description, tools=tools)
+                response = agent.act_with_tools(prompt, tools=tools)
             else:
-                response = agent.act(task.description)
+                response = agent.act(prompt)
             tokens_used = response.tokens_used
             task.result = response.content
             task.status = "done"
@@ -400,6 +406,11 @@ class AsyncTaskRunner:
         async with sem:
             await self._process(task)
 
+    def _task_prompt(self, task: Task) -> str:
+        """The prompt handed to the agent. :class:`AsyncDagRunner` overrides this
+        to inject prerequisite results. Default: the task's own description."""
+        return task.description
+
     async def _process(self, task: Task) -> None:
         task.status = "running"
         _record_task(self.org, task, self.org.root)  # durable "running" checkpoint
@@ -432,12 +443,11 @@ class AsyncTaskRunner:
             agent.task_id = task.id
             agent.runtime_task = task
             tools = _build_tools(self.org, node)
+            prompt = self._task_prompt(task)
             if tools:
-                response = await agent.act_with_tools(
-                    task.description, tools=tools
-                )
+                response = await agent.act_with_tools(prompt, tools=tools)
             else:
-                response = await agent.act(task.description)
+                response = await agent.act(prompt)
             tokens_used = response.tokens_used
             task.result = response.content
             task.status = "done"
@@ -500,6 +510,19 @@ class AsyncDagRunner(AsyncTaskRunner):
     incomplete input. Reuses :class:`AsyncTaskRunner`'s per-task execution.
     """
 
+    def _task_prompt(self, task: Task) -> str:
+        """Prepend prerequisite tasks' results so a dependent sees its inputs."""
+        deps = getattr(self, "_dag_deps", {}).get(task.id, [])
+        by_id = getattr(self, "_dag_by_id", {})
+        upstream = [by_id[d] for d in deps if d in by_id and by_id[d].result is not None]
+        if not upstream:
+            return task.description
+        lines = ["Results from prerequisite tasks:"]
+        for dep in upstream:
+            lines.append(f"\n[{dep.description}]\n{dep.result}")
+        lines.append(f"\nYour task: {task.description}")
+        return "\n".join(lines)
+
     async def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
         _checkpoint_queue(self.org, queue)
@@ -507,6 +530,9 @@ class AsyncDagRunner(AsyncTaskRunner):
         # Only honor dependencies that point inside this queue.
         deps = {t.id: [d for d in t.depends_on if d in by_id] for t in queue}
         _detect_cycle(deps)
+        # Expose the graph to _task_prompt so dependents receive upstream results.
+        self._dag_by_id = by_id
+        self._dag_deps = deps
 
         indeg = {tid: len(deps[tid]) for tid in by_id}
         dependents: dict[str, list[str]] = {tid: [] for tid in by_id}

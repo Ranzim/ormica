@@ -186,6 +186,67 @@ async def test_sibling_of_failed_task_still_runs():
 
 
 @pytest.mark.asyncio
+async def test_dependent_task_receives_prerequisite_results():
+    org = _dag_org()
+    org._tasks = [
+        Task(description="compute A", id="a"),
+        Task(description="combine with A", id="b", depends_on=["a"]),
+    ]
+    captured = {}
+
+    async def reply(messages):
+        text = messages[-1].content
+        if "Results from prerequisite tasks:" in text:
+            captured["b_prompt"] = text      # this is task b
+            return "combined"
+        return "A=42"                         # task a
+
+    await org.arun_dag(brain=AsyncMockBrain(reply_fn=reply))
+    assert org._tasks[0].result == "A=42"
+    # b's prompt carried a's result AND what produced it.
+    assert "A=42" in captured["b_prompt"]
+    assert "compute A" in captured["b_prompt"]
+    assert "Your task: combine with A" in captured["b_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_fan_in_receives_all_prerequisite_results():
+    org = _dag_org()
+    org._tasks = [
+        Task(description="produce X", id="x"),
+        Task(description="produce Y", id="y"),
+        Task(description="sum X and Y", id="z", depends_on=["x", "y"]),
+    ]
+    captured = {}
+
+    async def reply(messages):
+        text = messages[-1].content
+        if "sum X and Y" in text and "prerequisite" in text:
+            captured["z"] = text
+            return "10"
+        return "3" if "produce X" in text else "7"
+
+    await org.arun_dag(brain=AsyncMockBrain(reply_fn=reply), concurrency=4)
+    # z saw both upstream results.
+    assert "3" in captured["z"] and "7" in captured["z"]
+    assert "produce X" in captured["z"] and "produce Y" in captured["z"]
+
+
+@pytest.mark.asyncio
+async def test_independent_task_prompt_is_unchanged():
+    org = _dag_org()
+    org._tasks = [Task(description="standalone", id="s")]
+    captured = {}
+
+    async def reply(messages):
+        captured["p"] = messages[-1].content
+        return "ok"
+
+    await org.arun_dag(brain=AsyncMockBrain(reply_fn=reply))
+    assert captured["p"] == "standalone"  # no dependency preamble
+
+
+@pytest.mark.asyncio
 async def test_plan_enqueue_arun_dag_end_to_end():
     org = Ormica("Acme")
     plan_reply = json.dumps(
