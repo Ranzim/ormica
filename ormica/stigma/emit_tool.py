@@ -25,7 +25,7 @@ automatically; the trace observer captures it without extra wiring.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from ormica.arbor import Node

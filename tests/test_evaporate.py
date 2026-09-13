@@ -63,7 +63,7 @@ def test_auto_evaporate_true_drops_decayed_after_run():
 def test_evaporate_failure_swallowed():
     """A broken signals.evaporate must not fail an otherwise successful run."""
     org = Ormica("X", max_depth=3, signals_auto_evaporate=True)
-    leaf = org.spawn("leaf")
+    org.spawn("leaf")
 
     def boom():
         raise RuntimeError("stigma is wedged")
