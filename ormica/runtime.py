@@ -156,7 +156,8 @@ def _build_message_tool(org: "Ormica", node: Node):
 
 
 def _build_tools(org: "Ormica", node: Node) -> list:
-    """Assemble every LLM-facing tool a node has declared (emit + message)."""
+    """Assemble every tool a node gets: declared emit/message tools + any custom
+    tools registered via ``Ormica.give_tools``."""
     tools: list = []
     _, emit_tool = _build_emit_tool(org, node)
     if emit_tool is not None:
@@ -164,6 +165,7 @@ def _build_tools(org: "Ormica", node: Node) -> list:
     message_tool = _build_message_tool(org, node)
     if message_tool is not None:
         tools.append(message_tool)
+    tools.extend(getattr(org, "_node_tools", {}).get(node.id, ()))
     return tools
 
 

@@ -97,6 +97,9 @@ class Ormica:
         self.signals_auto_evaporate: bool = signals_auto_evaporate
         self.events: EventBus = EventBus()
         self._tasks: list = []
+        # Custom tools attached per node (by node id). The runner hands these to
+        # the node's agent alongside any emit/message tools it declared.
+        self._node_tools: dict = {}
 
     def subscribe(self, observer) -> None:
         """Register an :class:`Observer` to receive event notifications."""
@@ -225,6 +228,27 @@ class Ormica:
         tasks = plan.to_tasks()
         self._tasks.extend(tasks)
         return tasks
+
+    def give_tools(self, target: NodeRef, tools: list) -> list:
+        """Attach custom tools to a node (or every node with a given name).
+
+        The runner hands these to the node's agent (via ``act_with_tools``)
+        alongside any ``emit_signal`` / ``send_message`` tools it declared —
+        so a node can e.g. run code in the sandbox or hit an external API.
+        ``target`` is a Node or a department name. Returns the nodes affected.
+        """
+        if isinstance(target, Node):
+            nodes = [target]
+        else:
+            nodes = self.find_all(target) or [self.find(target)]
+        for node in nodes:
+            self._node_tools.setdefault(node.id, []).extend(tools)
+        return nodes
+
+    def tools_for(self, target: NodeRef) -> list:
+        """The custom tools registered for a node (or named node)."""
+        node = self._resolve_node(target)
+        return list(self._node_tools.get(node.id, ()))
 
     @property
     def tasks(self) -> list:

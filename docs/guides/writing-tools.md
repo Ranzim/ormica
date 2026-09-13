@@ -120,7 +120,28 @@ The agent calls `get_weather` synchronously, but `brain.think` is awaited. So yo
 - **Return strings.** Tool results become message content; non-string results are `str()`-ified.
 - **Don't put secrets in tool args.** They land in the message history and the Thought Trail.
 
+## Giving tools to specific agents in a colony
+
+When you drive agents yourself you pass `tools=` to `act_with_tools`. When the
+**runner** drives them (`org.run` / `arun` / `arun_dag`), attach tools to a node
+with `give_tools` — the runner hands them to that node's agent automatically,
+alongside any `emit_signal` / `send_message` tools it declared:
+
+```python
+from ormica.sandbox import python_tool
+
+org.give_tools("analyst", [python_tool(), lookup_customer])   # by department name
+org.give_tools(some_node, [get_weather])                       # or by Node
+
+org.task("Analyse Q3 numbers", target="analyst")
+org.run(brain=brain)   # the analyst agent can now call run_python / lookup_customer
+```
+
+In a DAG this is what lets a task actually *do* the work (run code, hit an API)
+and pass its result to dependents — see [DAG execution](./dag-execution.md).
+
 ## Related
 
 - [Brain architecture](../architecture/03-brain.md) — how `tools=` flows through Claude / GPT.
 - [Reading the Thought Trail](./reading-the-thought-trail.md) — every tool call is captured.
+- [Sandboxed execution](./sandboxed-execution.md) — the `run_python` / `run_command` tools.
