@@ -81,11 +81,48 @@ alongside everything else.
 | "I specifically need X from you before I continue" | **postbox** (this) |
 | "Everyone can read the shared findings" | [mycelium memory](./semantic-memory.md) |
 
+## Letting the LLM message peers autonomously — the `send_message` tool
+
+The methods above are for *your* code. To let the **agent itself** decide to
+message a peer mid-turn, give it the `send_message` tool — the direct-messaging
+counterpart to stigma's `emit_signal`. It carries the same guardrails: a
+**bounded recipient list** (declared as a schema enum, so the model can't invent
+recipients), a **per-turn rate limit**, and **refusals returned as strings**
+(never raised) so the model can adjust.
+
+Declare it on a node via `meta["message_tool_config"]`; the runner wires it into
+that node's tool loop automatically (alongside `emit_signal` if present):
+
+```python
+from ormica.postbox import MessageToolConfig
+
+org.find("engineering").meta["message_tool_config"] = MessageToolConfig(
+    recipients=("sales", "support"),   # department names, resolved to node ids
+    max_per_turn=3,
+    max_body_chars=2000,
+)
+org.task("Coordinate the launch with the other teams", target="engineering")
+org.run(brain=brain)   # the agent may now call send_message("sales", "...")
+```
+
+Or build it by hand for a direct `act_with_tools` call:
+
+```python
+from ormica.postbox import MessageToolBuilder, MessageToolConfig
+
+tool = MessageToolBuilder(
+    org.postbox, node,
+    MessageToolConfig(recipients=("sales",)),
+    resolve=lambda name: org.find(name).id,
+).as_tool()
+
+agent.act_with_tools("Ask sales for the pricing table", tools=[tool])
+```
+
+Each `send_message` call lands in `TraceEntry.response_tool_calls`, so what the
+agent chose to send is captured in the Thought Trail with no extra wiring.
+
 ## Pairs well with
 
 - [Planning](./planning.md) — a planner assigns subtasks; agents message to hand off intermediate results.
 - [Verification](./verification.md) — ask a peer (or a judge agent) to check work, then reply with the verdict.
-
-> Scope note: this is the messaging *substrate* plus agent/facade helpers.
-> Exposing a `send_message` **tool** so an LLM agent can message peers
-> autonomously (like the `emit_signal` tool for stigma) is the natural next step.

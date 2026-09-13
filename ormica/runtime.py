@@ -105,6 +105,36 @@ def _build_emit_tool(org: "Ormica", node: Node):
     return builder, builder.as_tool()
 
 
+def _build_message_tool(org: "Ormica", node: Node):
+    """Build the LLM-facing send_message tool if the node declares one.
+
+    Reads ``node.meta["message_tool_config"]`` (a
+    :class:`~ormica.postbox.MessageToolConfig`). Recipient names are resolved
+    to node ids via ``org.find``. Returns the Tool or ``None``.
+    """
+    cfg = node.meta.get("message_tool_config")
+    if cfg is None:
+        return None
+    from ormica.postbox import MessageToolBuilder
+
+    builder = MessageToolBuilder(
+        org.postbox, node, cfg, resolve=lambda name: org.find(name).id
+    )
+    return builder.as_tool()
+
+
+def _build_tools(org: "Ormica", node: Node) -> list:
+    """Assemble every LLM-facing tool a node has declared (emit + message)."""
+    tools: list = []
+    _, emit_tool = _build_emit_tool(org, node)
+    if emit_tool is not None:
+        tools.append(emit_tool)
+    message_tool = _build_message_tool(org, node)
+    if message_tool is not None:
+        tools.append(message_tool)
+    return tools
+
+
 def _maybe_auto_emit(org: "Ormica", task: Task, node: Node) -> None:
     """Reinforce stigma trails after a task finalizes.
 
@@ -233,11 +263,9 @@ class TaskRunner:
             agent.events = self.org.events
             agent.task_id = task.id
             agent.runtime_task = task
-            emit_builder, emit_tool = _build_emit_tool(self.org, node)
-            if emit_tool is not None:
-                response = agent.act_with_tools(
-                    task.description, tools=[emit_tool]
-                )
+            tools = _build_tools(self.org, node)
+            if tools:
+                response = agent.act_with_tools(task.description, tools=tools)
             else:
                 response = agent.act(task.description)
             tokens_used = response.tokens_used
@@ -365,10 +393,10 @@ class AsyncTaskRunner:
             agent.events = self.org.events
             agent.task_id = task.id
             agent.runtime_task = task
-            emit_builder, emit_tool = _build_emit_tool(self.org, node)
-            if emit_tool is not None:
+            tools = _build_tools(self.org, node)
+            if tools:
                 response = await agent.act_with_tools(
-                    task.description, tools=[emit_tool]
+                    task.description, tools=tools
                 )
             else:
                 response = await agent.act(task.description)
