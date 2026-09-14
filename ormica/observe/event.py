@@ -17,6 +17,10 @@ RULE_SOFT_VIOLATION = "rule.soft_violation"
 VERIFY_RETRY = "verify.retry"
 VERIFY_FAILED = "verify.failed"
 MESSAGE_SENT = "message.sent"
+NODE_SPAWNED = "node.spawned"
+NODE_PRUNED = "node.pruned"
+MEMORY_WRITE = "memory.write"
+MEMORY_READ = "memory.read"
 
 
 @dataclass

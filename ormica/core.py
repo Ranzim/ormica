@@ -69,7 +69,14 @@ class Ormica:
         # Optional shared token budget: handed to every agent by the runner, so
         # spend accumulates colony-wide and a BudgetGovernor can gate spawns on it.
         self.budget = budget
-        self.tree = Tree(name, owner=owner, max_depth=max_depth, policy=policy)
+        self.tree = Tree(
+            name,
+            owner=owner,
+            max_depth=max_depth,
+            policy=policy,
+            on_spawn=self._emit_spawn,
+            on_prune=self._emit_prune,
+        )
         if memory_db and memory_path:
             raise ValueError(
                 "set memory_db OR memory_path, not both — got "
@@ -100,6 +107,34 @@ class Ormica:
         # Custom tools attached per node (by node id). The runner hands these to
         # the node's agent alongside any emit/message tools it declared.
         self._node_tools: dict = {}
+
+    def _emit_spawn(self, node) -> None:
+        """Tree hook: announce a new node on the bus (live-view / audit)."""
+        from ormica.observe import NODE_SPAWNED
+
+        parent = node.parent
+        self.events.emit(
+            NODE_SPAWNED,
+            source="arbor",
+            node_id=node.id,
+            name=node.name,
+            role=node.role,
+            parent_id=parent.id if parent is not None else None,
+            parent_name=parent.name if parent is not None else None,
+            depth=node.depth,
+        )
+
+    def _emit_prune(self, node, removed: int) -> None:
+        """Tree hook: announce a pruned subtree on the bus."""
+        from ormica.observe import NODE_PRUNED
+
+        self.events.emit(
+            NODE_PRUNED,
+            source="arbor",
+            node_id=node.id,
+            name=node.name,
+            removed=removed,
+        )
 
     def subscribe(self, observer) -> None:
         """Register an :class:`Observer` to receive event notifications."""

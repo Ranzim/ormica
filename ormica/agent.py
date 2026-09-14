@@ -312,11 +312,14 @@ class _AgentBase:
     def remember(self, key: str, value: Any, **kw: Any) -> None:
         if self.memory is not None:
             self.memory.write(key, value, author=self.node.id, **kw)
+            self._emit_memory("memory.write", key=key)
 
     def recall(self, key: str, default: Any = None) -> Any:
         if self.memory is None:
             return default
-        return self.memory.get(key, default=default)
+        value = self.memory.get(key, default=default)
+        self._emit_memory("memory.read", key=key, hit=value is not default)
+        return value
 
     def recall_relevant(self, query: str, k: int = 5) -> list:
         """Relevance-recall: the ``k`` entries most related to ``query``.
@@ -327,7 +330,25 @@ class _AgentBase:
         """
         if self.memory is None:
             return []
-        return self.memory.search(query, k=k)
+        matches = self.memory.search(query, k=k)
+        self._emit_memory("memory.read", query=query, k=k, hits=len(matches))
+        return matches
+
+    def _emit_memory(self, event_type: str, **payload: Any) -> None:
+        """Emit a knowledge read/write event (no-op without an event bus).
+
+        Fires at the agent level — this is *knowledge*, tagged with the node and
+        task — not the internal signal/mailbox/trace writes on raw mycelium.
+        """
+        if self.events is None:
+            return
+        self.events.emit(
+            event_type,
+            source="memory",
+            node=self.node.id,
+            task_id=self.task_id,
+            **payload,
+        )
 
     # --- signal shortcuts (no-ops without a stigma) ---
 
