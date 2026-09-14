@@ -24,7 +24,7 @@ _DEFAULT_MODELS = {
     "mock": "mock",
     "claude": "claude-opus-4-7",
     "openai": "gpt-4o",
-    "gemini": "gemini-2.0-flash",
+    "gemini": "gemini-3.6-flash",
     "ollama": "llama3.2",
     "openrouter": "anthropic/claude-opus-4-7",
     "groq": "llama-3.3-70b-versatile",

@@ -133,9 +133,9 @@ def test_max_tokens_in_generation_config():
     assert fake.calls[0]["generation_config"] == {"max_output_tokens": 2048}
 
 
-def test_default_model_is_gemini_2_flash():
+def test_default_model_is_current_flash():
     brain, _ = _brain()
-    assert brain.model == "gemini-2.0-flash"
+    assert brain.model == "gemini-3.6-flash"
 
 
 def test_custom_model_kept_on_brain():
