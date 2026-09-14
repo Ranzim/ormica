@@ -48,6 +48,7 @@ def _layout(*, title: str, body: str) -> str:
         f"<style>{_BASE_CSS}</style></head><body>"
         f"<h1>{escape(title)}</h1>"
         '<nav><a href="/">overview</a>'
+        '<a href="/graph">◆ live graph</a>'
         '<a href="/tree">tree</a>'
         '<a href="/rules">rules</a>'
         '<a href="/signals">signals</a>'
@@ -228,3 +229,52 @@ def trace_detail(org, task_id: str) -> str:
         if entry.response_content:
             parts.append(f"<p><strong>→</strong> {escape(entry.response_content)}</p>")
     return _layout(title=f"Trace {task_id[:8]}", body="".join(parts))
+
+
+# --- live graph ---------------------------------------------------------------
+
+_INTERNAL_KEY_PREFIXES = ("stigma/", "mailbox/", "tasks/", "traces/")
+
+
+def graph_state(org) -> dict:
+    """Snapshot the current colony as a node/edge graph for the live view.
+
+    Nodes: agents (root / dept / agent by depth) and knowledge (agent-authored
+    mycelium entries — the internal signal/mailbox/task/trace keys are skipped).
+    Edges: spawn lineage (parent→child) and memory authorship (agent→knowledge).
+    """
+    nodes = []
+    edges = []
+    agent_ids = set()
+    for node in org:  # walks the tree
+        depth = node.depth
+        kind = "root" if node.is_root else ("dept" if depth == 1 else "agent")
+        nodes.append(
+            {"id": node.id, "label": node.name, "kind": kind,
+             "role": node.role, "depth": depth}
+        )
+        agent_ids.add(node.id)
+        if node.parent is not None:
+            edges.append({"s": node.parent.id, "t": node.id, "kind": "spawn"})
+    for entry in org.memory.all():
+        if any(entry.key.startswith(p) for p in _INTERNAL_KEY_PREFIXES):
+            continue
+        kid = "k:" + entry.key
+        nodes.append({"id": kid, "label": entry.key, "kind": "knowledge"})
+        if entry.author in agent_ids:
+            edges.append({"s": entry.author, "t": kid, "kind": "memory"})
+    return {"nodes": nodes, "edges": edges}
+
+
+def graph_page() -> str:
+    """The live 3D colony graph + log view.
+
+    Implemented in :mod:`ormica.dashboard.graph_view` (a self-contained,
+    dependency-free page seeded from ``/graph/state`` and updated from
+    ``/events``).
+    """
+    from . import graph_view
+
+    return graph_view.page()
+
+

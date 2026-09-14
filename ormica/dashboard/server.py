@@ -56,6 +56,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path.startswith("/traces/"):
             task_id = path[len("/traces/") :]
             self._html(templates.trace_detail(self.org, task_id))
+        elif path == "/graph":
+            self._html(templates.graph_page())
+        elif path == "/graph/state":
+            import json
+
+            self._html(
+                json.dumps(templates.graph_state(self.org)),
+                content_type="application/json",
+            )
         elif path == "/events":
             self._stream_events()
         elif path == "/healthz":
