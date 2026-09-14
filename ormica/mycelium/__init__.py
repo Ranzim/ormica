@@ -9,17 +9,33 @@ Biological metaphor: the underground fungal network connecting trees.
 """
 
 from .backend import Backend, InMemoryBackend
+from .chroma_backend import ChromaBackend
 from .entry import Entry
 from .file_backend import FileBackend
 from .mycelium import Mycelium, Scope
+from .semantic import (
+    Embedder,
+    HashingEmbedder,
+    InMemorySemanticBackend,
+    Match,
+    SearchableBackend,
+    SentenceTransformerEmbedder,
+)
 from .sqlite_backend import SqliteBackend
 
 __all__ = [
     "Backend",
+    "ChromaBackend",
+    "Embedder",
     "Entry",
     "FileBackend",
+    "HashingEmbedder",
     "InMemoryBackend",
+    "InMemorySemanticBackend",
+    "Match",
     "Mycelium",
     "Scope",
+    "SearchableBackend",
+    "SentenceTransformerEmbedder",
     "SqliteBackend",
 ]

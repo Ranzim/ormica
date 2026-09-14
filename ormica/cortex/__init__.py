@@ -16,6 +16,13 @@ inhibits impulses generated lower in the brain.
 from .constitution import Constitution
 from .policy import ConstitutionPolicy
 from .rule import Rule, RulePredicate, RuleViolation, Violation
+from .verify import (
+    VerificationFailed,
+    must_be_json,
+    must_contain,
+    must_match,
+    verifier,
+)
 
 __all__ = [
     "Constitution",
@@ -23,5 +30,10 @@ __all__ = [
     "Rule",
     "RulePredicate",
     "RuleViolation",
+    "VerificationFailed",
     "Violation",
+    "must_be_json",
+    "must_contain",
+    "must_match",
+    "verifier",
 ]

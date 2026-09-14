@@ -297,21 +297,38 @@ def cmd_trace(args: argparse.Namespace) -> int:
         print(f"error:       {trace.error}")
     if trace.result:
         print(f"result:      {trace.result}")
+    # `--full` disables truncation entirely (negative width is the sentinel).
+    # Otherwise honour `--width` (default 80). Both controls only affect the
+    # text format; JSON output is always full content.
+    width = -1 if getattr(args, "full", False) else getattr(args, "width", 80)
     print(f"think calls: {len(trace.entries)}")
     for i, entry in enumerate(trace.entries, start=1):
         print(f"\n  [{i}] tokens={entry.tokens_used} tools={entry.tool_names or '-'}")
         if entry.system:
-            print(f"      system: {_truncate(entry.system, 80)}")
+            print(f"      system: {_truncate(entry.system, width)}")
         for msg in entry.messages:
-            content = _truncate(str(msg.get("content", "")), 80)
+            content = _truncate(str(msg.get("content", "")), width)
             print(f"      {msg.get('role', '?'):<8} {content}")
         if entry.response_content:
-            print(f"      → {_truncate(entry.response_content, 80)}")
+            print(f"      → {_truncate(entry.response_content, width)}")
+    # `warnings:` (soft-rule violations) — surface here so the auditor sees
+    # them without having to round-trip through JSON. Always full-length;
+    # the messages are usually short and matter for governance review.
+    if trace.warnings:
+        print(f"\nwarnings ({len(trace.warnings)}):")
+        for w in trace.warnings:
+            print(
+                f"  - {w.get('rule', '?')}  [{w.get('stage', '?')}]  "
+                f"{w.get('reason', '')}"
+            )
     return 0
 
 
 def _truncate(s: str, n: int) -> str:
-    return s if len(s) <= n else s[: n - 1] + "…"
+    """Truncate to ``n`` chars with an ellipsis. Pass ``-1`` for no truncation."""
+    if n < 0 or len(s) <= n:
+        return s
+    return s[: n - 1] + "…"
 
 
 def cmd_export(args: argparse.Namespace) -> int:
@@ -639,7 +656,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--format",
         default="text",
         choices=["text", "json"],
-        help="Output format (default text)",
+        help=(
+            "Output format. text (default) truncates long fields per --width; "
+            "json always preserves full content."
+        ),
+    )
+    trace.add_argument(
+        "--width",
+        type=int,
+        default=80,
+        help=(
+            "Truncation width for the text format (default 80). "
+            "Has no effect on --format json."
+        ),
+    )
+    trace.add_argument(
+        "--full",
+        action="store_true",
+        help=(
+            "Disable truncation in the text format — show full system prompts, "
+            "messages, and responses. Equivalent to --width -1. Useful when "
+            "inspecting injected stigma signals or long compliance blocks."
+        ),
     )
     trace.set_defaults(func=cmd_trace)
 

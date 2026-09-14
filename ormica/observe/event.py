@@ -14,6 +14,9 @@ TASK_STARTED = "task.started"
 TASK_DONE = "task.done"
 TASK_FAILED = "task.failed"
 RULE_SOFT_VIOLATION = "rule.soft_violation"
+VERIFY_RETRY = "verify.retry"
+VERIFY_FAILED = "verify.failed"
+MESSAGE_SENT = "message.sent"
 
 
 @dataclass

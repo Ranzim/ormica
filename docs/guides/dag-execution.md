@@ -1,0 +1,117 @@
+# Parallel, DAG-aware execution
+
+> **Opt-in — pairs with the [planner](./planning.md), a top-down alternative to
+> Ormica's default emergent growth.** Use it when you deliberately want an
+> explicit dependency graph executed efficiently; the native model is emergent
+> spawning, not predefined DAGs.
+
+The planner turns a goal into subtasks with dependencies. The default runners
+execute a queue in order; `arun_dag` instead runs that dependency graph with
+**maximum safe parallelism** — a task starts the moment its prerequisites are
+done, and independent branches run concurrently.
+
+## Dependencies on a Task
+
+Every `Task` has a `depends_on` list of task ids that must reach `done` first:
+
+```python
+from ormica import Task
+
+a = Task(description="fetch data", id="a")
+b = Task(description="analyze", id="b", depends_on=["a"])
+```
+
+The planner sets these for you — `plan.to_tasks()` translates each step's
+dependencies (and any inherited from ancestor steps) into leaf task ids.
+
+## Running a DAG
+
+```python
+plan = org.plan("Research the market and write a brief", brain=brain, max_depth=2)
+org.enqueue_plan(plan)          # tasks carry the plan's dependencies
+await org.arun_dag(brain=brain, concurrency=5)
+```
+
+Semantics:
+
+- A task runs only after **all** tasks in its `depends_on` are `done`.
+- Independent tasks run **concurrently**, capped by `concurrency`.
+- Among ready tasks, higher `priority` goes first.
+- A **dependency cycle** raises `ValueError` before anything runs.
+
+### A diamond
+
+```
+        a
+       / \
+      b   c        # b and c run in parallel after a
+       \ /
+        d          # d runs after both b and c
+```
+
+```python
+org._tasks = [
+    Task(description="fetch",     id="a"),
+    Task(description="analyze-1", id="b", depends_on=["a"]),
+    Task(description="analyze-2", id="c", depends_on=["a"]),
+    Task(description="report",    id="d", depends_on=["b", "c"]),
+]
+await org.arun_dag(brain=brain, concurrency=4)
+# a, then b+c together, then d — faster than running all four in sequence.
+```
+
+## Dependent tasks receive their prerequisites' results
+
+A dependency isn't just ordering — the downstream task needs its inputs. When a
+task runs under `arun_dag`, the results of the tasks it `depends_on` are
+prepended to its prompt:
+
+```
+Results from prerequisite tasks:
+
+[fetch the raw sales numbers]
+Q3 revenue was $1.2M across 340 accounts
+
+[fetch the cost figures]
+Q3 costs were $780K
+
+Your task: compute the gross margin
+```
+
+So the "compute the gross margin" agent sees both upstream results and what
+produced them — no manual plumbing. A fan-in step (`depends_on: [a, b, c]`)
+receives all three. Independent tasks (no deps) get their description unchanged.
+
+Because results are persisted with each task record, this survives a
+[resume](./durable-runs.md): a re-run reloads completed prerequisites' results
+and re-injects them.
+
+## Failure blocks the downstream, not the siblings
+
+If a task fails, every task **downstream** of it is skipped (marked `failed`
+with a `"prerequisite … failed"` reason) rather than run against a missing
+input. Independent branches are unaffected and still run.
+
+```
+a (fails) ─► b   →  b is skipped
+c            →  c runs normally (independent of a)
+```
+
+## Durability
+
+`arun_dag` checkpoints like the other runners, and `depends_on` is persisted in
+each task record — so a DAG run is [resumable](./durable-runs.md): `resume()`
+reloads the graph and re-runs only what didn't finish.
+
+## Scope note
+
+This is single-process parallelism (`asyncio`), the same model as `arun`. It's
+the on-ramp to distributed execution — the scheduler already thinks in terms of
+"ready tasks" and a concurrency budget, which a multi-worker backend would slot
+into.
+
+## Pairs well with
+
+- [Planning](./planning.md) — produces the DAG this runs.
+- [Durable runs](./durable-runs.md) — resume an interrupted DAG.
+- [Async & routing](./async-and-routing.md) — the async brain/runner foundation.

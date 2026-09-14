@@ -46,6 +46,25 @@ class Task:
     result: Optional[str] = None
     error: Optional[str] = None
     created_at: float = field(default_factory=time)
+    # ids of tasks that must reach ``done`` before this one may run. Empty for
+    # a flat queue; populated by the planner (or you) to form a DAG that
+    # :class:`AsyncDagRunner` executes with maximum safe parallelism.
+    depends_on: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_record(cls, payload: dict) -> "Task":
+        """Reconstruct a Task from a persisted ``tasks/{id}`` record."""
+        return cls(
+            description=payload["description"],
+            target=payload.get("target", ""),
+            priority=payload.get("priority", "normal"),
+            id=payload["id"],
+            status=payload.get("status", "pending"),
+            result=payload.get("result"),
+            error=payload.get("error"),
+            created_at=payload.get("created_at", time()),
+            depends_on=list(payload.get("depends_on", [])),
+        )
 
 
 @dataclass
@@ -85,8 +104,21 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
         "status": task.status,
         "result": task.result,
         "error": task.error,
+        "created_at": task.created_at,
+        "depends_on": list(task.depends_on),
     }
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
+
+
+def _checkpoint_queue(org: "Ormica", queue: list[Task]) -> None:
+    """Persist every queued task up front so a crash before/mid-run is resumable.
+
+    Without this, only tasks that have *finished* are durable; pending tasks
+    live only in RAM. Recording them at run start means :meth:`Ormica.resume`
+    can reload the full queue and re-run whatever didn't reach ``done``.
+    """
+    for task in queue:
+        _record_task(org, task, org.root)
 
 
 def _build_emit_tool(org: "Ormica", node: Node):
@@ -103,6 +135,38 @@ def _build_emit_tool(org: "Ormica", node: Node):
 
     builder = EmitToolBuilder(org.signals, node, cfg)
     return builder, builder.as_tool()
+
+
+def _build_message_tool(org: "Ormica", node: Node):
+    """Build the LLM-facing send_message tool if the node declares one.
+
+    Reads ``node.meta["message_tool_config"]`` (a
+    :class:`~ormica.postbox.MessageToolConfig`). Recipient names are resolved
+    to node ids via ``org.find``. Returns the Tool or ``None``.
+    """
+    cfg = node.meta.get("message_tool_config")
+    if cfg is None:
+        return None
+    from ormica.postbox import MessageToolBuilder
+
+    builder = MessageToolBuilder(
+        org.postbox, node, cfg, resolve=lambda name: org.find(name).id
+    )
+    return builder.as_tool()
+
+
+def _build_tools(org: "Ormica", node: Node) -> list:
+    """Assemble every tool a node gets: declared emit/message tools + any custom
+    tools registered via ``Ormica.give_tools``."""
+    tools: list = []
+    _, emit_tool = _build_emit_tool(org, node)
+    if emit_tool is not None:
+        tools.append(emit_tool)
+    message_tool = _build_message_tool(org, node)
+    if message_tool is not None:
+        tools.append(message_tool)
+    tools.extend(getattr(org, "_node_tools", {}).get(node.id, ()))
+    return tools
 
 
 def _maybe_auto_emit(org: "Ormica", task: Task, node: Node) -> None:
@@ -191,6 +255,7 @@ class TaskRunner:
 
     def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
+        _checkpoint_queue(self.org, queue)
         self.org.events.emit(RUN_STARTED, source="runner", n_tasks=len(queue), mode="sync")
         for task in queue:
             self._process(task)
@@ -204,8 +269,14 @@ class TaskRunner:
         )
         return result
 
+    def _task_prompt(self, task: Task) -> str:
+        """The prompt handed to the agent. Overridden by DAG runners to inject
+        prerequisite results. Default: the task's own description."""
+        return task.description
+
     def _process(self, task: Task) -> None:
         task.status = "running"
+        _record_task(self.org, task, self.org.root)  # durable "running" checkpoint
         self.org.events.emit(
             TASK_STARTED,
             source="runner",
@@ -229,17 +300,17 @@ class TaskRunner:
                 memory=self.org.memory,
                 signals=self.org.signals,
                 constitution=self.org.constitution,
+                budget=self.org.budget,
             )
             agent.events = self.org.events
             agent.task_id = task.id
             agent.runtime_task = task
-            emit_builder, emit_tool = _build_emit_tool(self.org, node)
-            if emit_tool is not None:
-                response = agent.act_with_tools(
-                    task.description, tools=[emit_tool]
-                )
+            tools = _build_tools(self.org, node)
+            prompt = self._task_prompt(task)
+            if tools:
+                response = agent.act_with_tools(prompt, tools=tools)
             else:
-                response = agent.act(task.description)
+                response = agent.act(prompt)
             tokens_used = response.tokens_used
             task.result = response.content
             task.status = "done"
@@ -304,6 +375,7 @@ class AsyncTaskRunner:
 
     async def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
+        _checkpoint_queue(self.org, queue)
         self.org.events.emit(
             RUN_STARTED,
             source="runner",
@@ -336,8 +408,14 @@ class AsyncTaskRunner:
         async with sem:
             await self._process(task)
 
+    def _task_prompt(self, task: Task) -> str:
+        """The prompt handed to the agent. :class:`AsyncDagRunner` overrides this
+        to inject prerequisite results. Default: the task's own description."""
+        return task.description
+
     async def _process(self, task: Task) -> None:
         task.status = "running"
+        _record_task(self.org, task, self.org.root)  # durable "running" checkpoint
         self.org.events.emit(
             TASK_STARTED,
             source="runner",
@@ -361,17 +439,17 @@ class AsyncTaskRunner:
                 memory=self.org.memory,
                 signals=self.org.signals,
                 constitution=self.org.constitution,
+                budget=self.org.budget,
             )
             agent.events = self.org.events
             agent.task_id = task.id
             agent.runtime_task = task
-            emit_builder, emit_tool = _build_emit_tool(self.org, node)
-            if emit_tool is not None:
-                response = await agent.act_with_tools(
-                    task.description, tools=[emit_tool]
-                )
+            tools = _build_tools(self.org, node)
+            prompt = self._task_prompt(task)
+            if tools:
+                response = await agent.act_with_tools(prompt, tools=tools)
             else:
-                response = await agent.act(task.description)
+                response = await agent.act(prompt)
             tokens_used = response.tokens_used
             task.result = response.content
             task.status = "done"
@@ -399,3 +477,143 @@ class AsyncTaskRunner:
                 )
             if self.on_task_done is not None:
                 self.on_task_done(task)
+
+
+# --- DAG runner ---------------------------------------------------------------
+
+
+def _detect_cycle(deps: dict[str, list[str]]) -> None:
+    """Raise ValueError if the dependency graph has a cycle (Kahn's)."""
+    indeg = {tid: len(ds) for tid, ds in deps.items()}
+    dependents: dict[str, list[str]] = {tid: [] for tid in deps}
+    for tid, ds in deps.items():
+        for d in ds:
+            dependents[d].append(tid)
+    ready = [tid for tid, n in indeg.items() if n == 0]
+    seen = 0
+    while ready:
+        cur = ready.pop()
+        seen += 1
+        for nxt in dependents[cur]:
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                ready.append(nxt)
+    if seen != len(deps):
+        raise ValueError("task graph has a dependency cycle")
+
+
+class AsyncDagRunner(AsyncTaskRunner):
+    """Runs tasks respecting ``depends_on`` — maximum safe parallelism.
+
+    A task runs only once every task it depends on has reached ``done``.
+    Independent tasks race concurrently (capped by ``concurrency``). If a
+    prerequisite ``failed``, every task downstream of it is skipped (marked
+    failed with a "prerequisite failed" reason) rather than run against an
+    incomplete input. Reuses :class:`AsyncTaskRunner`'s per-task execution.
+    """
+
+    def _task_prompt(self, task: Task) -> str:
+        """Prepend prerequisite tasks' results so a dependent sees its inputs."""
+        deps = getattr(self, "_dag_deps", {}).get(task.id, [])
+        by_id = getattr(self, "_dag_by_id", {})
+        upstream = [by_id[d] for d in deps if d in by_id and by_id[d].result is not None]
+        if not upstream:
+            return task.description
+        lines = ["Results from prerequisite tasks:"]
+        for dep in upstream:
+            lines.append(f"\n[{dep.description}]\n{dep.result}")
+        lines.append(f"\nYour task: {task.description}")
+        return "\n".join(lines)
+
+    async def run(self, tasks: list[Task]) -> RunResult:
+        queue = _sorted_queue(tasks, self.max_tasks)
+        _checkpoint_queue(self.org, queue)
+        by_id = {t.id: t for t in queue}
+        # Only honor dependencies that point inside this queue.
+        deps = {t.id: [d for d in t.depends_on if d in by_id] for t in queue}
+        _detect_cycle(deps)
+        # Expose the graph to _task_prompt so dependents receive upstream results.
+        self._dag_by_id = by_id
+        self._dag_deps = deps
+
+        indeg = {tid: len(deps[tid]) for tid in by_id}
+        dependents: dict[str, list[str]] = {tid: [] for tid in by_id}
+        for tid, ds in deps.items():
+            for d in ds:
+                dependents[d].append(tid)
+
+        self.org.events.emit(
+            RUN_STARTED,
+            source="runner",
+            n_tasks=len(queue),
+            mode="dag",
+            concurrency=self.concurrency,
+        )
+
+        remaining = set(by_id)
+        launched: set[str] = set()
+        sem = asyncio.Semaphore(self.concurrency)
+
+        async def _run_one(t: Task) -> Task:
+            await self._bounded(t, sem)
+            return t
+
+        def _block_downstream(failed_id: str) -> None:
+            stack = list(dependents[failed_id])
+            while stack:
+                tid = stack.pop()
+                if tid not in remaining or tid in launched:
+                    continue
+                blocked = by_id[tid]
+                blocked.status = "failed"
+                blocked.error = f"skipped: prerequisite {failed_id} failed"
+                _record_task(self.org, blocked, self.org.root)
+                self.org.events.emit(
+                    TASK_FAILED,
+                    source="runner",
+                    task_id=tid,
+                    target=blocked.target,
+                    error=blocked.error,
+                )
+                remaining.discard(tid)
+                launched.add(tid)
+                stack.extend(dependents[tid])
+
+        def _schedule_ready(pending_aws: set) -> None:
+            order = sorted(
+                remaining,
+                key=lambda i: (
+                    _PRIORITY_RANK.get(by_id[i].priority, 99),
+                    by_id[i].created_at,
+                ),
+            )
+            for tid in order:
+                if tid not in launched and indeg[tid] == 0:
+                    launched.add(tid)
+                    pending_aws.add(asyncio.create_task(_run_one(by_id[tid])))
+
+        aws: set = set()
+        _schedule_ready(aws)
+        while aws:
+            done, aws = await asyncio.wait(
+                aws, return_when=asyncio.FIRST_COMPLETED
+            )
+            for fut in done:
+                finished = fut.result()
+                remaining.discard(finished.id)
+                if finished.status == "done":
+                    for dep in dependents[finished.id]:
+                        indeg[dep] -= 1
+                else:
+                    _block_downstream(finished.id)
+            _schedule_ready(aws)
+
+        result = _tally(queue)
+        self.org.events.emit(
+            RUN_COMPLETED,
+            source="runner",
+            processed=result.processed,
+            succeeded=result.succeeded,
+            failed=result.failed,
+        )
+        return result

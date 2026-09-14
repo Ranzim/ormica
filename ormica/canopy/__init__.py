@@ -16,12 +16,14 @@ from .approver import (
     ConsoleApprover,
     DenyApprover,
 )
+from .governor import BudgetGovernor
 from .policy import Canopy
 from .risk import RiskAssessor, RiskLevel, RoleRisk, SpawnRequest, StaticRisk
 
 __all__ = [
     "Approver",
     "AutoApprover",
+    "BudgetGovernor",
     "CallbackApprover",
     "Canopy",
     "ConsoleApprover",

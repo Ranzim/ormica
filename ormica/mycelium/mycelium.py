@@ -8,6 +8,7 @@ from ormica.arbor import Node
 
 from .backend import Backend, InMemoryBackend
 from .entry import Entry
+from .semantic import Match, SearchableBackend
 
 
 class Mycelium:
@@ -74,6 +75,22 @@ class Mycelium:
     def by_author(self, author: str) -> list[Entry]:
         return [e for e in self.all() if e.author == author]
 
+    def search(self, query: str, k: int = 5) -> list[Match]:
+        """Relevance-rank entries against ``query`` (most relevant first).
+
+        Requires the backend to be a :class:`SearchableBackend` (e.g.
+        :class:`InMemorySemanticBackend`); raises :class:`TypeError`
+        otherwise. Expired entries are filtered out of the results.
+        """
+        backend = self.backend
+        if not isinstance(backend, SearchableBackend):
+            raise TypeError(
+                "this mycelium's backend does not support search; build it "
+                "with a SearchableBackend such as InMemorySemanticBackend"
+            )
+        now = self._clock()
+        return [m for m in backend.search(query, k=k) if not m.entry.is_expired(now)]
+
     def prune_expired(self) -> int:
         now = self._clock()
         expired = [e.key for e in self.backend.items() if e.is_expired(now)]
@@ -117,3 +134,6 @@ class Scope:
 
     def mine(self) -> list[Entry]:
         return self.mycelium.by_author(self.author)
+
+    def search(self, query: str, k: int = 5) -> list[Match]:
+        return self.mycelium.search(query, k=k)

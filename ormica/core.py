@@ -32,6 +32,8 @@ class Ormica:
         owner: str = "",
         *,
         policy: Optional[SpawnPolicy] = None,
+        spawn_governor: Optional[SpawnPolicy] = None,
+        budget: Optional[Any] = None,
         max_depth: int = 8,
         memory: Optional[Mycelium] = None,
         memory_path: Optional[str] = None,
@@ -51,11 +53,22 @@ class Ormica:
         # and without an explicit policy, still install an empty
         # ConstitutionPolicy so per-node spawn rules (attached to a Node via
         # ``node.rules``) cascade by default.
-        if constitution is not None:
+        # A spawn governor (economic ceilings) composes as the inner policy:
+        # it chains the user's policy and is itself wrapped by ConstitutionPolicy
+        # so per-node spawn rules still cascade.
+        if spawn_governor is not None:
+            if policy is not None and getattr(spawn_governor, "inner", None) is None:
+                spawn_governor.inner = policy
+            base = constitution if constitution is not None else _Constitution()
+            policy = ConstitutionPolicy(base, inner=spawn_governor)
+        elif constitution is not None:
             policy = ConstitutionPolicy(constitution, inner=policy)
         elif policy is None:
             policy = ConstitutionPolicy(_Constitution())
         self.constitution = constitution
+        # Optional shared token budget: handed to every agent by the runner, so
+        # spend accumulates colony-wide and a BudgetGovernor can gate spawns on it.
+        self.budget = budget
         self.tree = Tree(name, owner=owner, max_depth=max_depth, policy=policy)
         if memory_db and memory_path:
             raise ValueError(
@@ -84,6 +97,9 @@ class Ormica:
         self.signals_auto_evaporate: bool = signals_auto_evaporate
         self.events: EventBus = EventBus()
         self._tasks: list = []
+        # Custom tools attached per node (by node id). The runner hands these to
+        # the node's agent alongside any emit/message tools it declared.
+        self._node_tools: dict = {}
 
     def subscribe(self, observer) -> None:
         """Register an :class:`Observer` to receive event notifications."""
@@ -184,12 +200,100 @@ class Ormica:
         self._tasks.append(task)
         return task
 
+    def plan(
+        self,
+        goal: str,
+        *,
+        brain,
+        targets: Optional[list] = None,
+        max_depth: int = 1,
+        max_tokens: int = 1024,
+    ):
+        """Decompose ``goal`` into a :class:`~ormica.planner.Plan` via ``brain``.
+
+        Does not enqueue anything — inspect the plan (``plan.pretty()``) and
+        call :meth:`enqueue_plan` when you're happy with it.
+        """
+        from ormica.planner import Planner
+
+        return Planner(brain, max_tokens=max_tokens).plan(
+            goal, targets=targets, max_depth=max_depth
+        )
+
+    def enqueue_plan(self, plan) -> list:
+        """Append a plan's leaf steps to the queue as Tasks (dependency order).
+
+        Returns the Tasks added, ready for a subsequent :meth:`run`.
+        """
+        tasks = plan.to_tasks()
+        self._tasks.extend(tasks)
+        return tasks
+
+    def give_tools(self, target: NodeRef, tools: list) -> list:
+        """Attach custom tools to a node (or every node with a given name).
+
+        The runner hands these to the node's agent (via ``act_with_tools``)
+        alongside any ``emit_signal`` / ``send_message`` tools it declared —
+        so a node can e.g. run code in the sandbox or hit an external API.
+        ``target`` is a Node or a department name. Returns the nodes affected.
+        """
+        if isinstance(target, Node):
+            nodes = [target]
+        else:
+            nodes = self.find_all(target) or [self.find(target)]
+        for node in nodes:
+            self._node_tools.setdefault(node.id, []).extend(tools)
+        return nodes
+
+    def tools_for(self, target: NodeRef) -> list:
+        """The custom tools registered for a node (or named node)."""
+        node = self._resolve_node(target)
+        return list(self._node_tools.get(node.id, ()))
+
     @property
     def tasks(self) -> list:
         return list(self._tasks)
 
     def pending_tasks(self) -> list:
         return [t for t in self._tasks if t.status == "pending"]
+
+    # --- durability / resume ---
+
+    def load_tasks(self) -> list:
+        """Rebuild the task queue from persisted ``tasks/{id}`` records.
+
+        Replaces the in-memory queue with what's on the (persistent) backend —
+        the basis for resuming a run in a fresh process. Order is restored by
+        ``created_at``. Requires a durable backend (sqlite/file) to survive a
+        restart; with the default in-memory backend it only reflects this
+        process. Returns the loaded tasks.
+        """
+        from ormica.runtime import Task
+
+        loaded = [
+            Task.from_record(e.value)
+            for e in self.memory.all()
+            if e.key.startswith("tasks/") and isinstance(e.value, dict)
+        ]
+        loaded.sort(key=lambda t: t.created_at)
+        self._tasks = loaded
+        return loaded
+
+    def resume(self, *, brain, retry_failed: bool = False, **run_kwargs):
+        """Reload persisted tasks and re-run whatever didn't finish.
+
+        ``done`` tasks are skipped; tasks interrupted mid-flight (``running``)
+        are reset to ``pending`` and re-run. Set ``retry_failed=True`` to also
+        re-run tasks that previously ``failed``. Accepts the same keyword
+        arguments as :meth:`run`.
+        """
+        for task in self.load_tasks():
+            if task.status == "running":
+                task.status = "pending"
+            elif task.status == "failed" and retry_failed:
+                task.status = "pending"
+                task.error = None
+        return self.run(brain=brain, **run_kwargs)
 
     def run(
         self,
@@ -232,6 +336,36 @@ class Ormica:
         from ormica.runtime import AsyncTaskRunner
 
         runner = AsyncTaskRunner(
+            self,
+            brain=brain,
+            max_tasks=max_tasks,
+            concurrency=concurrency,
+            on_task_start=on_task_start,
+            on_task_done=on_task_done,
+        )
+        result = await runner.run(self.pending_tasks())
+        self._maybe_evaporate()
+        return result
+
+    async def arun_dag(
+        self,
+        *,
+        brain,
+        max_tasks: int = 100,
+        concurrency: int = 5,
+        on_task_start=None,
+        on_task_done=None,
+    ):
+        """DAG-aware async run — honors each task's ``depends_on``.
+
+        A task runs only after every task it depends on is ``done``; independent
+        tasks run concurrently (capped by ``concurrency``); tasks downstream of a
+        failure are skipped. Pair with :meth:`plan` + :meth:`enqueue_plan`, which
+        wire the plan's dependencies onto the tasks.
+        """
+        from ormica.runtime import AsyncDagRunner
+
+        runner = AsyncDagRunner(
             self,
             brain=brain,
             max_tasks=max_tasks,
@@ -304,6 +438,39 @@ class Ormica:
 
     def top_signals(self, n: int = 1) -> list[Signal]:
         return self.signals.top(n)
+
+    # --- direct messaging ---
+
+    @property
+    def postbox(self):
+        """A :class:`~ormica.postbox.Postbox` over this org's shared memory."""
+        from ormica.postbox import Postbox
+
+        return Postbox(self.memory)
+
+    def send(
+        self,
+        sender: NodeRef,
+        recipient: NodeRef,
+        body: str,
+        *,
+        subject: str = "",
+        in_reply_to: Optional[str] = None,
+    ):
+        """Send a direct message. ``sender``/``recipient`` are Nodes or names."""
+        return self.postbox.send(
+            self._resolve_node(sender).id,
+            self._resolve_node(recipient).id,
+            body,
+            subject=subject,
+            in_reply_to=in_reply_to,
+        )
+
+    def inbox(self, recipient: NodeRef, *, unread_only: bool = False) -> list:
+        """Messages addressed to ``recipient`` (a Node or a name)."""
+        return self.postbox.inbox(
+            self._resolve_node(recipient).id, unread_only=unread_only
+        )
 
     # --- iteration ---
 

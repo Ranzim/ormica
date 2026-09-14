@@ -57,7 +57,9 @@ gemini = ["google-generativeai>=0.8"]
 # openai SDK under the hood, so installing [openai] is what you need for
 # every OpenAI-compatible provider — including local LLMs via Ollama.
 universal = ["openai>=1.0"]
-memory = ["chromadb>=0.5"]
+# Semantic memory: sentence-transformers powers SentenceTransformerEmbedder;
+# chromadb is the intended vector-store backend for SearchableBackend.
+memory = ["chromadb>=0.5", "sentence-transformers>=2.2"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -70,6 +72,7 @@ all = [
     "openai>=1.0",
     "google-generativeai>=0.8",
     "chromadb>=0.5",
+    "sentence-transformers>=2.2",
 ]
 
 [project.urls]
@@ -94,6 +97,14 @@ ormica = ["py.typed", "cortex/packs/*.yaml"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+# Pin the rule set explicitly so `ruff check` is deterministic across ruff
+# versions. ruff 0.16 broadened its default selection (adding UP, I, RUF, …),
+# which silently changed what CI enforced on every version bump. This codebase
+# is written against the classic default (pycodestyle errors + Pyflakes); select
+# it directly. Broaden intentionally later if you want to modernise.
+select = ["E4", "E7", "E9", "F"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

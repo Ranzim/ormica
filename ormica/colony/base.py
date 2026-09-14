@@ -42,6 +42,10 @@ class AgentTemplate:
     # and gives the LLM a typed ``emit_signal(topic, strength)`` tool
     # bound to the declared vocabulary. ``None`` = no tool (back-compat).
     emit_tool_config: ClassVar = None
+    # LLM-facing send_message tool config. When set, the runtime gives this
+    # node's agent a typed ``send_message(recipient, body, subject)`` tool
+    # bound to the declared recipients. ``None`` = no tool (back-compat).
+    message_tool_config: ClassVar = None
 
     @classmethod
     def plant(
@@ -71,6 +75,8 @@ class AgentTemplate:
             # Stash the EmitToolConfig dataclass; runtime reads + builds the
             # Tool per-task (per-task state, per-task rate-limit reset).
             node.meta["emit_tool_config"] = cls.emit_tool_config
+        if cls.message_tool_config is not None:
+            node.meta["message_tool_config"] = cls.message_tool_config
         node.meta["template"] = cls.__name__
         return node
 
