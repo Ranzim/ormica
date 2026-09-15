@@ -1,7 +1,7 @@
 """The Tree (arbor) — container, growth rules, and traversal."""
 from __future__ import annotations
 
-from typing import Iterator, Optional
+from typing import Callable, Iterator, Optional
 
 from .branch import Branch
 from .exceptions import ArborError, MaxDepthExceeded, NodeNotFound, SpawnDenied
@@ -24,12 +24,19 @@ class Tree:
         *,
         max_depth: int = 8,
         policy: Optional[SpawnPolicy] = None,
+        on_spawn: Optional[Callable[[Node], None]] = None,
+        on_prune: Optional[Callable[[Node, int], None]] = None,
     ) -> None:
         self.max_depth = max_depth
         self.policy: SpawnPolicy = policy or AllowAllPolicy()
         self.owner = owner
         self.root = Node(name=root_name, role="root")
         self._index: dict[str, Node] = {self.root.id: self.root}
+        # Optional observation hooks. Plain callables so arbor takes no
+        # dependency on observe; Ormica wires these to its EventBus. A hook
+        # that raises must never break tree growth — calls are swallowed.
+        self.on_spawn = on_spawn
+        self.on_prune = on_prune
 
     def spawn(
         self,
@@ -51,6 +58,11 @@ class Tree:
         child = Node(name=name, role=role, task=task, parent=parent)
         parent.children.append(child)
         self._index[child.id] = child
+        if self.on_spawn is not None:
+            try:
+                self.on_spawn(child)
+            except Exception:  # noqa: BLE001 — observation must not break growth
+                pass
         return child
 
     def prune(self, node: Node) -> int:
@@ -70,6 +82,11 @@ class Tree:
         if parent is not None:
             parent.children = [c for c in parent.children if c.id != node.id]
         node.parent = None
+        if self.on_prune is not None:
+            try:
+                self.on_prune(node, removed)
+            except Exception:  # noqa: BLE001 — observation must not break pruning
+                pass
         return removed
 
     def get(self, node_id: str) -> Node:

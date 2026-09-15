@@ -6,7 +6,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-(nothing yet)
+## [0.3.0] — 2026-09-15
+
+The complex-task release: the engine gains the pieces needed to plan, coordinate,
+execute, verify, and observe genuinely hard multi-agent work — plus a live 3D
+dashboard to watch it happen. Everything is additive; existing APIs are unchanged.
+
+### Added
+
+- **Semantic memory** — relevance recall on top of the mycelium storage seam.
+  `SearchableBackend` (`Backend` + `search`) with `Match` results; `Embedder`
+  protocol; `HashingEmbedder` (zero-dep default) and `SentenceTransformerEmbedder`
+  (behind the `[memory]` extra); `InMemorySemanticBackend` and a persistent
+  `ChromaBackend`; `Mycelium.search` / `Scope.search` / `Agent.recall_relevant`.
+- **Verify stage (`cortex`)** — a corrective counterpart to `post`: a `verify`
+  rule checks the response and, on hard failure, re-prompts with the reason and
+  retries up to `max_verify_attempts`, then raises `VerificationFailed`.
+  Factories `must_match` / `must_contain` / `must_be_json` and the `verifier()`
+  escape hatch (domain checks, LLM-as-judge, sandbox grounding). Emits
+  `verify.retry` / `verify.failed`.
+- **Planner** — `Planner`/`AsyncPlanner` decompose a goal into a dependency-aware
+  `Plan` of subtasks (structured JSON, cycle detection, bounded recursion,
+  routing). `Ormica.plan()` / `enqueue_plan()`.
+- **Parallel DAG execution** — `Task.depends_on` + `AsyncDagRunner`: runs the
+  plan's graph with max safe parallelism, skips downstream of failures, and
+  passes each prerequisite's result into the dependent's prompt.
+  `Ormica.arun_dag()`.
+- **Direct messaging (`postbox`)** — addressed agent-to-agent messages over the
+  mycelium: `Postbox`, `Message`, agent/facade shortcuts, and an LLM-facing
+  `send_message` tool (bounded recipients, rate limit) with colony-YAML support.
+- **Durable, resumable runs** — the task queue is checkpointed to mycelium;
+  `Ormica.load_tasks()` / `Ormica.resume()` re-run whatever didn't finish.
+- **Spawn-time budget/cost governor** — `canopy.BudgetGovernor` (a `SpawnPolicy`)
+  caps `max_agents` / `max_spawns` / shared `TokenBudget`. `Ormica(budget=…,
+  spawn_governor=…)`.
+- **Sandboxed tool execution** — `Sandbox` runs code/argv in a subprocess with a
+  timeout, POSIX resource limits, isolated cwd, minimal env, and no shell;
+  `python_tool()` / `command_tool()`.
+- **Human-in-the-loop action gates** — `approval.require_approval()` wraps a
+  tool so a human approves high-risk calls (fail-closed; optional `when`
+  predicate); `Console`/`Callback` approvers.
+- **Per-node custom tools** — `Ormica.give_tools()` hands arbitrary tools to a
+  node's agent via the runner.
+- **First-party GitHub integration** — `ormica.integrations.data.github` (five
+  `@tool`s via the `gh` CLI, no new dependency).
+- **Live 3D dashboard** — a dependency-free `/graph` view of the running colony
+  (force-directed 3D, ant-colony naming, filters, click-to-reveal, live log),
+  fed by new activity events: `node.spawned` / `node.pruned` / `memory.write` /
+  `memory.read`.
+- **Flagship example** — `examples/compute_lab`: a colony whose answers are
+  grounded by executing them in the sandbox and verified with retry.
+
+### Fixed
+
+- CI is deterministic again: pinned the ruff rule set (`[tool.ruff.lint]`)
+  so a ruff version bump can't silently change what lint enforces.
 
 ## [0.2.0] — 2026-06-07
 

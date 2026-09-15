@@ -10,7 +10,11 @@ Biological metaphor: the nervous system — signals from anywhere, sensed everyw
 
 from .bus import EventBus
 from .event import (
+    MEMORY_READ,
+    MEMORY_WRITE,
     MESSAGE_SENT,
+    NODE_PRUNED,
+    NODE_SPAWNED,
     RULE_SOFT_VIOLATION,
     RUN_COMPLETED,
     RUN_STARTED,
@@ -44,7 +48,11 @@ __all__ = [
     "Event",
     "EventBus",
     "LogObserver",
+    "MEMORY_READ",
+    "MEMORY_WRITE",
     "MESSAGE_SENT",
+    "NODE_PRUNED",
+    "NODE_SPAWNED",
     "Observer",
     "RULE_SOFT_VIOLATION",
     "RUN_COMPLETED",
