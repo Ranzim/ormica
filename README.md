@@ -57,6 +57,26 @@ Every reasoning step — messages, tool calls, response, tokens — captured and
 
 ---
 
+## ✨ New in v0.3 — from *coordination* to *completion*
+
+The four pillars coordinate agents. **v0.3** adds what a colony needs to actually *finish hard work — safely, correctly, and observably*:
+
+| Capability | What it gives you |
+|---|---|
+| 🧠 **Semantic memory** | agents recall knowledge by *meaning*, not exact keys — in-memory or persistent (ChromaDB) |
+| ✅ **Verify / grounding** | check a response and **retry until it's right** — e.g. run the code in the sandbox and confirm the output |
+| 🧩 **Planner + parallel DAG** | decompose a goal into a dependency graph, run independent branches concurrently |
+| 📬 **Direct messaging** | addressed agent-to-agent handoffs (`send_message`) alongside stigmergic signals |
+| 💾 **Durable runs** | checkpoint + `org.resume()` — survive a crash and continue where it left off |
+| 🏛️ **Budget governor** | hard ceilings on agent count and token spend, enforced at spawn time |
+| 🛡️ **Sandbox + approvals** | run code with a bounded blast radius; gate high-risk actions behind a human |
+| 🔌 **Tools & integrations** | `give_tools()`, the `@tool` decorator, and a first-party GitHub integration |
+| 🌌 **Live 3D dashboard** | watch the colony grow, think, and coordinate in real time — `serve(org)` → `/graph` |
+
+**See it end-to-end:** [`examples/compute_lab`](examples/compute_lab) — a colony whose answers are **verified by executing them in the sandbox**, watchable live in the dashboard.
+
+---
+
 ## 🏗️ Why this is a *Framework*, not just *Software*
 
 | | What you'd normally write | What Ormica gives you |
@@ -289,7 +309,7 @@ tasks defined: 2
   - [normal] finance: Forecast Q3 cash flow
 ```
 
-A richer dashboard — signal intensity per topic, branch depth, governance compliance, top-N pheromone trails — is on the [roadmap](#%EF%B8%8F-roadmap) as a v0.5 web UI on top of the Thought Trail.
+A **live web dashboard** ships in v0.3: `ormica.dashboard.serve(org)` streams the running colony to your browser — a server-side overview plus a **3D `/graph`** view (agents, pheromone, harvests) rendered live from the event stream, with per-task Thought Trails. See [`docs/guides/dashboard.md`](docs/guides/dashboard.md).
 
 ---
 
@@ -314,18 +334,24 @@ A richer dashboard — signal intensity per topic, branch depth, governance comp
 ```
 ormica/
 ├── arbor/         Tree · Node · Branch · SpawnPolicy       🌲 emergent hierarchy
-├── canopy/        Permission chain (AUTO · CHAIN · ROOT)   🏛️ growth governance
-├── mycelium/      Shared KV + FileBackend + SqliteBackend  🍄 persistent memory
+├── canopy/        Permission chain + BudgetGovernor        🏛️ growth governance
+├── mycelium/      KV + File/Sqlite + semantic (Chroma)     🍄 persistent + searchable memory
 ├── stigma/        Pheromone trails · lazy decay            🐜 stigmergic signals
-├── brain/         LLM seam: Mock · Claude · GPT            🧠 the colony's thinking
+├── postbox.py     Direct messaging + send_message tool     📬 addressed handoffs
+├── brain/         LLM seam: Mock · Claude · GPT · Gemini   🧠 the colony's thinking
 │                  (sync + async) · Router · Tool · @tool
-├── cortex/        Constitution · Rule · Policy             ⚖️ law of the colony
+├── cortex/        Constitution · Rule · verify/grounding   ⚖️ law + correctness
 ├── observe/       Event · EventBus · TraceObserver         📡 the Thought Trail
+├── dashboard/     stdlib web UI + live 3D /graph           🌌 live observability
+├── planner.py     Planner · Plan — goal → dependency DAG   🧩 task decomposition
+├── sandbox.py     Sandboxed code execution + tools         🛡️ bounded blast radius
+├── approval.py    Human-in-the-loop action gates           ✋ approve high-risk calls
+├── integrations/  first-party tools (GitHub via gh CLI)    🔌 batteries
 ├── colony/        AgentTemplate · Colony · YAML loader     🏢 industry templates
 │                  (business + supply_chain bundled)
 ├── agent.py       Agent · AsyncAgent · ToolLoopExceeded
-├── runtime.py     Task · TaskRunner · AsyncTaskRunner
-├── core.py        Ormica facade — single import
+├── runtime.py     Task · TaskRunner · Async · AsyncDagRunner
+├── core.py        Ormica facade — plan · run · arun_dag · resume
 └── cli/           ormica init / run / status / colonies
 ```
 
@@ -338,7 +364,7 @@ docs/                                # the onboarding map
 └── guides/                           writing colonies, tools, rules, traces…
 ```
 
-`tests/` — **378 tests · <1s · no SDK deps required for CI.**
+`tests/` — **770+ tests · seconds · no SDK/API keys required for CI.**
 
 ---
 
@@ -410,11 +436,11 @@ The `Brain` protocol has three native adapters (Claude, Gemini, GPT) plus one `U
 
 ## 🛣️ Roadmap
 
-- [x] **v0.1** — Four pillars + runtime + CLI + persistence + async + observability *(here)*
-- [ ] **v0.2** — YAML Constitutions · ~~soft-violation events~~ *(shipped early in v0.1)* · per-node rule overrides
-- [ ] **v0.3** — Async tools · streaming responses · first integrations (Gmail · Notion · GitHub · Stripe)
-- [ ] **v0.4** — ChromaDB backend (semantic mycelium) · vector signals
-- [ ] **v0.5** — **Colony Dashboard** (web UI) — signal intensity, branch depth, governance compliance, live Thought Trail
+- [x] **v0.1** — Four pillars + runtime + CLI + persistence + async + observability
+- [x] **v0.2** — YAML Constitutions · soft-violation events · per-node rule overrides
+- [x] **v0.3** *(here)* — semantic memory (+ ChromaDB) · verify/grounding stage · planner + parallel DAG execution · direct messaging (`send_message`) · durable/resumable runs · spawn-time budget governor · sandboxed execution · human-in-the-loop action gates · GitHub integration · **live 3D dashboard**
+- [ ] **v0.4** — first-class grounding/verifier framework · more integrations (Gmail · Notion · Stripe) · streaming responses
+- [ ] **v0.5** — distributed execution · the **Forest** (multi-tree voting) · vector signals
 - [ ] **v1.0** — Ormica Cloud (hosted platform)
 
 GitHub Project board is coming. Open an issue to vote on or contribute to any roadmap item.
@@ -488,6 +514,6 @@ MIT — see [LICENSE](LICENSE). Free to use, modify, and build on.
 
 **Ormica** — *organize like a colony · grow like a forest · decide like an organization · audit like infrastructure.*
 
-<sub><i>Computational Stigmergy · v0.1 · ant-colony-inspired coordination for autonomous AI operations</i></sub>
+<sub><i>Computational Stigmergy · v0.3 · ant-colony-inspired coordination for autonomous AI operations</i></sub>
 
 </div>
