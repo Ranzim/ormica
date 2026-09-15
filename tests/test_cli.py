@@ -797,7 +797,7 @@ def test_init_with_gemini_writes_flash_default(tmp_path: Path):
     rc = main(["init", "Acme", "--brain", "gemini", "--out", str(out)])
     assert rc == 0
     data = yaml.safe_load(out.read_text())
-    assert data["brain"]["model"] == "gemini-2.0-flash"
+    assert data["brain"]["model"] == "gemini-3.6-flash"
 
 
 def test_run_with_ollama_routes_through_universal_with_localhost_base_url(
@@ -878,7 +878,7 @@ def test_run_with_gemini_builds_native_gemini_brain(tmp_path: Path, monkeypatch)
 
     rc = main(["run", "--config", str(out), "--brain", "gemini"])
     assert rc == 0
-    assert constructed["model"] == "gemini-2.0-flash"
+    assert constructed["model"] == "gemini-3.6-flash"
 
 
 # --- Provider env-var resolution (Issue #7) ---------------------------------

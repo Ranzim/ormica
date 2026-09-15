@@ -14,7 +14,7 @@ Usage::
     from ormica.brain import GeminiBrain
 
     org = Ormica("My Co")
-    org.run(brain=GeminiBrain(model="gemini-2.0-flash"))
+    org.run(brain=GeminiBrain(model="gemini-3.6-flash"))
 
 Authentication: set ``GOOGLE_API_KEY`` (or ``GEMINI_API_KEY``) in your
 environment, or pass ``api_key=`` to the constructor.
@@ -28,7 +28,7 @@ from .protocol import Prompt, to_messages
 from .tool import Tool, ToolCall
 from .types import Response
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 
 def _tools_to_gemini(tools: Optional[list[Tool]]) -> Optional[list[dict]]:
@@ -148,7 +148,7 @@ def _gemini_response_to_internal(api_response: Any, model: str) -> Response:
 class GeminiBrain:
     """Sync :class:`Brain` adapter for Google Gemini models.
 
-    Defaults to ``gemini-2.0-flash``. Requires the ``google-generativeai``
+    Defaults to ``gemini-3.6-flash``. Requires the ``google-generativeai``
     SDK; install with ``pip install ormica[gemini]``.
 
     Inject ``client`` for testing — anything with a ``generate_content``

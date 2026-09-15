@@ -7,7 +7,7 @@ Ormica works with **15+ LLM providers** through 4 adapter classes plus 5 conveni
 | Provider | Adapter | One-liner |
 |---|---|---|
 | Anthropic Claude | `ClaudeBrain` | `ClaudeBrain(model="claude-opus-4-7")` |
-| Google Gemini | `GeminiBrain` | `GeminiBrain(model="gemini-2.0-flash")` |
+| Google Gemini | `GeminiBrain` | `GeminiBrain(model="gemini-3.6-flash")` |
 | OpenAI | `UniversalBrain` | `UniversalBrain(model="gpt-4o")` |
 | **Ollama** (local LLMs) | `ollama_brain()` | `ollama_brain(model="llama3.2")` |
 | OpenRouter (300+ models) | `openrouter_brain()` | `openrouter_brain(model="anthropic/claude-opus-4-7")` |
@@ -47,7 +47,7 @@ export GOOGLE_API_KEY=...                              # or GEMINI_API_KEY
 ```python
 from ormica.brain import GeminiBrain
 
-brain = GeminiBrain(model="gemini-2.0-flash")         # or gemini-1.5-pro, gemini-1.5-flash
+brain = GeminiBrain(model="gemini-3.6-flash")         # or another current Gemini model
 ```
 
 Why native: function-declaration tool format, multi-part responses (text + function_call together).
