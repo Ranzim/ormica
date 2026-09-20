@@ -103,6 +103,64 @@ class Tree:
     def walk(self) -> Iterator[Node]:
         yield from self.root.walk()
 
+    # --- persistence ---------------------------------------------------------
+
+    def snapshot(self) -> dict:
+        """Serialize the whole tree to one JSON-safe record.
+
+        Captures the tree-level settings (``owner``, ``max_depth``) plus a flat
+        list of node records in depth-first order (root first). Policy, hooks,
+        and per-node rules are runtime wiring, not structure — they are re-
+        supplied when the tree is reconstructed, not persisted here.
+        """
+        return {
+            "root_name": self.root.name,
+            "owner": self.owner,
+            "max_depth": self.max_depth,
+            "nodes": [n.to_record() for n in self.walk()],
+        }
+
+    def restore(self, snapshot: dict) -> None:
+        """Rebuild this tree's nodes and edges from :meth:`snapshot` output.
+
+        Replaces the current root/index in place, preserving the live ``policy``
+        and observation hooks already wired on this tree. Spawn/prune hooks do
+        *not* fire during restore — reloading a colony is not new growth.
+        Raises :class:`ArborError` if the records contain no root or a broken
+        parent reference.
+        """
+        self.owner = snapshot.get("owner", self.owner)
+        self.max_depth = snapshot.get("max_depth", self.max_depth)
+
+        nodes: dict[str, Node] = {}
+        root: Optional[Node] = None
+        for rec in snapshot["nodes"]:
+            node = Node.from_record(rec)
+            nodes[node.id] = node
+            if rec.get("parent_id") is None:
+                if root is not None:
+                    raise ArborError("snapshot has more than one root node")
+                root = node
+
+        if root is None:
+            raise ArborError("snapshot has no root node")
+
+        for rec in snapshot["nodes"]:
+            parent_id = rec.get("parent_id")
+            if parent_id is None:
+                continue
+            parent = nodes.get(parent_id)
+            if parent is None:
+                raise ArborError(
+                    f"node {rec['id']!r} references missing parent {parent_id!r}"
+                )
+            child = nodes[rec["id"]]
+            child.parent = parent
+            parent.children.append(child)
+
+        self.root = root
+        self._index = nodes
+
     def __len__(self) -> int:
         return len(self._index)
 

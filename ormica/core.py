@@ -329,6 +329,32 @@ class Ormica:
 
     # --- durability / resume ---
 
+    def save_tree(self, key: str = "arbor/tree") -> None:
+        """Checkpoint the agent tree to mycelium under ``key``.
+
+        Persists the colony's emergent structure — every node's identity,
+        lineage, state, and JSON-safe ``meta`` — so a fresh process can
+        reconstruct it with :meth:`load_tree`. Requires a durable backend
+        (sqlite/file) to survive a restart. Policy, per-node rules, and
+        observers are runtime wiring and are re-supplied when you rebuild the
+        ``Ormica``, not stored here.
+        """
+        self.memory.write(key, self.tree.snapshot(), author=self.tree.root.id)
+
+    def load_tree(self, key: str = "arbor/tree") -> bool:
+        """Restore the agent tree from a :meth:`save_tree` checkpoint.
+
+        Rebuilds ``self.tree`` in place from the record at ``key``, keeping the
+        policy and observation hooks already wired on this colony. Returns
+        ``True`` if a checkpoint was found and loaded, ``False`` if there was
+        nothing to restore.
+        """
+        snapshot = self.memory.get(key)
+        if not snapshot:
+            return False
+        self.tree.restore(snapshot)
+        return True
+
     def load_tasks(self) -> list:
         """Rebuild the task queue from persisted ``tasks/{id}`` records.
 
