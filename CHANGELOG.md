@@ -17,6 +17,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   grounding: `cortex.artifact_oracle(type)` makes a verify-stage oracle that
   feeds the exact validation problems back to the model on retry, so malformed
   structured output self-corrects.
+- **Typed results flow between tasks** — declare a task's output contract with
+  `org.task(..., produces=ArtifactType)`: the runner validates the answer into
+  `task.artifact` (a parse failure fails the task; pair with
+  `grounded(artifact_oracle(T))` for auto-retry), the artifact persists in the
+  `tasks/{id}` record, and DAG dependents receive the upstream artifact as
+  labeled JSON instead of re-parsing prose. Untyped tasks are unchanged — text
+  still flows as before.
 - **Persistent agent tree** — checkpoint and restore the colony's emergent
   structure. `Ormica.save_tree()` serializes every node's identity, lineage,
   state, and JSON-safe `meta` to one atomic mycelium record (`arbor/tree`);

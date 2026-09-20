@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from time import time
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
@@ -9,6 +10,7 @@ from uuid import uuid4
 
 from .agent import Agent, AsyncAgent
 from .arbor import Node
+from .artifact import Artifact
 from .brain import AsyncBrain, Brain, Router
 from .observe import (
     RUN_COMPLETED,
@@ -50,10 +52,20 @@ class Task:
     # a flat queue; populated by the planner (or you) to form a DAG that
     # :class:`AsyncDagRunner` executes with maximum safe parallelism.
     depends_on: list[str] = field(default_factory=list)
+    # Optional typed-output contract. Set ``produces`` to an
+    # :class:`~ormica.artifact.ArtifactType` and the runner parses the agent's
+    # answer into a validated :class:`~ormica.artifact.Artifact`, stored on
+    # ``artifact``. A parse/validation failure fails the task (pair with
+    # ``grounded(artifact_oracle(T))`` for auto-retry). Downstream DAG tasks
+    # receive the structured ``artifact`` rather than raw text. ``produces`` is
+    # a runtime type and is not persisted; ``artifact`` is.
+    produces: Optional[Any] = None
+    artifact: Optional[Artifact] = None
 
     @classmethod
     def from_record(cls, payload: dict) -> "Task":
         """Reconstruct a Task from a persisted ``tasks/{id}`` record."""
+        art = payload.get("artifact")
         return cls(
             description=payload["description"],
             target=payload.get("target", ""),
@@ -64,6 +76,7 @@ class Task:
             error=payload.get("error"),
             created_at=payload.get("created_at", time()),
             depends_on=list(payload.get("depends_on", [])),
+            artifact=Artifact.from_record(art) if art else None,
         )
 
 
@@ -106,8 +119,23 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
         "error": task.error,
         "created_at": task.created_at,
         "depends_on": list(task.depends_on),
+        "artifact": task.artifact.to_record() if task.artifact is not None else None,
     }
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
+
+
+def _capture_result(task: Task, response: Any) -> None:
+    """Record an agent's answer on the task, parsing a typed artifact if declared.
+
+    Always stores the text on ``task.result``. If the task declared a
+    ``produces`` :class:`~ormica.artifact.ArtifactType`, the answer is parsed and
+    validated into ``task.artifact``; a failure raises (marking the task failed),
+    so a typed contract is enforced at the task boundary.
+    """
+    task.result = response.content
+    if task.produces is not None:
+        task.artifact = task.produces.parse(response.content)
+    task.status = "done"
 
 
 def _checkpoint_queue(org: "Ormica", queue: list[Task]) -> None:
@@ -312,8 +340,7 @@ class TaskRunner:
             else:
                 response = agent.act(prompt)
             tokens_used = response.tokens_used
-            task.result = response.content
-            task.status = "done"
+            _capture_result(task, response)
         except Exception as exc:
             task.error = f"{type(exc).__name__}: {exc}"
             task.status = "failed"
@@ -451,8 +478,7 @@ class AsyncTaskRunner:
             else:
                 response = await agent.act(prompt)
             tokens_used = response.tokens_used
-            task.result = response.content
-            task.status = "done"
+            _capture_result(task, response)
         except Exception as exc:
             task.error = f"{type(exc).__name__}: {exc}"
             task.status = "failed"
@@ -513,15 +539,28 @@ class AsyncDagRunner(AsyncTaskRunner):
     """
 
     def _task_prompt(self, task: Task) -> str:
-        """Prepend prerequisite tasks' results so a dependent sees its inputs."""
+        """Prepend prerequisite tasks' results so a dependent sees its inputs.
+
+        A prerequisite that produced a typed :class:`~ormica.artifact.Artifact`
+        is injected as labeled JSON — the dependent receives structured input it
+        can rely on, not prose it has to re-parse.
+        """
         deps = getattr(self, "_dag_deps", {}).get(task.id, [])
         by_id = getattr(self, "_dag_by_id", {})
-        upstream = [by_id[d] for d in deps if d in by_id and by_id[d].result is not None]
+        upstream = [
+            by_id[d]
+            for d in deps
+            if d in by_id and (by_id[d].artifact is not None or by_id[d].result is not None)
+        ]
         if not upstream:
             return task.description
         lines = ["Results from prerequisite tasks:"]
         for dep in upstream:
-            lines.append(f"\n[{dep.description}]\n{dep.result}")
+            if dep.artifact is not None:
+                body = json.dumps(dep.artifact.data, indent=2, default=str)
+                lines.append(f"\n[{dep.description}] ({dep.artifact.kind})\n{body}")
+            else:
+                lines.append(f"\n[{dep.description}]\n{dep.result}")
         lines.append(f"\nYour task: {task.description}")
         return "\n".join(lines)
 

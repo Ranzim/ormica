@@ -258,14 +258,21 @@ class Ormica:
         target: str = "",
         dept: Optional[str] = None,
         priority: str = "normal",
+        produces: Optional[Any] = None,
     ):
-        """Append a task to the work queue. ``dept`` is an alias for ``target``."""
+        """Append a task to the work queue. ``dept`` is an alias for ``target``.
+
+        Set ``produces`` to an :class:`~ormica.artifact.ArtifactType` to declare
+        a typed output: the runner validates the answer into ``task.artifact``,
+        and DAG dependents receive that structured artifact instead of raw text.
+        """
         from ormica.runtime import Task
 
         task = Task(
             description=description,
             target=target or dept or "",
             priority=priority,
+            produces=produces,
         )
         self._tasks.append(task)
         return task
