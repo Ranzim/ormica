@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-20
+
+Durable, typed colonies: the emergent structure now survives a restart, and
+results can be schema-checked artifacts that flow between agents instead of
+free text. Everything is additive; existing APIs are unchanged.
+
 ### Added
 
 - **Typed artifacts** — schema-checked structured results, so one agent's output
@@ -303,7 +309,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Ranzim/ormica/releases/tag/v0.6.0
 [0.5.0]: https://github.com/Ranzim/ormica/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Ranzim/ormica/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Ranzim/ormica/releases/tag/v0.3.0
