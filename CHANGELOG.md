@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-20
+
+Grounding, recall, and native async: agents can now check their answers against
+the real world, pull relevant memory in automatically, and run async tools
+without blocking. Everything is additive; existing APIs are unchanged.
+
+### Added
+
+- **Grounding framework (`cortex`)** — verify a response against a real oracle,
+  not the model's say-so. `grounded(oracle)` turns any
+  `callable(answer, ctx) -> CheckResult | bool` into a verify-stage rule; the
+  oracle's reason is fed back on retry. Two batteries ship: `sandbox_oracle`
+  (run the answer's Python and check stdout via `expected=` / `checker=`, with
+  markdown-fence extraction and clean error/timeout reporting) and
+  `judge_oracle` (LLM-as-judge against a rubric). New `CheckResult(ok, reason,
+  score)` dataclass; `Rule.evaluate` accepts a `CheckResult` or a bool.
+- **Auto-RAG (`Agent(auto_recall=k)`)** — an agent automatically recalls the *k*
+  most relevant memories for the incoming prompt and prepends them to the system
+  context, so semantic memory feeds reasoning without a manual `recall_relevant`
+  call. Configurable per node via `node.meta["auto_recall"]`.
+- **Native async tools** — `act_with_tools` awaits coroutine tools directly and
+  offloads sync tools to a thread (`asyncio.to_thread`) via `_run_tool_async`,
+  so slow I/O tools no longer block the event loop. The sync tool path guards
+  against being handed an async tool.
+
 ## [0.4.0] — 2026-09-20
 
 Engine hardening: make the colony self-organizing at runtime, survive real LLMs,
@@ -250,7 +275,10 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Ranzim/ormica/releases/tag/v0.5.0
+[0.4.0]: https://github.com/Ranzim/ormica/releases/tag/v0.4.0
+[0.3.0]: https://github.com/Ranzim/ormica/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Ranzim/ormica/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Ranzim/ormica/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Ranzim/ormica/releases/tag/v0.1.0
