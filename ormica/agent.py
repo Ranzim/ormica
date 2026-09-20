@@ -56,6 +56,7 @@ class _AgentBase:
         constitution: Optional[Constitution] = None,
         sense_prefixes: tuple = (),
         top_n_sensed: int = 5,
+        auto_recall: int = 0,
     ) -> None:
         self.node = node
         self.brain = brain
@@ -73,6 +74,10 @@ class _AgentBase:
             sense_prefixes = tuple(node.meta.get("sense_prefixes", ()))
         self.sense_prefixes: tuple = tuple(sense_prefixes)
         self.top_n_sensed: int = top_n_sensed
+        # Auto-RAG — when > 0, before each think the agent searches shared
+        # memory with the prompt and injects the top-k relevant entries into
+        # its system prompt. 0 = off (default). Falls back to node.meta.
+        self.auto_recall: int = auto_recall or int(node.meta.get("auto_recall", 0))
         # Observability — set by runners so think calls flow into a Trace.
         self.events: Any = None
         self.task_id: str = ""
@@ -287,7 +292,7 @@ class _AgentBase:
             reasons=[v.reason for v in violations],
         )
 
-    def _compose_system(self) -> Optional[str]:
+    def _compose_system(self, prompt: Any = None) -> Optional[str]:
         parts: list[str] = []
         # Colonies stamp a default system prompt onto node.meta when they
         # plant a template; the explicit Agent kwarg overrides it.
@@ -301,7 +306,45 @@ class _AgentBase:
         sensed = self._sensed_block()
         if sensed:
             parts.append(sensed)
+        recalled = self._recalled_block(prompt)
+        if recalled:
+            parts.append(recalled)
         return "\n\n".join(parts) if parts else None
+
+    def _recalled_block(self, prompt: Any) -> Optional[str]:
+        """Auto-RAG: inject the top-k memory entries most relevant to ``prompt``.
+
+        Returns ``None`` when auto-recall is off, there's no searchable memory,
+        or nothing relevant is found. Internal keys (signals / mailbox / task /
+        trace records) are excluded — only actual knowledge is surfaced.
+        """
+        if self.auto_recall < 1 or self.memory is None or prompt is None:
+            return None
+        from ormica.mycelium import SearchableBackend
+
+        if not isinstance(self.memory.backend, SearchableBackend):
+            return None
+        query = (
+            prompt if isinstance(prompt, str)
+            else " ".join(getattr(m, "content", "") or "" for m in prompt).strip()
+        )
+        if not query:
+            return None
+        try:
+            matches = self.memory.search(query, k=self.auto_recall)
+        except Exception:  # noqa: BLE001 — recall is best-effort, never fatal
+            return None
+        internal = ("stigma/", "mailbox/", "tasks/", "traces/")
+        hits = [
+            m for m in matches
+            if not any(m.entry.key.startswith(p) for p in internal)
+        ]
+        if not hits:
+            return None
+        lines = "\n".join(
+            f"  - {m.entry.key}: {str(m.entry.value)[:200]}" for m in hits
+        )
+        return f"Relevant knowledge from the colony's memory:\n{lines}"
 
     def _sensed_block(self) -> Optional[str]:
         """Render the top matching stigma trails as a system-prompt block.
@@ -458,7 +501,7 @@ class Agent(_AgentBase):
         if max_verify_attempts < 1:
             raise ValueError("max_verify_attempts must be >= 1")
         self._enforce_constitution(prompt)
-        system = self._compose_system()
+        system = self._compose_system(prompt)
         self.node.state = NodeState.WORKING
         has_verify = self._has_verify_rules()
         attempt_prompt: Prompt = prompt
@@ -512,7 +555,7 @@ class Agent(_AgentBase):
         past ``max_iterations``.
         """
         self._check_budget()
-        system = self._compose_system()
+        system = self._compose_system(prompt)
         registry = _tools_by_name(tools)
         history: list[Message] = list(_initial_messages(prompt))
         self.node.state = NodeState.WORKING
@@ -594,7 +637,7 @@ class AsyncAgent(_AgentBase):
         if max_verify_attempts < 1:
             raise ValueError("max_verify_attempts must be >= 1")
         self._enforce_constitution(prompt)
-        system = self._compose_system()
+        system = self._compose_system(prompt)
         self.node.state = NodeState.WORKING
         has_verify = self._has_verify_rules()
         attempt_prompt: Prompt = prompt
@@ -640,7 +683,7 @@ class AsyncAgent(_AgentBase):
     ) -> Response:
         """Async multi-turn tool loop. See :meth:`Agent.act_with_tools`."""
         self._check_budget()
-        system = self._compose_system()
+        system = self._compose_system(prompt)
         registry = _tools_by_name(tools)
         history: list[Message] = list(_initial_messages(prompt))
         self.node.state = NodeState.WORKING
