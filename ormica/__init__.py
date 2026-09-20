@@ -19,6 +19,7 @@ __version__ = "0.3.0"
 
 from ormica.agent import Agent, AsyncAgent
 from ormica.core import Ormica
+from ormica.delegation import DelegationBuilder
 from ormica.planner import (
     AsyncPlanner,
     Plan,
@@ -34,6 +35,7 @@ __all__ = [
     "AsyncAgent",
     "AsyncDagRunner",
     "AsyncPlanner",
+    "DelegationBuilder",
     "Message",
     "Ormica",
     "Plan",

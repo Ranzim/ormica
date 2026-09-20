@@ -202,6 +202,41 @@ class Ormica:
     def prune(self, node: NodeRef) -> int:
         return self.tree.prune(self._resolve_node(node))
 
+    def solve(
+        self,
+        goal: str,
+        *,
+        brain,
+        target: Optional[NodeRef] = None,
+        max_depth: int = 2,
+        max_subtasks: int = 5,
+        base_tools: Optional[list] = None,
+        max_tokens: int = 1024,
+    ):
+        """Run ``goal`` on an agent that can **recursively delegate** subtasks.
+
+        The agent gets a ``delegate`` tool: when the task is too complex it
+        spawns sub-agents (under ``target``, root by default) to handle pieces,
+        and those sub-agents can delegate further until ``max_depth``. Spawns go
+        through the colony's spawn policy / governor, so growth stays bounded.
+        Returns the top agent's final :class:`Response`.
+        """
+        from ormica.agent import Agent
+        from ormica.delegation import DelegationBuilder
+
+        node = self._resolve_node(target) if target is not None else self.root
+        base = list(base_tools or [])
+        agent = Agent(
+            node, brain, memory=self.memory, signals=self.signals,
+            constitution=self.constitution,
+        )
+        agent.events = self.events
+        delegate = DelegationBuilder(
+            self, node, brain, max_depth=max_depth,
+            max_subtasks=max_subtasks, base_tools=base,
+        ).as_tool()
+        return agent.act_with_tools(goal, tools=[delegate, *base], max_tokens=max_tokens)
+
     # --- colony ergonomics ---
 
     def add(self, template: type) -> Node:
