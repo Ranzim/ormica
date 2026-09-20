@@ -109,7 +109,15 @@ agent = AsyncAgent(node, AsyncClaudeBrain())
 response = await agent.act_with_tools("...", tools=[get_weather])
 ```
 
-The agent calls `get_weather` synchronously, but `brain.think` is awaited. So you get concurrency *across* tasks (multiple agents fanning out) while individual tool calls stay sync. Native async tools is a planned follow-up — three lines in `_run_tool`.
+**Async tools are native on the async path.** On `AsyncAgent.act_with_tools`, an `async def` tool is awaited, and a *sync* tool runs in a worker thread (`asyncio.to_thread`) so a slow I/O tool never blocks the event loop — you keep true concurrency across the DAG / `arun` fan-out. (On the sync `Agent`, an async tool returns a clear error — use `AsyncAgent`.)
+
+```python
+@tool
+async def fetch_price(sku: str) -> str:
+    """Fetch a live price."""
+    async with httpx.AsyncClient() as c:
+        return (await c.get(f"https://api/price/{sku}")).text
+```
 
 ## Best practices
 

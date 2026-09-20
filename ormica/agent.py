@@ -1,6 +1,8 @@
 """Agent — a Node coupled to a Brain, optionally wired to memory and signals."""
 from __future__ import annotations
 
+import asyncio
+import inspect
 from typing import Any, Optional, Union
 
 from .arbor import Node, NodeState
@@ -28,17 +30,44 @@ def _tools_by_name(tools: list[Tool]) -> dict[str, Tool]:
     return {t.name: t for t in tools}
 
 
+def _tool_msg(call: ToolCall, content: str, *, error: bool = False) -> Message:  # noqa: ARG001
+    return Message(role="tool", content=content, tool_call_id=call.id)
+
+
+def _is_async_tool(tool: Tool) -> bool:
+    return inspect.iscoroutinefunction(getattr(tool, "fn", None))
+
+
 def _run_tool(tool: Tool, call: ToolCall) -> Message:
-    """Execute a tool call and wrap the result as a tool-role Message."""
+    """Execute a tool call (sync) and wrap the result as a tool-role Message."""
+    if _is_async_tool(tool):
+        return _tool_msg(
+            call,
+            f"error: {call.name!r} is an async tool; run it via AsyncAgent "
+            "(act_with_tools awaits async tools only on the async path)",
+        )
     try:
         result = tool(**call.arguments)
     except Exception as exc:  # noqa: BLE001 — surface to the model
-        return Message(
-            role="tool",
-            content=f"{type(exc).__name__}: {exc}",
-            tool_call_id=call.id,
-        )
-    return Message(role="tool", content=str(result), tool_call_id=call.id)
+        return _tool_msg(call, f"{type(exc).__name__}: {exc}")
+    return _tool_msg(call, str(result))
+
+
+async def _run_tool_async(tool: Tool, call: ToolCall) -> Message:
+    """Execute a tool call without blocking the event loop.
+
+    Async tool functions are awaited; sync ones run in a worker thread (via
+    :func:`asyncio.to_thread`) so a slow I/O tool can't stall the whole colony's
+    concurrency (the DAG / ``arun`` fan-out).
+    """
+    try:
+        if _is_async_tool(tool):
+            result = await tool(**call.arguments)          # tool() → coroutine
+        else:
+            result = await asyncio.to_thread(tool, **call.arguments)
+    except Exception as exc:  # noqa: BLE001 — surface to the model
+        return _tool_msg(call, f"{type(exc).__name__}: {exc}")
+    return _tool_msg(call, str(result))
 
 
 class _AgentBase:
@@ -726,7 +755,7 @@ class AsyncAgent(_AgentBase):
                             )
                         )
                         continue
-                    history.append(_run_tool(tool, call))
+                    history.append(await _run_tool_async(tool, call))
         except Exception:
             self.node.state = NodeState.FAILED
             raise
