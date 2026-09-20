@@ -18,8 +18,9 @@ and another worker reclaims the task — the same forgiveness the durable-run
 """
 from __future__ import annotations
 
+import threading
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from ormica.mycelium import ClaimableBackend
 
@@ -44,6 +45,7 @@ class DistributedWorker:
         max_tasks: int = 1000,
         idle_rounds: int = 1,
         poll: float = 0.0,
+        heartbeat: bool = True,
     ) -> None:
         backend = org.memory.backend
         if not isinstance(backend, ClaimableBackend):
@@ -60,6 +62,7 @@ class DistributedWorker:
         self.max_tasks = max_tasks
         self.idle_rounds = idle_rounds
         self.poll = poll
+        self.heartbeat = heartbeat
 
     # --- coordination ---
 
@@ -74,6 +77,35 @@ class DistributedWorker:
     def _release(self, task: Any) -> None:
         self.org.memory.backend.release(f"tasks/{task.id}", self.worker_id)
 
+    def _start_heartbeat(self, task: Any) -> Callable[[], None]:
+        """Refresh the task's lease in the background so long tasks aren't reclaimed.
+
+        Re-claiming as the same owner extends the lease; a daemon thread does
+        this every ``lease_ttl / 2`` until the returned stop callback fires.
+        Returns a no-op stopper when heartbeating is disabled or ``lease_ttl``
+        is non-positive.
+        """
+        if not self.heartbeat or self.lease_ttl <= 0:
+            return lambda: None
+        stop = threading.Event()
+        interval = self.lease_ttl / 2
+
+        def beat() -> None:
+            while not stop.wait(interval):
+                try:
+                    self._claim(task)  # same owner -> refresh expiry
+                except Exception:  # noqa: BLE001 — a failed refresh must not crash the worker
+                    pass
+
+        thread = threading.Thread(target=beat, name=f"hb-{task.id}", daemon=True)
+        thread.start()
+
+        def stopper() -> None:
+            stop.set()
+            thread.join(timeout=1.0)
+
+        return stopper
+
     def _runnable(self, tasks: list) -> list:
         """Pending tasks whose in-queue prerequisites have all reached done."""
         done = {t.id for t in tasks if t.status == "done"}
@@ -83,6 +115,21 @@ class DistributedWorker:
             for t in tasks
             if t.status == "pending"
             and all(d in done for d in t.depends_on if d in ids)
+        ]
+
+    def _blocked(self, tasks: list) -> list:
+        """Pending tasks with a failed prerequisite — can never run, so skip them.
+
+        Failure propagates transitively: skipping a task marks it ``failed``, so
+        its own dependents become blocked on the next pass.
+        """
+        failed = {t.id for t in tasks if t.status == "failed"}
+        ids = {t.id for t in tasks}
+        return [
+            t
+            for t in tasks
+            if t.status == "pending"
+            and any(d in failed for d in t.depends_on if d in ids)
         ]
 
     def _publish(self) -> None:
@@ -109,7 +156,13 @@ class DistributedWorker:
         while tally.processed < self.max_tasks:
             tasks = self.org.load_tasks()
             by_id = {t.id: t for t in tasks}
+
+            # Prefer real work; otherwise reap tasks blocked behind a failure.
             claimed = self._try_claim_one(self._runnable(tasks))
+            kind = "run"
+            if claimed is None:
+                claimed = self._try_claim_one(self._blocked(tasks))
+                kind = "skip"
 
             if claimed is None:
                 # Nothing to take right now. If work is still in flight elsewhere
@@ -126,7 +179,10 @@ class DistributedWorker:
 
             idle = 0
             try:
-                self._execute(claimed, by_id)
+                if kind == "run":
+                    self._execute(claimed, by_id)
+                else:
+                    self._skip(claimed, by_id)
             finally:
                 self._release(claimed)
             tally.processed += 1
@@ -153,6 +209,27 @@ class DistributedWorker:
                 continue
             return task
         return None
+
+    def _skip(self, task: Any, by_id: dict) -> None:
+        """Mark a task failed because a prerequisite failed (never run it)."""
+        from ormica.observe import TASK_FAILED
+        from ormica.runtime import _record_task
+
+        failed_id = next(
+            (d for d in task.depends_on if d in by_id and by_id[d].status == "failed"),
+            "?",
+        )
+        task.status = "failed"
+        task.error = f"skipped: prerequisite {failed_id} failed"
+        _record_task(self.org, task, self.org.root)
+        self.org.events.emit(
+            TASK_FAILED,
+            source="worker",
+            task_id=task.id,
+            worker=self.worker_id,
+            target=task.target,
+            error=task.error,
+        )
 
     # --- execution (mirrors TaskRunner._process, reusing the shared helpers) ---
 
@@ -181,6 +258,7 @@ class DistributedWorker:
         )
 
         record_author = self.org.root
+        stop_heartbeat = self._start_heartbeat(task)
         try:
             node = _resolve_target(self.org, task.target)
             record_author = node
@@ -206,6 +284,7 @@ class DistributedWorker:
             task.error = f"{type(exc).__name__}: {exc}"
             task.status = "failed"
         finally:
+            stop_heartbeat()
             _record_task(self.org, task, record_author)
             _maybe_auto_emit(self.org, task, record_author)
             if task.status == "done":
