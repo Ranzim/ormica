@@ -14,6 +14,7 @@ Biological metaphor: the cerebrum — the bulk of neural processing.
 
 from .mock import AsyncMockBrain, MockBrain
 from .protocol import AsyncBrain, Brain, Prompt, to_messages
+from .retry import AsyncRetryingBrain, RetryingBrain, default_is_transient
 from .router import Router
 from .tool import Tool, ToolCall, ToolResult, tool
 from .types import BudgetExhausted, Message, Response, TokenBudget
@@ -21,17 +22,20 @@ from .types import BudgetExhausted, Message, Response, TokenBudget
 __all__ = [
     "AsyncBrain",
     "AsyncMockBrain",
+    "AsyncRetryingBrain",
     "BudgetExhausted",
     "Brain",
     "Message",
     "MockBrain",
     "Prompt",
     "Response",
+    "RetryingBrain",
     "Router",
     "Tool",
     "ToolCall",
     "ToolResult",
     "TokenBudget",
+    "default_is_transient",
     "tool",
     "to_messages",
 ]
