@@ -14,8 +14,9 @@ inhibits impulses generated lower in the brain.
 """
 
 from .constitution import Constitution
+from .grounding import grounded, judge_oracle, sandbox_oracle
 from .policy import ConstitutionPolicy
-from .rule import Rule, RulePredicate, RuleViolation, Violation
+from .rule import CheckResult, Rule, RulePredicate, RuleViolation, Violation
 from .verify import (
     VerificationFailed,
     must_be_json,
@@ -25,6 +26,7 @@ from .verify import (
 )
 
 __all__ = [
+    "CheckResult",
     "Constitution",
     "ConstitutionPolicy",
     "Rule",
@@ -32,8 +34,11 @@ __all__ = [
     "RuleViolation",
     "VerificationFailed",
     "Violation",
+    "grounded",
+    "judge_oracle",
     "must_be_json",
     "must_contain",
     "must_match",
+    "sandbox_oracle",
     "verifier",
 ]
