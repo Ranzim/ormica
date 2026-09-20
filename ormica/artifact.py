@@ -47,6 +47,7 @@ _TYPE_WORD = {
     list: "array",
     dict: "object",
 }
+_WORD_TYPE = {word: typ for typ, word in _TYPE_WORD.items()}
 
 FieldSpec = Union[type, "ArtifactType"]
 
@@ -141,6 +142,37 @@ class ArtifactType:
         data = source if isinstance(source, (dict, list)) else _extract_json(str(source))
         self.validate(data)
         return Artifact(kind=self.name, data=data)
+
+    def to_record(self) -> dict:
+        """Serialize the type itself to a JSON-safe record.
+
+        Lets a task's output contract survive persistence — e.g. a distributed
+        worker reloads a task from the shared store and still knows to validate
+        its answer. Field types become their type-word (``"integer"``, …);
+        nested :class:`ArtifactType` fields recurse.
+        """
+        fields: dict = {}
+        for name, spec in self.fields.items():
+            fields[name] = spec.to_record() if isinstance(spec, ArtifactType) else _TYPE_WORD[spec]
+        return {
+            "name": self.name,
+            "fields": fields,
+            "required": list(self.required) if self.required is not None else None,
+            "allow_extra": self.allow_extra,
+        }
+
+    @classmethod
+    def from_record(cls, rec: dict) -> "ArtifactType":
+        fields: dict = {}
+        for name, spec in rec["fields"].items():
+            fields[name] = cls.from_record(spec) if isinstance(spec, dict) else _WORD_TYPE[spec]
+        req = rec.get("required")
+        return cls(
+            name=rec["name"],
+            fields=fields,
+            required=tuple(req) if req is not None else None,
+            allow_extra=rec.get("allow_extra", True),
+        )
 
 
 @dataclass

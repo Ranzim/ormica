@@ -398,6 +398,36 @@ class Ormica:
                 task.error = None
         return self.run(brain=brain, **run_kwargs)
 
+    def run_worker(
+        self,
+        *,
+        brain,
+        worker_id: str,
+        lease_ttl: float = 30.0,
+        max_tasks: int = 1000,
+        idle_rounds: int = 1,
+        poll: float = 0.0,
+    ):
+        """Join the colony as a distributed worker draining the shared queue.
+
+        Run this from many processes against one durable, claimable backend
+        (``SqliteBackend`` on a shared path): each worker atomically leases and
+        runs runnable tasks — no dispatcher, no double execution — until the
+        queue is drained. Returns this worker's :class:`~ormica.RunResult`.
+        Requires a :class:`~ormica.mycelium.ClaimableBackend`.
+        """
+        from ormica.distributed import DistributedWorker
+
+        return DistributedWorker(
+            self,
+            brain,
+            worker_id=worker_id,
+            lease_ttl=lease_ttl,
+            max_tasks=max_tasks,
+            idle_rounds=idle_rounds,
+            poll=poll,
+        ).run()
+
     def run(
         self,
         *,

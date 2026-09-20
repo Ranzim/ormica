@@ -10,6 +10,7 @@ Biological metaphor: the underground fungal network connecting trees.
 
 from .backend import Backend, InMemoryBackend
 from .chroma_backend import ChromaBackend
+from .claim import ClaimableBackend
 from .entry import Entry
 from .file_backend import FileBackend
 from .mycelium import Mycelium, Scope
@@ -26,6 +27,7 @@ from .sqlite_backend import SqliteBackend
 __all__ = [
     "Backend",
     "ChromaBackend",
+    "ClaimableBackend",
     "Embedder",
     "Entry",
     "FileBackend",

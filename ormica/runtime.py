@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from .agent import Agent, AsyncAgent
 from .arbor import Node
-from .artifact import Artifact
+from .artifact import Artifact, ArtifactType
 from .brain import AsyncBrain, Brain, Router
 from .observe import (
     RUN_COMPLETED,
@@ -66,6 +66,7 @@ class Task:
     def from_record(cls, payload: dict) -> "Task":
         """Reconstruct a Task from a persisted ``tasks/{id}`` record."""
         art = payload.get("artifact")
+        prod = payload.get("produces")
         return cls(
             description=payload["description"],
             target=payload.get("target", ""),
@@ -77,6 +78,7 @@ class Task:
             created_at=payload.get("created_at", time()),
             depends_on=list(payload.get("depends_on", [])),
             artifact=Artifact.from_record(art) if art else None,
+            produces=ArtifactType.from_record(prod) if prod else None,
         )
 
 
@@ -120,6 +122,7 @@ def _record_task(org: "Ormica", task: Task, author: Node) -> None:
         "created_at": task.created_at,
         "depends_on": list(task.depends_on),
         "artifact": task.artifact.to_record() if task.artifact is not None else None,
+        "produces": task.produces.to_record() if task.produces is not None else None,
     }
     org.memory.write(f"tasks/{task.id}", payload, author=author.id)
 
@@ -229,6 +232,32 @@ def _maybe_auto_emit(org: "Ormica", task: Task, node: Node) -> None:
             org.signals.reinforce(topic, amount=float(strength), by=node.id)
     except Exception:
         pass
+
+
+def _dep_prompt(task: Task, by_id: dict[str, Task]) -> str:
+    """Prepend a task's prerequisite results so a dependent sees its inputs.
+
+    A prerequisite that produced a typed :class:`~ormica.artifact.Artifact` is
+    injected as labeled JSON — structured input the dependent can rely on rather
+    than prose it must re-parse. Shared by :class:`AsyncDagRunner` and the
+    distributed worker so both hand off results identically.
+    """
+    upstream = [
+        by_id[d]
+        for d in task.depends_on
+        if d in by_id and (by_id[d].artifact is not None or by_id[d].result is not None)
+    ]
+    if not upstream:
+        return task.description
+    lines = ["Results from prerequisite tasks:"]
+    for dep in upstream:
+        if dep.artifact is not None:
+            body = json.dumps(dep.artifact.data, indent=2, default=str)
+            lines.append(f"\n[{dep.description}] ({dep.artifact.kind})\n{body}")
+        else:
+            lines.append(f"\n[{dep.description}]\n{dep.result}")
+    lines.append(f"\nYour task: {task.description}")
+    return "\n".join(lines)
 
 
 def _sorted_queue(tasks: list[Task], max_tasks: int) -> list[Task]:
@@ -539,30 +568,7 @@ class AsyncDagRunner(AsyncTaskRunner):
     """
 
     def _task_prompt(self, task: Task) -> str:
-        """Prepend prerequisite tasks' results so a dependent sees its inputs.
-
-        A prerequisite that produced a typed :class:`~ormica.artifact.Artifact`
-        is injected as labeled JSON — the dependent receives structured input it
-        can rely on, not prose it has to re-parse.
-        """
-        deps = getattr(self, "_dag_deps", {}).get(task.id, [])
-        by_id = getattr(self, "_dag_by_id", {})
-        upstream = [
-            by_id[d]
-            for d in deps
-            if d in by_id and (by_id[d].artifact is not None or by_id[d].result is not None)
-        ]
-        if not upstream:
-            return task.description
-        lines = ["Results from prerequisite tasks:"]
-        for dep in upstream:
-            if dep.artifact is not None:
-                body = json.dumps(dep.artifact.data, indent=2, default=str)
-                lines.append(f"\n[{dep.description}] ({dep.artifact.kind})\n{body}")
-            else:
-                lines.append(f"\n[{dep.description}]\n{dep.result}")
-        lines.append(f"\nYour task: {task.description}")
-        return "\n".join(lines)
+        return _dep_prompt(task, getattr(self, "_dag_by_id", {}))
 
     async def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)

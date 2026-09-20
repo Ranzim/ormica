@@ -1,6 +1,7 @@
 """Backend — the storage seam behind mycelium."""
 from __future__ import annotations
 
+import threading
 from typing import Iterator, Optional, Protocol, runtime_checkable
 
 from .entry import Entry
@@ -27,6 +28,11 @@ class InMemoryBackend:
 
     def __init__(self) -> None:
         self._store: dict[str, Entry] = {}
+        # key -> (owner, expires_at); guarded by _lock for atomic claim/release
+        # across threads (async tasks, thread pools). Cross-process coordination
+        # needs SqliteBackend.
+        self._leases: dict[str, tuple[str, float]] = {}
+        self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[Entry]:
         return self._store.get(key)
@@ -45,3 +51,21 @@ class InMemoryBackend:
 
     def __len__(self) -> int:
         return len(self._store)
+
+    # --- ClaimableBackend (in-process, lock-based) ---
+
+    def claim(self, key: str, owner: str, *, ttl: float, now: float) -> bool:
+        with self._lock:
+            held = self._leases.get(key)
+            if held is not None and held[0] != owner and held[1] > now:
+                return False
+            self._leases[key] = (owner, now + ttl)
+            return True
+
+    def release(self, key: str, owner: str) -> bool:
+        with self._lock:
+            held = self._leases.get(key)
+            if held is not None and held[0] == owner:
+                del self._leases[key]
+                return True
+            return False

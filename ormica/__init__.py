@@ -21,6 +21,7 @@ from ormica.agent import Agent, AsyncAgent
 from ormica.artifact import Artifact, ArtifactError, ArtifactType
 from ormica.core import Ormica
 from ormica.delegation import DelegationBuilder
+from ormica.distributed import DistributedWorker
 from ormica.planner import (
     AsyncPlanner,
     Plan,
@@ -40,6 +41,7 @@ __all__ = [
     "AsyncDagRunner",
     "AsyncPlanner",
     "DelegationBuilder",
+    "DistributedWorker",
     "Message",
     "Ormica",
     "Plan",

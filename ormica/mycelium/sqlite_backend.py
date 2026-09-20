@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS entries (
     expires_at REAL,
     meta       TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS leases (
+    key     TEXT PRIMARY KEY,
+    owner   TEXT NOT NULL,
+    expires REAL NOT NULL
+);
 """
 
 
@@ -41,6 +46,10 @@ class SqliteBackend:
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
+        # Block (rather than raise SQLITE_BUSY) while another connection holds
+        # the write lock, so concurrent claim() calls from separate processes
+        # serialize instead of failing.
+        self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 
@@ -107,6 +116,40 @@ class SqliteBackend:
 
     def __len__(self) -> int:
         return self._conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+
+    # --- ClaimableBackend (cross-process, atomic) ---
+
+    def claim(self, key: str, owner: str, *, ttl: float, now: float) -> bool:
+        """Atomically lease ``key`` to ``owner``.
+
+        The two writes run in one transaction; SQLite's write lock (with
+        ``busy_timeout``) serializes concurrent claimers across processes, so at
+        most one wins a contested key. ``INSERT OR IGNORE`` grabs an unheld key;
+        the guarded ``UPDATE`` grabs one we already own or whose lease expired.
+        """
+        expires = now + ttl
+        try:
+            inserted = self._conn.execute(
+                "INSERT OR IGNORE INTO leases(key, owner, expires) VALUES (?, ?, ?)",
+                (key, owner, expires),
+            ).rowcount
+            updated = self._conn.execute(
+                "UPDATE leases SET owner = ?, expires = ? "
+                "WHERE key = ? AND (owner = ? OR expires <= ?)",
+                (owner, expires, key, owner, now),
+            ).rowcount
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        return inserted > 0 or updated > 0
+
+    def release(self, key: str, owner: str) -> bool:
+        cursor = self._conn.execute(
+            "DELETE FROM leases WHERE key = ? AND owner = ?", (key, owner)
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
 
 
 def _row_to_entry(row: tuple) -> Entry:
