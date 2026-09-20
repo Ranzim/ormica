@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Persistent agent tree** — checkpoint and restore the colony's emergent
+  structure. `Ormica.save_tree()` serializes every node's identity, lineage,
+  state, and JSON-safe `meta` to one atomic mycelium record (`arbor/tree`);
+  `Ormica.load_tree()` rebuilds `self.tree` in place in a fresh process,
+  keeping the live policy and observation hooks. Backed by `Node.to_record` /
+  `Node.from_record` and `Tree.snapshot` / `Tree.restore`. Policy, per-node
+  rules, and observers are runtime wiring, re-supplied on rebuild rather than
+  persisted. With a durable backend (sqlite/file), a colony survives a restart
+  with its structure intact — the prerequisite for distributed execution.
+
 ## [0.5.0] — 2026-09-20
 
 Grounding, recall, and native async: agents can now check their answers against

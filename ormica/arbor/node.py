@@ -1,9 +1,10 @@
 """The Node — a single agent in the tree."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator, Optional
+from typing import Any, Iterator, Optional
 from uuid import uuid4
 
 
@@ -17,6 +18,24 @@ class NodeState(str, Enum):
 
 def _new_id() -> str:
     return uuid4().hex[:12]
+
+
+def _json_safe(meta: dict) -> dict:
+    """Keep only the entries of ``meta`` that survive a JSON round-trip.
+
+    A node's ``meta`` is free-form and may hold runtime objects (live signal
+    handles, callables, etc.) that can't be persisted. We keep the scalar/
+    structural annotations (risk levels, counts, flags) and silently drop the
+    rest so a snapshot works on any backend, JSON-encoded or not.
+    """
+    safe: dict = {}
+    for key, value in meta.items():
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            continue
+        safe[key] = value
+    return safe
 
 
 @dataclass
@@ -73,3 +92,39 @@ class Node:
         yield self
         for child in self.children:
             yield from child.walk()
+
+    # --- persistence -----------------------------------------------------
+
+    def to_record(self) -> dict[str, Any]:
+        """Serialize identity, lineage, state, and JSON-safe ``meta``.
+
+        Lineage is captured as ``parent_id`` (not the object) so a flat list of
+        records can rebuild the whole tree. Per-node ``rules`` are *not*
+        persisted — they may hold live callables and are re-attached from
+        config on load, the same way runtime policy and observers are re-wired.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "role": self.role,
+            "task": self.task,
+            "parent_id": self.parent.id if self.parent is not None else None,
+            "state": self.state.value,
+            "meta": _json_safe(self.meta),
+        }
+
+    @classmethod
+    def from_record(cls, rec: dict) -> "Node":
+        """Reconstruct a bare Node (without lineage) from a record.
+
+        The caller relinks ``parent`` / ``children`` by id; see
+        :meth:`Tree.restore`.
+        """
+        return cls(
+            name=rec["name"],
+            role=rec.get("role", ""),
+            task=rec.get("task", ""),
+            id=rec["id"],
+            state=NodeState(rec.get("state", "idle")),
+            meta=dict(rec.get("meta", {})),
+        )
