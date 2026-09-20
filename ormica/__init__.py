@@ -18,6 +18,7 @@ Docs: https://github.com/Ranzim/ormica/tree/master/docs
 __version__ = "0.5.0"
 
 from ormica.agent import Agent, AsyncAgent
+from ormica.artifact import Artifact, ArtifactError, ArtifactType
 from ormica.core import Ormica
 from ormica.delegation import DelegationBuilder
 from ormica.planner import (
@@ -32,6 +33,9 @@ from ormica.runtime import AsyncDagRunner, RunResult, Task
 
 __all__ = [
     "Agent",
+    "Artifact",
+    "ArtifactError",
+    "ArtifactType",
     "AsyncAgent",
     "AsyncDagRunner",
     "AsyncPlanner",
