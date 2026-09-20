@@ -19,7 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `SqliteBackend` (cross-process, transactional). Task output contracts now
   survive the store too: `ArtifactType.to_record` / `from_record` and a
   persisted `Task.produces`, so a worker validates typed output on tasks it
-  reloaded from the shared queue.
+  reloaded from the shared queue. Workers skip tasks blocked behind a failed
+  prerequisite (transitively, matching the DAG runner), and a background
+  **heartbeat** renews a running task's lease so long tasks aren't reclaimed
+  mid-flight (`run_worker(heartbeat=…)`).
 
 ## [0.6.0] — 2026-09-20
 

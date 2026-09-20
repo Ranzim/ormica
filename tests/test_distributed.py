@@ -33,6 +33,15 @@ def test_inmemory_release():
     assert b.claim("t", "w2", ttl=10, now=0) is True  # free after release
 
 
+def test_owner_reclaim_refreshes_lease():
+    # the heartbeat relies on this: re-claiming as the owner extends the lease.
+    b = InMemoryBackend()
+    assert b.claim("t", "A", ttl=10, now=0) is True
+    assert b.claim("t", "A", ttl=10, now=5) is True    # refresh -> expires at 15
+    assert b.claim("t", "B", ttl=10, now=12) is False  # would've expired at 10; still held
+    assert b.claim("t", "B", ttl=10, now=16) is True   # now truly expired
+
+
 # --- the claim primitive: sqlite, across "processes" (separate connections) ---
 
 
@@ -172,3 +181,45 @@ def test_two_workers_no_double_execution():
     assert all(t.status == "done" for t in org.load_tasks())
     # the two workers together processed all n tasks
     assert sum(t.processed for t in tallies.values()) == n
+
+
+# --- follow-ups: downstream-of-failure skip + heartbeat -----------------------
+
+
+def test_worker_skips_downstream_of_failure_transitively():
+    org = Ormica("HQ")
+    Est = ArtifactType("e", {"n": int})
+    org._tasks = [
+        Task(description="a", id="a", produces=Est),          # will fail
+        Task(description="b", id="b", depends_on=["a"]),       # blocked by a
+        Task(description="c", id="c", depends_on=["b"]),       # blocked by b
+        Task(description="indep", id="d"),                     # unrelated, still runs
+    ]
+    ran = []
+
+    def reply(messages):
+        ran.append(messages[-1].content)
+        return "not json"  # a can't parse to Est -> a fails
+
+    tally = org.run_worker(brain=MockBrain(reply_fn=reply), worker_id="w1")
+
+    tasks = {t.id: t for t in org.load_tasks()}
+    assert tasks["a"].status == "failed"
+    assert tasks["b"].status == "failed" and "skipped: prerequisite a failed" in tasks["b"].error
+    assert tasks["c"].status == "failed" and "skipped: prerequisite b failed" in tasks["c"].error
+    assert tasks["d"].status == "done"          # independent work is unaffected
+    assert "b" not in ran and "c" not in ran    # skipped tasks never hit the brain
+    assert tally.processed == 4 and tally.failed == 3 and tally.succeeded == 1
+
+
+def test_heartbeat_can_be_disabled_and_default_runs_clean():
+    # heartbeat is on by default; the run must still complete cleanly. With the
+    # default lease_ttl the beat interval is far longer than the tasks, so it
+    # simply starts and stops per task without interfering.
+    org = Ormica("HQ")
+    for i in range(3):
+        org.task(f"t{i}")
+    tally = org.run_worker(
+        brain=MockBrain(reply_fn=lambda m: "ok"), worker_id="w1", heartbeat=False
+    )
+    assert tally.processed == 3 and tally.succeeded == 3
