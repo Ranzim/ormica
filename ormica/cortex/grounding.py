@@ -92,6 +92,32 @@ def sandbox_oracle(
     return oracle
 
 
+def artifact_oracle(artifact_type: Any) -> Oracle:
+    """Oracle: the answer must parse into a valid artifact of ``artifact_type``.
+
+    Grounds *shape*, not just content — the model must emit structured output
+    matching the declared :class:`~ormica.artifact.ArtifactType`. On failure the
+    validator's problem list becomes the retry feedback, so the model is told
+    exactly which fields are missing or mistyped and tries again.
+
+        from ormica.artifact import ArtifactType
+        from ormica.cortex import Constitution, grounded, artifact_oracle
+
+        Plan = ArtifactType("plan", {"steps": list, "owner": str})
+        con = Constitution([grounded(artifact_oracle(Plan))])
+    """
+    from ormica.artifact import ArtifactError
+
+    def oracle(text: str, ctx: dict) -> CheckResult:
+        try:
+            artifact_type.parse(text)
+        except ArtifactError as exc:
+            return CheckResult(False, str(exc))
+        return CheckResult(True)
+
+    return oracle
+
+
 def judge_oracle(brain: Any, rubric: str, *, pass_token: str = "PASS") -> Oracle:
     """Oracle: an LLM grades the answer against ``rubric`` (LLM-as-judge).
 

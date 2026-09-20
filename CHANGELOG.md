@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Typed artifacts** — schema-checked structured results, so one agent's output
+  can be another's input without fragile re-parsing. `ArtifactType(name, fields)`
+  declares a shape with plain Python types (nesting, `required=`, `allow_extra=`
+  supported, no pydantic dependency); `.parse()` extracts JSON from a chatty /
+  fenced reply, validates, and returns an `Artifact(kind, data, meta)` that
+  serializes (`to_record` / `from_record`) like tasks and nodes. Integrates with
+  grounding: `cortex.artifact_oracle(type)` makes a verify-stage oracle that
+  feeds the exact validation problems back to the model on retry, so malformed
+  structured output self-corrects.
 - **Persistent agent tree** — checkpoint and restore the colony's emergent
   structure. `Ormica.save_tree()` serializes every node's identity, lineage,
   state, and JSON-safe `meta` to one atomic mycelium record (`arbor/tree`);
