@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-20
+
+Engine hardening: make the colony self-organizing at runtime, survive real LLMs,
+and verify what tool-using agents actually do.
+
+### Added
+
+- **Recursive delegation** — an agent facing a task too big spawns sub-agents to
+  handle pieces, and those sub-agents can delegate further, recursively, until
+  the depth cap. `DelegationBuilder` + the `delegate` tool + `Ormica.solve()`.
+  Bounded by depth, fan-out (`max_subtasks`), and the colony's own spawn policy /
+  `BudgetGovernor` — planner + spawn + run unified into one recursive primitive.
+- **`RetryingBrain` / `AsyncRetryingBrain`** — wrap any brain with bounded
+  exponential backoff + jitter on transient API errors (rate limits, 5xx,
+  timeouts); non-transient errors (auth, 400) re-raise immediately. Provider-
+  agnostic (`default_is_transient`).
+
+### Fixed
+
+- **Verify/grounding now runs in `act_with_tools`** — the verify-retry loop
+  previously ran only in `act()`, so tool-using agents (the main real-work path)
+  skipped verification. The tool loop's final response is now verified, with
+  feedback-and-retry up to `max_verify_attempts`.
+
+### Changed
+
+- CI: bumped GitHub Actions (checkout, setup-python, artifacts, codeql,
+  scorecard, gh-release, pypi-publish).
+
 ## [0.3.0] — 2026-09-15
 
 The complex-task release: the engine gains the pieces needed to plan, coordinate,

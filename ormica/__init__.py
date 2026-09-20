@@ -15,7 +15,7 @@ Quick start:
 Docs: https://github.com/Ranzim/ormica/tree/master/docs
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from ormica.agent import Agent, AsyncAgent
 from ormica.core import Ormica
