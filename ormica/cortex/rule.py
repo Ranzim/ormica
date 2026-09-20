@@ -2,11 +2,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 # A rule predicate takes a context dict (whatever the caller chose to expose)
-# and returns True if the action is allowed.
-RulePredicate = Callable[[dict], bool]
+# and returns True if the action is allowed — or a richer :class:`CheckResult`.
+RulePredicate = Callable[[dict], Union[bool, "CheckResult"]]
+
+
+@dataclass
+class CheckResult:
+    """A rich verdict from a rule/oracle: pass/fail plus a reason and a score.
+
+    Returning this from a rule's ``check`` (instead of a bare ``bool``) lets a
+    grounded verifier explain *why* it failed — the reason is fed back to the
+    model on a verify retry — and carry a 0–1 quality ``score``.
+    """
+
+    ok: bool
+    reason: str = ""
+    score: Optional[float] = None
+
+    def __bool__(self) -> bool:
+        return self.ok
 
 
 @dataclass
@@ -63,10 +80,18 @@ class Rule:
 
     def evaluate(self, context: dict) -> Optional["Violation"]:
         try:
-            ok = bool(self.check(context))
+            result = self.check(context)
         except Exception as exc:  # noqa: BLE001 — surface as a violation, not a crash
             return Violation(rule=self, reason=f"{type(exc).__name__}: {exc}", context=context)
-        if ok:
+        if isinstance(result, CheckResult):
+            if result.ok:
+                return None
+            return Violation(
+                rule=self,
+                reason=result.reason or "check failed",
+                context={**context, "score": result.score},
+            )
+        if result:
             return None
         return Violation(rule=self, reason="check returned False", context=context)
 
