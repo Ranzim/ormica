@@ -217,21 +217,45 @@ class _AgentBase:
         The note carries each failed rule's human-readable description (and the
         raw reason) so the model knows what to fix, not just that it failed.
         """
+        messages = list(_initial_messages(prompt))
+        messages.append(Message(role="assistant", content=response.content))
+        messages.append(self._verify_feedback_message(violations))
+        return messages
+
+    def _verify_feedback_message(self, violations: list) -> "Message":
+        """A single user-turn correction note, for appending to a tool-loop history."""
         reasons = "; ".join(
             f"{v.rule.description or v.rule.name} ({v.reason})" for v in violations
         )
-        messages = list(_initial_messages(prompt))
-        messages.append(Message(role="assistant", content=response.content))
-        messages.append(
-            Message(
-                role="user",
-                content=(
-                    "Your previous answer failed verification: "
-                    f"{reasons}. Correct the issue and answer again."
-                ),
-            )
+        return Message(
+            role="user",
+            content=(
+                "Your previous answer failed verification: "
+                f"{reasons}. Correct the issue and answer again."
+            ),
         )
-        return messages
+
+    def _passed_verify(
+        self, prompt: Any, response: Any, history: list, attempt: int, max_attempts: int
+    ) -> bool:
+        """Verify the tool loop's final response. Returns True if accepted.
+
+        On a hard failure with attempts left, appends the answer + a correction
+        note to ``history`` and returns False (the caller loops so the model can
+        revise — it may call tools again). Exhausting attempts raises
+        :class:`VerificationFailed`.
+        """
+        hard, soft = self._verify_check(prompt, response, attempt)
+        self._emit_soft_violations(soft, stage="verify")
+        if not hard:
+            return True
+        if attempt < max_attempts:
+            self._emit_verify_retry(hard, attempt)
+            history.append(Message(role="assistant", content=response.content))
+            history.append(self._verify_feedback_message(hard))
+            return False
+        self._emit_verify_failed(hard, attempt)
+        raise VerificationFailed(hard, attempts=attempt)
 
     def _emit_verify_retry(self, violations: list, attempt: int) -> None:
         if self.events is None:
@@ -476,10 +500,14 @@ class Agent(_AgentBase):
         *,
         max_tokens: int = 1024,
         max_iterations: int = 8,
+        max_verify_attempts: int = 3,
     ) -> Response:
         """Multi-turn loop: think → tool_use → execute → think → ... until done.
 
-        Returns the final :class:`Response` (without ``tool_calls``).
+        Returns the final :class:`Response` (without ``tool_calls``). The final
+        text response also passes the ``verify`` stage: a failed grounding check
+        feeds the reason back and lets the model revise (it may call tools again),
+        up to ``max_verify_attempts``, then raises :class:`VerificationFailed`.
         Raises :class:`ToolLoopExceeded` if the model keeps requesting tools
         past ``max_iterations``.
         """
@@ -488,6 +516,8 @@ class Agent(_AgentBase):
         registry = _tools_by_name(tools)
         history: list[Message] = list(_initial_messages(prompt))
         self.node.state = NodeState.WORKING
+        has_verify = self._has_verify_rules()
+        verify_attempt = 1
 
         try:
             for _ in range(max_iterations):
@@ -499,6 +529,11 @@ class Agent(_AgentBase):
                     self.budget.consume(response.tokens_used)
                 if not response.wants_tools:
                     self._enforce_constitution_post(prompt, response)
+                    if has_verify and not self._passed_verify(
+                        prompt, response, history, verify_attempt, max_verify_attempts
+                    ):
+                        verify_attempt += 1
+                        continue  # feedback appended to history; let the model revise
                     self.node.state = NodeState.DONE
                     return response
 
@@ -601,6 +636,7 @@ class AsyncAgent(_AgentBase):
         *,
         max_tokens: int = 1024,
         max_iterations: int = 8,
+        max_verify_attempts: int = 3,
     ) -> Response:
         """Async multi-turn tool loop. See :meth:`Agent.act_with_tools`."""
         self._check_budget()
@@ -608,6 +644,8 @@ class AsyncAgent(_AgentBase):
         registry = _tools_by_name(tools)
         history: list[Message] = list(_initial_messages(prompt))
         self.node.state = NodeState.WORKING
+        has_verify = self._has_verify_rules()
+        verify_attempt = 1
 
         try:
             for _ in range(max_iterations):
@@ -619,6 +657,11 @@ class AsyncAgent(_AgentBase):
                     self.budget.consume(response.tokens_used)
                 if not response.wants_tools:
                     self._enforce_constitution_post(prompt, response)
+                    if has_verify and not self._passed_verify(
+                        prompt, response, history, verify_attempt, max_verify_attempts
+                    ):
+                        verify_attempt += 1
+                        continue
                     self.node.state = NodeState.DONE
                     return response
 
