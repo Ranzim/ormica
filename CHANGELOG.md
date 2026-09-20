@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Docs
+
+- **Distributed colony example + guide** — `examples/distributed_colony` runs
+  many worker processes against one shared SQLite colony (no dispatcher, jobs
+  split with no double execution), with a matching
+  `docs/guides/distributed-execution.md` and a subprocess smoke test.
+
 ## [0.7.0] — 2026-09-20
 
 Distributed colonies: one colony now runs across many worker processes with no
