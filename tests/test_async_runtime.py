@@ -68,7 +68,9 @@ async def test_async_agent_composes_system_with_role_and_task():
 
 @pytest.mark.asyncio
 async def test_async_agent_emit_and_recall_use_org_layers():
-    mem = Mycelium()
+    # Fixed clock so stigma decay can't shrink the sensed strength between emit
+    # and sense — the assertion is about the value flowing through, not decay.
+    mem = Mycelium(clock=lambda: 1000.0)
     stig = Stigma(mem)
     tree = Tree("HQ")
     node = tree.spawn(tree.root, "scout")

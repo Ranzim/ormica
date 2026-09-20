@@ -111,7 +111,9 @@ def test_emit_with_node_records_node_as_source():
 
 
 def test_reinforce_accumulates_via_facade():
-    org = Ormica("Acme")
+    # Fixed clock so stigma decay can't shrink the accumulated strength between
+    # reinforce and sense — the assertion is about accumulation, not decay.
+    org = Ormica("Acme", memory=Mycelium(clock=lambda: 1000.0))
     a = org.spawn("a")
     b = org.spawn("b")
     org.emit("trail", strength=1.0, by=a)
