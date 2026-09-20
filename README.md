@@ -73,7 +73,7 @@ The four pillars coordinate agents. **v0.3** adds what a colony needs to actuall
 | 🔌 **Tools & integrations** | `give_tools()`, the `@tool` decorator, and a first-party GitHub integration |
 | 🌌 **Live 3D dashboard** | watch the colony grow, think, and coordinate in real time — `serve(org)` → `/graph` |
 
-**See it end-to-end:** [`examples/compute_lab`](examples/compute_lab) — a colony whose answers are **verified by executing them in the sandbox**, watchable live in the dashboard.
+**See it end-to-end:** [`examples/compute_lab`](examples/compute_lab) — a colony whose answers are **verified by executing them in the sandbox**, watchable live in the dashboard. And [`examples/distributed_colony`](examples/distributed_colony) — many worker processes draining **one shared queue** with no dispatcher.
 
 ---
 

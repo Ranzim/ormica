@@ -41,6 +41,7 @@ The runtime layer that sits on top of the four pillars:
 - [Reading the Thought Trail](./guides/reading-the-thought-trail.md) — debugging an agent's reasoning.
 - [Persistence](./guides/persistence.md) — `FileBackend` vs `SqliteBackend`.
 - [Async runs and multi-provider routing](./guides/async-and-routing.md) — `Router` + `org.arun`.
+- [Distributed execution](./guides/distributed-execution.md) — many workers drain one shared queue via atomic leases; `org.run_worker`.
 - [Web dashboard](./guides/dashboard.md) — view tree, signals, rules, traces; watch events live via SSE.
 - [Human approvals](./guides/human-approvals.md) — `ConsoleApprover` for dev, `CallbackApprover` for Slack/web/queue.
 
