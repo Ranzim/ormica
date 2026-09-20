@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-20
+
+Distributed colonies: one colony now runs across many worker processes with no
+central dispatcher — workers coordinate through the shared substrate, the same
+stigmergic principle behind signals, applied to compute. Everything is additive;
+single-process runs are unchanged.
+
 ### Added
 
 - **Distributed execution** — run one colony across many worker processes with
@@ -327,7 +334,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Ranzim/ormica/releases/tag/v0.7.0
 [0.6.0]: https://github.com/Ranzim/ormica/releases/tag/v0.6.0
 [0.5.0]: https://github.com/Ranzim/ormica/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Ranzim/ormica/releases/tag/v0.4.0
