@@ -108,6 +108,35 @@ def test_artifact_record_round_trip():
     assert rebuilt.meta == {"author": "n1"}
 
 
+# --- ArtifactType serialization (contracts survive persistence) ---------------
+
+
+def test_artifact_type_record_round_trip():
+    rebuilt = ArtifactType.from_record(Estimate.to_record())
+    assert rebuilt.name == "estimate"
+    # validates identically to the original
+    assert rebuilt.problems({"cost": 1.0, "days": 2, "risks": []}) == []
+    assert rebuilt.problems({"cost": 1.0, "days": "x", "risks": []}) == [
+        "field 'days' should be integer, got string"
+    ]
+
+
+def test_artifact_type_round_trip_preserves_options_and_nesting():
+    Inner = ArtifactType("inner", {"n": int})
+    T = ArtifactType(
+        "outer", {"a": str, "b": str, "inner": Inner}, required=("a",), allow_extra=False
+    )
+    rebuilt = ArtifactType.from_record(T.to_record())
+    assert rebuilt.required == ("a",)
+    assert rebuilt.allow_extra is False
+    assert rebuilt.problems({"a": "x", "inner": {"n": "no"}}) == [
+        "inner.field 'n' should be integer, got string"
+    ]
+    assert rebuilt.problems({"a": "x", "inner": {"n": 1}, "c": 1}) == [
+        "unexpected field 'c'"
+    ]
+
+
 # --- grounding integration ----------------------------------------------------
 
 

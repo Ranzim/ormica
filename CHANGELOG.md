@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Distributed execution** — run one colony across many worker processes with
+  no central dispatcher. Workers share a durable, claimable mycelium and
+  coordinate stigmergically: each atomically **leases** a runnable task
+  (dependencies satisfied), runs it, and checkpoints the result, so no two
+  workers run the same task. `Ormica.run_worker(brain=, worker_id=)` /
+  `DistributedWorker`. Crash-safe via lease TTLs — a dead worker's task is
+  reclaimed once its lease expires. New `ClaimableBackend` protocol with atomic
+  `claim` / `release` on `InMemoryBackend` (in-process, lock-based) and
+  `SqliteBackend` (cross-process, transactional). Task output contracts now
+  survive the store too: `ArtifactType.to_record` / `from_record` and a
+  persisted `Task.produces`, so a worker validates typed output on tasks it
+  reloaded from the shared queue.
+
 ## [0.6.0] — 2026-09-20
 
 Durable, typed colonies: the emergent structure now survives a restart, and
