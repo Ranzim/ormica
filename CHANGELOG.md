@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   many worker processes against one shared SQLite colony (no dispatcher, jobs
   split with no double execution), with a matching
   `docs/guides/distributed-execution.md` and a subprocess smoke test.
+- **README refresh** — the roadmap now reflects reality through v0.7 (v0.4–v0.7
+  marked shipped), and the "New in v0.3" hero is now a "beyond the four pillars"
+  capability table covering delegation, grounding, typed artifacts, persistence,
+  and distributed execution.
 
 ## [0.7.0] — 2026-09-20
 

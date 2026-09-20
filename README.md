@@ -57,17 +57,21 @@ Every reasoning step — messages, tool calls, response, tokens — captured and
 
 ---
 
-## ✨ New in v0.3 — from *coordination* to *completion*
+## ✨ Beyond the four pillars — from *coordination* to *completion*
 
-The four pillars coordinate agents. **v0.3** adds what a colony needs to actually *finish hard work — safely, correctly, and observably*:
+The four pillars coordinate agents. Everything since (v0.3 → **v0.7**) adds what a colony needs to actually *finish hard work — safely, correctly, durably, and at scale*:
 
 | Capability | What it gives you |
 |---|---|
-| 🧠 **Semantic memory** | agents recall knowledge by *meaning*, not exact keys — in-memory or persistent (ChromaDB) |
-| ✅ **Verify / grounding** | check a response and **retry until it's right** — e.g. run the code in the sandbox and confirm the output |
+| 🧠 **Semantic memory** | agents recall knowledge by *meaning*, not exact keys — in-memory or persistent (ChromaDB); auto-RAG feeds it into reasoning |
+| ✅ **Verify & grounding** | check a response against a real oracle and **retry until it's right** — run the code in the sandbox, ask a judge model, validate a schema |
 | 🧩 **Planner + parallel DAG** | decompose a goal into a dependency graph, run independent branches concurrently |
+| 🪆 **Recursive delegation** | an agent facing too-big work spawns sub-agents that can delegate further — planner + spawn + run as one primitive |
+| 📦 **Typed artifacts** | schema-checked structured results that flow between tasks as validated data, not fragile prose |
 | 📬 **Direct messaging** | addressed agent-to-agent handoffs (`send_message`) alongside stigmergic signals |
-| 💾 **Durable runs** | checkpoint + `org.resume()` — survive a crash and continue where it left off |
+| 💾 **Durable + persistent** | checkpoint + `org.resume()`; save/restore the whole agent tree — survive a crash and continue |
+| 🌐 **Distributed execution** | many workers drain **one shared queue** via atomic leases — no dispatcher, no double execution |
+| 🛰️ **Resilient brains** | `RetryingBrain` — bounded backoff on rate limits / 5xx / timeouts, fail-fast on auth errors |
 | 🏛️ **Budget governor** | hard ceilings on agent count and token spend, enforced at spawn time |
 | 🛡️ **Sandbox + approvals** | run code with a bounded blast radius; gate high-risk actions behind a human |
 | 🔌 **Tools & integrations** | `give_tools()`, the `@tool` decorator, and a first-party GitHub integration |
@@ -438,9 +442,12 @@ The `Brain` protocol has three native adapters (Claude, Gemini, GPT) plus one `U
 
 - [x] **v0.1** — Four pillars + runtime + CLI + persistence + async + observability
 - [x] **v0.2** — YAML Constitutions · soft-violation events · per-node rule overrides
-- [x] **v0.3** *(here)* — semantic memory (+ ChromaDB) · verify/grounding stage · planner + parallel DAG execution · direct messaging (`send_message`) · durable/resumable runs · spawn-time budget governor · sandboxed execution · human-in-the-loop action gates · GitHub integration · **live 3D dashboard**
-- [ ] **v0.4** — first-class grounding/verifier framework · more integrations (Gmail · Notion · Stripe) · streaming responses
-- [ ] **v0.5** — distributed execution · the **Forest** (multi-tree voting) · vector signals
+- [x] **v0.3** — semantic memory (+ ChromaDB) · verify/grounding stage · planner + parallel DAG execution · direct messaging (`send_message`) · durable/resumable runs · spawn-time budget governor · sandboxed execution · human-in-the-loop action gates · GitHub integration · **live 3D dashboard**
+- [x] **v0.4** — recursive delegation (`org.solve`) · `RetryingBrain` (backoff on transient API errors) · verify runs inside `act_with_tools`
+- [x] **v0.5** — first-class grounding/verifier framework (`sandbox_oracle` · `judge_oracle`) · auto-RAG (`auto_recall`) · native async tools
+- [x] **v0.6** — typed artifacts (`ArtifactType`) flowing between tasks · persistent agent tree (`save_tree` / `load_tree`)
+- [x] **v0.7** *(here)* — **distributed execution** — many workers drain one shared queue via atomic leases (no dispatcher)
+- [ ] **next** — more integrations (Gmail · Notion · Stripe) · streaming responses · the **Forest** (multi-tree voting) · vector signals
 - [ ] **v1.0** — Ormica Cloud (hosted platform)
 
 GitHub Project board is coming. Open an issue to vote on or contribute to any roadmap item.
@@ -514,6 +521,6 @@ MIT — see [LICENSE](LICENSE). Free to use, modify, and build on.
 
 **Ormica** — *organize like a colony · grow like a forest · decide like an organization · audit like infrastructure.*
 
-<sub><i>Computational Stigmergy · v0.3 · ant-colony-inspired coordination for autonomous AI operations</i></sub>
+<sub><i>Computational Stigmergy · v0.7 · ant-colony-inspired coordination for autonomous AI operations</i></sub>
 
 </div>
