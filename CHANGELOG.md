@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Docs
+
+- **Forest example + guide** — `examples/forest_vote` runs an unreliable analyst
+  across many independent colonies and shows the majority vote land on the right
+  answer despite individual trees being wrong; paired with
+  `docs/guides/forest-voting.md` and a deterministic smoke test.
+
 ## [0.8.0] — 2026-09-21
 
 Grow like a forest: robustness by consensus. Many independent colonies now solve
