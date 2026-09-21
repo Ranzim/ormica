@@ -22,6 +22,7 @@ from ormica.artifact import Artifact, ArtifactError, ArtifactType
 from ormica.core import Ormica
 from ormica.delegation import DelegationBuilder
 from ormica.distributed import DistributedWorker
+from ormica.forest import Forest, ForestResult, Vote, majority_vote, unanimous
 from ormica.planner import (
     AsyncPlanner,
     Plan,
@@ -42,6 +43,8 @@ __all__ = [
     "AsyncPlanner",
     "DelegationBuilder",
     "DistributedWorker",
+    "Forest",
+    "ForestResult",
     "Message",
     "Ormica",
     "Plan",
@@ -51,5 +54,8 @@ __all__ = [
     "Postbox",
     "RunResult",
     "Task",
+    "Vote",
     "__version__",
+    "majority_vote",
+    "unanimous",
 ]

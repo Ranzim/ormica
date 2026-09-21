@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **The Forest** — many independent colonies solve one goal, and their answers
+  are reconciled by **voting**, not by any tree being authoritative — robustness
+  emergent at the population level (ensemble / self-consistency). `Forest(build,
+  size=)` grows a fresh colony per tree; `solve()` / `asolve()` (concurrent) run
+  the goal and return a `ForestResult(answer, agreement, consensus, votes)`.
+  Pluggable `attempt` (default: root agent answers directly; swap in `org.solve`,
+  a task run, tools) and `reconcile` (`majority_vote` with `key=` / `threshold=`,
+  or `unanimous`). Composes with grounding — each colony can verify before the
+  Forest votes on already-checked answers.
+
 ### Docs
 
 - **Distributed colony example + guide** — `examples/distributed_colony` runs
