@@ -109,6 +109,17 @@ def test_tree_page_lists_every_node(dashboard):
         assert name in body
 
 
+def test_graph_page_renders_ants_sized_by_task(dashboard):
+    base, _, _ = dashboard
+    status, body = _get(base, "/graph")
+    assert status == 200
+    # nodes are drawn as crawling ants, not plain dots
+    assert "function ant(" in body
+    assert "abdomen" in body
+    # abdomen mass is driven by the node's task load (energy/tokens)
+    assert "task dimension" in body
+
+
 def test_rules_page_shows_org_wide_rules(dashboard):
     base, _, _ = dashboard
     _, body = _get(base, "/rules")

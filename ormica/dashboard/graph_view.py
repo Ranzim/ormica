@@ -96,14 +96,14 @@ _HTML = r"""<!doctype html><html><head><meta charset="utf-8">
   <span><i style="background:#5b9dff"></i>forager</span>
   <span><i style="background:#a3e635"></i>pheromone</span>
   <span><i style="background:#f472b6"></i>harvest</span>
-  <span style="color:#3a4a60">· toggle move/rotate (top-right) · drag · scroll zoom · click a node</span>
+  <span style="color:#3a4a60">· ants crawl · fat abdomen = more work done · toggle move/rotate · drag · scroll zoom · click</span>
 </div>
 <div id="tip"></div>
 <div id="detail"></div>
 <script>
 const CV=document.getElementById('cv'),X=CV.getContext('2d');
 const COL={root:'#f4b942',dept:'#38e2c8',agent:'#5b9dff',knowledge:'#a3e635',output:'#f472b6',msg:'#f59e0b'};
-const RAD={root:16,dept:11,agent:6,knowledge:5,output:7};
+const RAD={root:18,dept:12,agent:8,knowledge:5,output:7};
 let W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
 function resize(){W=innerWidth;H=innerHeight;CV.width=W*DPR;CV.height=H*DPR;X.setTransform(DPR,0,0,DPR,0,0);}
 addEventListener('resize',resize);resize();
@@ -152,7 +152,7 @@ const ekey=(s,t,k)=>s+'>'+t+':'+k;
 function addNode(id,label,kind,role){if(nodes.has(id))return nodes.get(id);const R=150;
   const n={id,label,kind,role:role||'',x:(Math.random()-.5)*R,y:(Math.random()-.5)*R,z:(Math.random()-.5)*R,
     vx:0,vy:0,vz:0,born:now(),think:0,dying:0,energy:0,lastText:'',text:'',owner:'',risk:false,
-    _sx:0,_sy:0,_sc:1,_z:0};nodes.set(id,n);return n;}
+    head:0,_psx:0,_psy:0,_sx:0,_sy:0,_sc:1,_z:0};nodes.set(id,n);return n;}
 function addEdge(s,t,kind){const k=ekey(s,t,kind);if(!edges.has(k)&&nodes.has(s)&&nodes.has(t))edges.set(k,{s,t,kind});}
 function subtree(id){const kill=new Set([id]),st=[id];while(st.length){const c=st.pop();
   for(const e of edges.values())if(e.kind==='spawn'&&e.s===c&&!kill.has(e.t)){kill.add(e.t);st.push(e.t);}}return kill;}
@@ -252,6 +252,24 @@ function step(){const N=[...nodes.values()];
 function fog(sc){return Math.max(.8,Math.min(1,(sc-.15)/.55));}
 function hexagon(cx,cy,r){X.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/2;
   const px=cx+Math.cos(a)*r,py=cy+Math.sin(a)*r;i?X.lineTo(px,py):X.moveTo(px,py);}X.closePath();}
+// draw a stylised ant, nose pointing along +x (rotate to heading). ``fed`` (>=1)
+// swells the abdomen so a hard-working forager literally carries more mass.
+function ant(cx,cy,s,a,col,alpha,fed){
+  fed=fed||1;X.save();X.translate(cx,cy);X.rotate(a||0);
+  X.lineCap='round';X.strokeStyle=col;X.fillStyle=col;
+  const t=now()*.012;
+  X.globalAlpha=alpha*.9;X.lineWidth=Math.max(.5,s*.16);
+  for(let i=0;i<3;i++){const bx=(i-1)*s*.55,sw=Math.sin(t+i*1.7)*.28;   // 3 leg pairs, walking
+    for(const sd of[-1,1]){X.beginPath();X.moveTo(bx,0);
+      X.lineTo(bx+Math.cos(1.15+sw)*s*.8,sd*Math.sin(1.15+sw)*s*1.6);X.stroke();}}
+  for(const sd of[-1,1]){X.beginPath();X.moveTo(s*1.45,0);              // antennae
+    X.lineTo(s*2.5,sd*s*.95);X.stroke();}
+  X.globalAlpha=alpha;
+  const seg=(x,rx,ry)=>{X.beginPath();X.ellipse(x,0,rx,ry,0,0,7);X.fill();};
+  seg(-s*1.35,s*.95*fed,s*.78*fed);   // abdomen (rear) — swells with task energy
+  seg(0,s*.58,s*.52);                 // thorax (middle, legs attach here)
+  seg(s*1.3,s*.55,s*.5);              // head (front, antennae)
+  X.restore();}
 function draw(){X.clearRect(0,0,W,H);const t=now();const N=[...nodes.values()];
   // cull the dead
   for(const n of N)if(n.dying&&t-n.dying>800)killNode(n.id);
@@ -283,21 +301,28 @@ function draw(){X.clearRect(0,0,W,H);const t=now();const N=[...nodes.values()];
     X.fillStyle=pl.kind==='memory'?COL.knowledge:pl.kind==='msg'?COL.msg:'#7dd3fc';X.globalAlpha=1-age;X.fill();X.globalAlpha=1;}
   N.sort((a,b)=>a._z-b._z);
   for(const n of N){const c=COL[n.kind]||'#89a';let r=(RAD[n.kind]||6)*n._sc;
-    if(n.kind==='agent')r*=(.8+Math.min(1.4,Math.log2(1+n.energy)/4));  // energy → size
     const grow=Math.min(1,(t-n.born)/350);r*=(.3+.7*grow);
     let dp=fog(n._sc);if(n.dying)dp*=Math.max(0,1-(t-n.dying)/800),r*=Math.max(.2,1-(t-n.dying)/800);
     if(filter!=='all'&&!matchF(n))dp*=.12;
     X.globalAlpha=dp;
+    // heading: point the ant along its screen-space travel (the colony keeps drifting/spinning)
+    const hdx=n._sx-(n._psx||n._sx),hdy=n._sy-(n._psy||n._sy);
+    if(hdx*hdx+hdy*hdy>.35)n.head=Math.atan2(hdy,hdx);n._psx=n._sx;n._psy=n._sy;
     if(n.think&&t-n.think<650){const a=1-(t-n.think)/650;X.beginPath();X.arc(n._sx,n._sy,r+6+a*10,0,7);
       X.strokeStyle='rgba(255,255,255,'+(a*.6)+')';X.lineWidth=1.5;X.stroke();}
-    X.shadowBlur=0;X.fillStyle=c;   // crisp shapes, no glow
+    X.shadowBlur=0;X.fillStyle=c;X.strokeStyle=c;   // crisp shapes, no glow
     if(n.kind==='knowledge'){X.save();X.translate(n._sx,n._sy);X.rotate(.785);X.fillRect(-r,-r,r*2,r*2);X.restore();}
     else if(n.kind==='output'){hexagon(n._sx,n._sy,r);X.fill();}
-    else{X.beginPath();X.arc(n._sx,n._sy,Math.max(1,r),0,7);X.fill();
-      if(n.kind==='dept'||n.kind==='root'){X.strokeStyle=c;X.lineWidth=1.5;X.beginPath();X.arc(n._sx,n._sy,r+3,0,7);X.stroke();}}
+    else{ // root / dept / agent → a crawling ant; abdomen sized by its task load (energy)
+      const fed=.75+Math.min(1.7,Math.log2(1+n.energy)/3.2);   // task dimension → body mass
+      const s=(n.kind==='root'?r*.6:n.kind==='dept'?r*.58:r*.7);
+      if(s<2.3){X.beginPath();X.arc(n._sx,n._sy,Math.max(1,s*1.4),0,7);X.fill();}   // LOD: far/small → dot
+      else ant(n._sx,n._sy,s,n.head,c,dp,fed);
+      if(n.kind==='root'){X.globalAlpha=dp*.5;X.lineWidth=1.2;   // queen halo
+        X.beginPath();X.arc(n._sx,n._sy,s*2.7,0,7);X.stroke();X.globalAlpha=dp;}}
     X.shadowBlur=0;
     if((n.kind==='root'||n.kind==='dept')&&dp>.35){X.globalAlpha=dp*.8;X.fillStyle='#b7c2d2';X.font='8px ui-sans-serif';
-      X.textAlign='center';X.fillText(nameFor(n),n._sx,n._sy-r-5);X.globalAlpha=dp;}}
+      X.textAlign='center';X.fillText(nameFor(n),n._sx,n._sy-r-9);X.globalAlpha=dp;}}
   X.globalAlpha=1;}
 function loop(){step();draw();requestAnimationFrame(loop);}loop();
 
