@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Docs
+
+- **Architect example** — `examples/architect`: a colony of specialist agents
+  (services / data / infra), driven by a real LLM (Gemini), whose lead
+  synthesises their notes into a **schema-checked, grounded** `architecture`
+  artifact (components, connections, data stores, risks). Shows the engine on a
+  genuinely hard real-world task — multi-agent breadth + typed/verified output —
+  with a `RetryingBrain` wrap so free-tier rate limits (429s) back off instead
+  of crashing. Runs offline with a MockBrain (deterministic; 2 smoke tests) and
+  saves a structured spec you can render as a diagram (e.g. Figma/Mermaid).
+
 ## [0.9.0] — 2026-09-22
 
 The colony, made legible and beautiful. The live 3D graph becomes a deep,
