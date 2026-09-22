@@ -24,6 +24,7 @@ from ormica.delegation import DelegationBuilder
 from ormica.distributed import DistributedWorker
 from ormica.forest import Forest, ForestResult, Vote, majority_vote, unanimous
 from ormica.healing import HealingPolicy
+from ormica.learning import StigmergicRouter, route_reward
 from ormica.planner import (
     AsyncPlanner,
     Plan,
@@ -58,11 +59,13 @@ __all__ = [
     "Postbox",
     "Preferences",
     "RunResult",
+    "StigmergicRouter",
     "Task",
     "Vote",
     "__version__",
     "majority_vote",
     "redact",
     "redact_deep",
+    "route_reward",
     "unanimous",
 ]

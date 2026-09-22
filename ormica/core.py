@@ -574,6 +574,17 @@ class Ormica:
         self._maybe_evaporate()
         return result
 
+    def stigmergic_router(self, **kwargs):
+        """A learning router over this colony's pheromone field.
+
+        Learns which agent handles a *kind* of task best from the outcomes you
+        feed back (`reinforce`), so the colony develops emergent specialists and
+        gets better the more it runs. See :class:`~ormica.StigmergicRouter`.
+        """
+        from ormica.learning import StigmergicRouter
+
+        return StigmergicRouter(self.signals, **kwargs)
+
     async def arun_dag(
         self,
         *,
