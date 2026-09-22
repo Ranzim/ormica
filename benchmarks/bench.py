@@ -36,16 +36,21 @@ def _row(label: str, **cols) -> None:
 # --- throughput ---------------------------------------------------------------
 
 
-def bench_throughput(n: int) -> None:
-    print(f"\nThroughput — {n} trivial tasks (in-memory backend)")
+def bench_throughput(n: int, latency_ms: int = 0) -> None:
+    tag = f", {latency_ms}ms/call latency" if latency_ms else ""
+    print(f"\nThroughput — {n} trivial tasks (in-memory backend{tag})")
+
+    def reply(_m):
+        if latency_ms:
+            time.sleep(latency_ms / 1000.0)
+        return "ok"
 
     org = Ormica("bench")
     org.spawn("w", role="w")
     for i in range(n):
         org.task(f"task {i}", target="w")
-    brain = MockBrain(reply_fn=lambda m: "ok")
     t0 = time.perf_counter()
-    res = org.run(brain=brain, max_tasks=n)
+    res = org.run(brain=MockBrain(reply_fn=reply), max_tasks=n)
     dt = time.perf_counter() - t0
     _row("sync run", tasks=n, seconds=f"{dt:.3f}", per_sec=f"{n / dt:,.0f}", ok=res.succeeded)
 
@@ -54,18 +59,22 @@ def bench_throughput(n: int) -> None:
         org2.task(f"task {i}")
 
     async def areply(_m):
+        if latency_ms:
+            await asyncio.sleep(latency_ms / 1000.0)
         return "ok"
 
     t0 = time.perf_counter()
     asyncio.run(org2.arun(brain=AsyncMockBrain(reply_fn=areply), concurrency=16, max_tasks=n))
     dt = time.perf_counter() - t0
-    _row("async run (c=16)", tasks=n, seconds=f"{dt:.3f}", per_sec=f"{n / dt:,.0f}")
+    speedup = f"  ({latency_ms and (n * latency_ms / 1000.0) / dt:.1f}× vs serial)" if latency_ms else ""
+    _row("async run (c=16)", tasks=n, seconds=f"{dt:.3f}", per_sec=f"{n / dt:,.0f}" + speedup)
 
 
 # --- caching ------------------------------------------------------------------
 
 
-def bench_caching(n: int, unique: int, work_ms: int = 2) -> None:
+def bench_caching(n: int, unique: int, latency_ms: int = 2) -> None:
+    work_ms = max(1, latency_ms)   # need some latency for a cache hit to save time
     print(f"\nCaching — {n} tasks, {unique} distinct prompts, {work_ms}ms 'model' latency")
 
     def slow(messages):
@@ -90,19 +99,25 @@ def bench_caching(n: int, unique: int, work_ms: int = 2) -> None:
 # --- distributed --------------------------------------------------------------
 
 
-def _worker(db_path: str, n_jobs: int, worker_id: str) -> None:
+def _worker(db_path: str, n_jobs: int, worker_id: str, latency_ms: int = 0) -> None:
+    def reply(_m):
+        if latency_ms:
+            time.sleep(latency_ms / 1000.0)
+        return "ok"
+
     org = Ormica("bench", memory=Mycelium(backend=SqliteBackend(db_path)))
     org._tasks = [Task(description=f"job-{i}", id=f"job-{i:05d}") for i in range(n_jobs)]
-    org.run_worker(brain=MockBrain(reply_fn=lambda m: "ok"),
+    org.run_worker(brain=MockBrain(reply_fn=reply),
                    worker_id=worker_id, idle_rounds=25, poll=0.005)
 
 
-def bench_distributed(n: int, workers: int) -> None:
-    print(f"\nDistributed — {n} jobs across worker processes (shared SQLite)")
+def bench_distributed(n: int, workers: int, latency_ms: int = 0) -> None:
+    tag = f", {latency_ms}ms/job" if latency_ms else ""
+    print(f"\nDistributed — {n} jobs across worker processes (shared SQLite{tag})")
     ctx = mp.get_context("spawn")
     for w in (1, workers):
         db = os.path.join(tempfile.mkdtemp(prefix="ormica-bench-"), "colony.db")
-        procs = [ctx.Process(target=_worker, args=(db, n, f"w{k}")) for k in range(w)]
+        procs = [ctx.Process(target=_worker, args=(db, n, f"w{k}", latency_ms)) for k in range(w)]
         t0 = time.perf_counter()
         for p in procs:
             p.start()
@@ -137,16 +152,20 @@ def main(argv=None) -> int:
     ap.add_argument("--tasks", type=int, default=2000)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--nodes", type=int, default=5000)
+    ap.add_argument("--latency-ms", dest="latency_ms", type=int, default=0,
+                    help="simulate model latency per call (ms) — realistic, free, "
+                         "deterministic. Lower --tasks when you raise this.")
     args = ap.parse_args(argv)
 
-    print(f"Ormica benchmarks — python {os.sys.version.split()[0]}")
+    print(f"Ormica benchmarks — python {os.sys.version.split()[0]}"
+          + (f"  ·  {args.latency_ms}ms simulated model latency" if args.latency_ms else ""))
     run = args.only
     if run in (None, "throughput"):
-        bench_throughput(args.tasks)
+        bench_throughput(args.tasks, latency_ms=args.latency_ms)
     if run in (None, "caching"):
-        bench_caching(args.tasks, unique=max(1, args.tasks // 10))
+        bench_caching(args.tasks, unique=max(1, args.tasks // 10), latency_ms=args.latency_ms or 2)
     if run in (None, "distributed"):
-        bench_distributed(min(args.tasks, 400), args.workers)
+        bench_distributed(min(args.tasks, 400), args.workers, latency_ms=args.latency_ms)
     if run in (None, "memory"):
         bench_memory(args.nodes)
     print()
