@@ -33,6 +33,7 @@ from ormica.planner import (
 )
 from ormica.postbox import Message, Postbox
 from ormica.preferences import Preferences
+from ormica.redact import redact, redact_deep
 from ormica.runtime import AsyncDagRunner, RunResult, Task
 
 __all__ = [
@@ -61,5 +62,7 @@ __all__ = [
     "Vote",
     "__version__",
     "majority_vote",
+    "redact",
+    "redact_deep",
     "unanimous",
 ]
