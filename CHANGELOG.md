@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-22
+
+Easier, faster, safer, self-healing. This release is about the engine *around*
+the model: one-call ergonomics, an objective you can steer, resilience that
+repairs itself, real speed/cost + security wins, and a CLI that reaches every
+capability — plus a clean, user-first README. Everything is additive.
+
 ### Added
 
 - **CLI: every major capability is now reachable from the shell.** New commands
@@ -459,7 +466,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/Ranzim/ormica/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Ranzim/ormica/releases/tag/v0.9.0
 [0.8.0]: https://github.com/Ranzim/ormica/releases/tag/v0.8.0
 [0.7.0]: https://github.com/Ranzim/ormica/releases/tag/v0.7.0
