@@ -33,6 +33,47 @@ Every node is an ant. **Solid arrows** are the spawn hierarchy — every node ha
 
 ---
 
+## ⚡ Quickstart — 30 seconds
+
+```bash
+pip install ormica
+ormica doctor                                # what's installed / which keys are set
+ormica ask "What is 6 * 7?" --brain gemini   # one prompt → a real answer
+```
+
+In Python — one governed call:
+
+```python
+from ormica import Ormica
+from ormica.brain import GeminiBrain          # or ClaudeBrain · ollama_brain · UniversalBrain
+
+org = Ormica("Acme")
+print(org.ask("Draft a one-line launch tweet for a dev tool", brain=GeminiBrain()))
+```
+
+…or grow a real colony that plans, runs, and governs itself — with state that
+survives restarts:
+
+```python
+org = Ormica("My SaaS", memory_db="./acme.db")
+org.plant("business")                                # departments emerge under root
+org.task("Reach out to 3 SMB leads", dept="sales", priority="high")
+org.run(brain=GeminiBrain())
+```
+
+### When to reach for Ormica
+
+- ✅ **Many agents coordinating** on real work — planning, delegating, verifying — not a single prompt.
+- ✅ You need **governance, cost caps, retries / self-healing, persistence, and an audit trail** around LLMs.
+- ✅ **Model-agnostic** (Claude · Gemini · OpenAI · local Ollama · …) and **embeddable** in your own service.
+- ❌ For a one-off answer, just call the model (or `ormica ask`) — you don't need a colony.
+
+> **Ormica vs. a chat assistant:** an assistant *does a task* for you, interactively.
+> Ormica is the **library you build on** so your software runs governed, multi-agent
+> work **autonomously** — on your models, at your scale.
+
+---
+
 ## 🧬 The Ormica Philosophy: *"Computational Stigmergy"*
 
 Four biological principles, one architecture.
@@ -137,7 +178,11 @@ Python 3.10+ required. **One install command, every major LLM.** See [docs/guide
 
 ---
 
-## 🚀 30-Second Taste
+## 🧭 A Fuller Example — Governance Built In
+
+The quickstart shows the shortest path; this shows the shape of a *governed*
+colony — a Constitution that binds every spawn, persistent state, and
+intent-level tasks:
 
 ```python
 from ormica import Ormica
@@ -176,88 +221,12 @@ Five lines from "no colony" to "running, signal-driven, governed, audited."
 
 ---
 
-## ⚠️ Yaml Gotchas — Things That Bite Once
+## ⚙️ Config gotchas
 
-A short reference for the corners of `ormica.yaml` and colony yaml where the
-syntax does something non-obvious. Each one came out of real user feedback.
-
-### `sense_prefixes` — quoting the bare-colon form
-
-YAML's scanner treats a trailing colon at value position as a mapping key.
-The list form is auto-absorbed by the loader; the single-value form needs
-quotes:
-
-```yaml
-# ✅ List form works as-is — loader normalises [{topic: None}] back to "topic:"
-sense_prefixes: [topic:, activity:]
-
-# ✅ Single value works with quotes
-sense_prefixes: "topic:"
-
-# ❌ This is a YAML SCANNER error, not an ormica error — quote it
-sense_prefixes: topic:
-```
-
-### `min_task_description` vs `min_runtime_task_description`
-
-These look alike but inspect different fields. Easy to swap by mistake;
-pick the one that matches what you actually want to reject.
-
-- **`min_task_description`** reads the *spawn-time* `Node.task` string
-  (set by a colony template's `task:` field). Use it to require that every
-  agent node carry a meaningful role description.
-- **`min_runtime_task_description`** reads the per-invocation description
-  passed to `org.task(description=...)`. Use it to reject one-word briefs
-  at submission time ("update the doc" → too vague to act on).
-
-### `banned_words` — three matching behaviors
-
-The factory family has three distinct semantics. Pick by use case:
-
-```yaml
-# Word-boundary (default) — "secret" matches "the secret formula"
-# but NOT "secretary". Natural-language banlists.
-- banned_words: [guaranteed, miracle, cure]
-
-# Substring (opt-in) — for fragments embedded in larger strings
-# (credential placeholders like INTERNAL_API_KEY, SKU prefixes).
-- banned_words:
-    words: [api_key, secret_token]
-    match_mode: substring
-
-# Stem + suffix expansion — "guarantee" catches "guaranteed",
-# "guaranteeing", "guarantees" (one entry covers all inflections).
-# Note: doesn't handle silent-e drop — "cure" misses "curing".
-- banned_word_stems: [guarantee, miracle]
-```
-
-### `severity: soft` on any rule
-
-Any rule spec accepts a sibling `severity:` key. Soft rules don't fail the
-task — they fire a `rule.soft_violation` event and the action proceeds.
-The violation lands in `Trace.warnings` so `ormica trace <id>` shows
-"shipped with warnings."
-
-```yaml
-constitution:
-  rules:
-    - {max_response_tokens: 800, severity: soft}   # warn + record, no fail
-    - max_response_tokens: 2000                    # hard cap (default)
-```
-
-### `ormica trace` truncates at 80 chars by default
-
-The text format clips long fields (system prompts with injected stigma
-signals, long banned-words descriptions). Use `--full` to see everything,
-or `--width N` to pick a terminal-friendly width. `--format json` always
-preserves full content.
-
-```bash
-ormica trace <task_id>                # text, truncated at 80
-ormica trace <task_id> --full         # text, no truncation
-ormica trace <task_id> --width 120    # text, wider window
-ormica trace <task_id> --format json  # full content, machine-readable
-```
+`ormica.yaml` has a few corners where the YAML syntax bites (bare-colon
+`sense_prefixes`, the three `banned_words` match modes, `severity: soft`,
+`trace --full`). They're documented in
+**[docs/reference/yaml-gotchas.md](./docs/reference/yaml-gotchas.md)**.
 
 ---
 
@@ -355,8 +324,8 @@ ormica/
 │                  (business + supply_chain bundled)
 ├── agent.py       Agent · AsyncAgent · ToolLoopExceeded
 ├── runtime.py     Task · TaskRunner · Async · AsyncDagRunner
-├── core.py        Ormica facade — plan · run · arun_dag · resume
-└── cli/           ormica init / run / status / colonies
+├── core.py        Ormica facade — ask · solve · run · arun_dag · resume · health
+└── cli/           init · run · resume · worker · ask · solve · plan · doctor · …
 ```
 
 ```
@@ -368,7 +337,7 @@ docs/                                # the onboarding map
 └── guides/                           writing colonies, tools, rules, traces…
 ```
 
-`tests/` — **770+ tests · seconds · no SDK/API keys required for CI.**
+`tests/` — **920+ tests · seconds · no SDK/API keys required for CI.**
 
 ---
 
