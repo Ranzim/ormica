@@ -12,6 +12,7 @@ cortex *constrains* what's permissible.
 Biological metaphor: the cerebrum — the bulk of neural processing.
 """
 
+from .cache import CachingBrain
 from .mock import AsyncMockBrain, MockBrain
 from .protocol import AsyncBrain, Brain, Prompt, to_messages
 from .retry import AsyncRetryingBrain, RetryingBrain, default_is_transient
@@ -25,6 +26,7 @@ __all__ = [
     "AsyncRetryingBrain",
     "BudgetExhausted",
     "Brain",
+    "CachingBrain",
     "Message",
     "MockBrain",
     "Prompt",
