@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 from pathlib import Path
 from typing import Iterator, Optional, Union
 
@@ -44,14 +45,23 @@ class SqliteBackend:
         # can be touched from any task. We don't keep a transaction open
         # between calls, so SQLite-level locking is the only concern.
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA synchronous=NORMAL")
-        # Block (rather than raise SQLITE_BUSY) while another connection holds
-        # the write lock, so concurrent claim() calls from separate processes
-        # serialize instead of failing.
-        self._conn.execute("PRAGMA busy_timeout=5000")
-        self._conn.executescript(_SCHEMA)
-        self._conn.commit()
+        # Setting journal_mode=WAL needs a brief exclusive lock, which can fail
+        # with "database is locked" when many processes open the same file at
+        # once (a distributed-worker startup storm). busy_timeout doesn't cover
+        # the mode switch, so retry the whole init a few times — the first
+        # opener wins the switch and the rest then see WAL already set.
+        for attempt in range(20):
+            try:
+                self._conn.execute("PRAGMA busy_timeout=5000")
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("PRAGMA synchronous=NORMAL")
+                self._conn.executescript(_SCHEMA)
+                self._conn.commit()
+                break
+            except sqlite3.OperationalError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.05)
 
     def close(self) -> None:
         self._conn.close()

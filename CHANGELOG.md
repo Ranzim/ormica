@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Benchmark harness** (`benchmarks/bench.py`) — offline, deterministic
+  measurements of throughput (sync + async runners), `CachingBrain` hit-rate and
+  savings, distributed worker scaling over shared SQLite, and colony memory
+  footprint. Indicative numbers in `benchmarks/README.md`.
+
+### Fixed
+
+- **SQLite concurrent-open crash** — a distributed-worker startup storm could
+  hit `database is locked` while setting `PRAGMA journal_mode=WAL` (busy_timeout
+  doesn't cover the journal-mode switch). Init now retries briefly, so many
+  processes opening the same shared DB at once succeed. Surfaced by the new
+  distributed benchmark; guarded by a regression test.
+
 ## [0.10.0] — 2026-09-22
 
 Easier, faster, safer, self-healing. This release is about the engine *around*
