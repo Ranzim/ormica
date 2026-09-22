@@ -1,8 +1,8 @@
 <div align="center">
 
 # 🐜 Ormica
-### An Autonomous Coordination Engine
-> **Seed the colony. Let the organization emerge.**
+
+### Build AI agents that organize themselves, the way an ant colony does.
 
 [![PyPI](https://img.shields.io/pypi/v/ormica.svg)](https://pypi.org/project/ormica/)
 [![CI](https://github.com/Ranzim/ormica/actions/workflows/ci.yml/badge.svg)](https://github.com/Ranzim/ormica/actions/workflows/ci.yml)
@@ -10,148 +10,128 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
+`#AgenticAI` &nbsp; `#MultiAgent` &nbsp; `#Stigmergy` &nbsp; `#SwarmIntelligence` &nbsp; `#LLM` &nbsp; `#DistributedSystems` &nbsp; `#Python`
+
 </div>
 
-Ormica is an open-source Python framework for building **self-organizing colonies of AI agents**. You seed a goal; the colony **spawns** the agents it needs, **coordinates** them through a shared signal field, **governs** their growth, **verifies** their work, and leaves a full **audit trail** — then prunes what it no longer needs. It's model-agnostic (Claude · Gemini · OpenAI · local Ollama · …) and runs anywhere, from a laptop to many machines.
+Most AI systems fall apart on genuinely hard work. A single prompt forgets. A fixed chain of agents shatters the moment reality stops matching the diagram. Ormica takes a different path, borrowed from biology. You hand it a goal, and a colony of agents grows to meet it. They spawn the helpers they need, coordinate through a shared signal field instead of chatting back and forth, stay inside the rules you set, check their own work, and leave a complete record of everything they did. When a branch finishes, it is pruned. Nothing is hand wired.
 
----
+It runs on any model you like, from Claude and Gemini to something local, and scales from your laptop to a room full of machines.
 
-## ⚡ Quickstart — 30 seconds
+## Why it exists
+
+Real problems are messy. "Design this system." "Run this back office." "Research this market and tell me where to bet." You cannot flatten work like that into one call or one rigid pipeline. It needs many minds working at once, someone keeping their growth in check, a way to catch mistakes before they ship, and an honest trail you can read afterward.
+
+That is **coordination**, and coordination is the hard part almost every agent tool leaves to you. Ormica is built to be that missing layer, so you can point real, complex work at real models and actually trust what comes back.
+
+## The idea, in one breath
+
+Ants build cathedrals with no architect. No single ant holds the plan. Each one reacts to pheromone trails left in the shared environment, and the structure emerges anyway. Ormica brings that to software through four ideas that fit together.
+
+**A living tree.** You define the goal. The framework grows the agents. They appear when they are needed and vanish when the work is done, so the shape of the system always matches the shape of the task. No fixed chains.
+
+**Coordination through the environment.** Agents leave signals in shared memory, and those signals fade over time. Others follow the strong trails and ignore the weak ones. There is no fragile web of who talks to whom.
+
+**Growth with a leash.** Every new agent has to pass a gate before it is born. Small decisions happen locally. Risky ones climb all the way up to you, the human. The colony can never quietly run away.
+
+**Law the model cannot break.** A Constitution of rules decides what agents are allowed to do, no matter what the model generates. The brain proposes. The cortex decides.
+
+Underneath all of it, every step is written into a Thought Trail you can query later. The black box becomes something you can read.
+
+## Try it in thirty seconds
 
 ```bash
 pip install ormica
-ormica doctor                                # what's installed / which keys are set
-ormica ask "What is 6 * 7?" --brain gemini   # one prompt → a real answer
+ormica doctor
+ormica ask "What is 6 times 7?" --brain gemini
 ```
+
+One governed call in Python:
 
 ```python
 from ormica import Ormica
-from ormica.brain import GeminiBrain          # or ClaudeBrain · ollama_brain · UniversalBrain
+from ormica.brain import GeminiBrain
 
-# one governed call
 org = Ormica("Acme")
-print(org.ask("Draft a one-line launch tweet for a dev tool", brain=GeminiBrain()))
+print(org.ask("Write a one line launch tweet for a developer tool", brain=GeminiBrain()))
+```
 
-# …or a real colony that plans, runs, and governs itself (state survives restarts)
-org = Ormica("My SaaS", memory_db="./acme.db")
-org.plant("business")                                 # departments emerge under root
-org.task("Reach out to 3 SMB leads", dept="sales", priority="high")
+Or grow a colony that plans and runs itself, with memory that survives a restart:
+
+```python
+org = Ormica("My SaaS", memory_db="acme.db")
+org.plant("business")                              # departments appear under the root
+org.task("Reach out to three leads", dept="sales", priority="high")
 org.run(brain=GeminiBrain())
 ```
 
-**Reach for Ormica when** you want *many* agents coordinating on real work — planning, delegating, verifying — with governance, cost caps, retries, persistence, and an audit trail around your LLMs. **Don't bother when** you just need a single answer — call the model (or `ormica ask`).
+## When it fits, and when it does not
 
-> An assistant *does a task* for you, interactively. Ormica is the **library you build on** so your software runs governed, multi-agent work **autonomously** — on your models, at your scale.
+Reach for Ormica when the work is genuinely complex and you want many agents cooperating on it, with governance, cost limits, retries, memory, and a record you can audit. If all you need is a single answer, just call the model. You do not need a colony for that.
 
----
+Here is the honest line on how it differs from a chatbot. A chat assistant does a task for you while you watch. Ormica is the library you build on so that your own software can do that kind of work on its own, at whatever scale you need.
 
-## 🧬 The idea — *Computational Stigmergy*
+## What it can actually do
 
-Ants build without a boss. No ant holds the plan; each responds to **pheromone trails** left in the shared environment. Ormica applies that to software — four pillars, one coherent model:
+- **Break big goals down and run them in parallel.** A planner turns a goal into a dependency graph, and an agent that is in over its head can spawn sub agents that spawn their own.
+- **Give answers that are actually right.** Check a response against a real test, run the code and read the output, validate a schema, ask a judge, and retry until it passes. Results can be typed and structured, not loose prose.
+- **Steer toward what you care about.** Tell it to favor cost, quality, or speed, and the colony changes how deeply it thinks, how hard it verifies, and how much it parallelizes.
+- **Keep going when things fail.** Retries with backoff, a circuit breaker that pulls a broken branch out of rotation, a dead letter queue, and self repair that prunes a failing branch and grows a fresh one.
+- **Remember, resume, and scale out.** Pluggable memory that survives restarts, runs you can resume after a crash, and many worker processes draining one shared queue across machines with no central dispatcher.
+- **Stay fast and cheap.** A caching brain skips repeated calls, and every run reports the tokens and time it spent.
+- **Stay safe.** Sandboxed code execution, human approval gates for risky actions, and secrets kept out of the logs.
+- **Let you watch it think.** The full Thought Trail plus a dependency free live 3D view of the colony as it works.
+- **Use any model.** Claude, Gemini, and OpenAI natively, plus one universal adapter for Ollama, OpenRouter, Groq, Together, DeepSeek, vLLM, and more.
 
-| Pillar | Module | What it does |
-|---|---|---|
-| 🌲 **Emergent hierarchy** | `arbor` | You define goals; the framework *grows the tree*. Agents spawn on demand, prune when done. No fixed chains. |
-| 🐜 **Stigmergic coordination** | `stigma` + `mycelium` | Agents post progress to a shared **pheromone field** that decays over time; others follow strong trails. Coordination without brittle message-passing. |
-| 🏛️ **Permission chain** | `canopy` | Every spawn passes a gate — `AUTO` / `CHAIN` / `ROOT`. High-risk growth escalates to the human. Growth stays bounded. |
-| ⚖️ **Constitutional governance** | `cortex` | Hard/soft `Rule`s bind what agents may do, *regardless of what the model says*. The brain acts; the cortex inhibits. |
+## Examples worth running
 
-Every step — spawn, think, signal, prune — is captured on an `EventBus` and indexed into a per-task **Thought Trail** (`observe`), queryable with `org.trace_for(task_id)`. The black-box problem becomes a query.
+Each one is a real, runnable program, offline by default so you can try it without a key.
 
-📖 Deep dive: [docs/concepts.md](./docs/concepts.md) · [architecture pages](./docs/architecture/README.md)
+- [**compute_lab**](./examples/compute_lab) shows answers that are verified by actually running them in the sandbox, watchable live in the dashboard.
+- [**architect**](./examples/architect) is a colony of specialists that designs a real software architecture and hands back a validated, structured result.
+- [**distributed_colony**](./examples/distributed_colony) runs many worker processes over one shared queue with no dispatcher.
+- [**forest_vote**](./examples/forest_vote) runs the same goal through many independent colonies and takes the vote, because agreement beats a single lucky try.
+- [**live_swarm**](./examples/live_swarm) is a self growing colony that lights up every part of the live graph at once.
 
----
-
-## 🧰 What you get
-
-| Capability | |
-|---|---|
-| **Recursive delegation** | an agent too small for a task spawns sub-agents that can delegate further (`org.solve`) |
-| **Verify & grounding** | check an answer against a real oracle (run the code, validate a schema, ask a judge) and **retry until it's right** |
-| **Typed artifacts** | schema-checked structured results that flow between tasks as data, not prose |
-| **Preferences** | declare an objective — `cost` / `quality` / `speed` — and the colony biases how it decomposes, verifies, parallelises |
-| **Self-healing** | task retries + circuit breaker + dead-letter, and failure-driven prune/respawn/re-route |
-| **Persistence & scale** | pluggable memory (file / SQLite / vector), durable/resumable runs, and **distributed workers** draining one shared queue |
-| **Speed & cost** | `CachingBrain` memoizes identical calls; a run report surfaces tokens + time |
-| **Safety** | sandboxed code execution · human approval gates · secret redaction in traces |
-| **Observability** | the Thought Trail + a dependency-free **live 3D dashboard** (`serve(org)` → `/graph`) |
-| **Model-agnostic** | Claude · Gemini · OpenAI + one `UniversalBrain` for Ollama / OpenRouter / Groq / Together / DeepSeek / vLLM / … |
-
----
-
-## 🔬 Runnable examples
-
-| Example | Shows |
-|---|---|
-| [`compute_lab`](./examples/compute_lab) | answers **verified by running them** in the sandbox, watchable in the dashboard |
-| [`architect`](./examples/architect) | a colony of specialists designs a **real software architecture** (typed + grounded) |
-| [`distributed_colony`](./examples/distributed_colony) | many worker processes drain **one shared queue**, no dispatcher |
-| [`forest_vote`](./examples/forest_vote) | many independent colonies **vote** on one goal (consensus beats a single try) |
-| [`live_swarm`](./examples/live_swarm) | a self-growing colony driving every graph concept at once |
-
----
-
-## 🆚 How it compares
-
-| | LangChain · CrewAI · AutoGen | **Ormica** |
-|---|---|---|
-| Structure | Fixed chains / graphs | **Living tree** — grows to N depth, prunes |
-| Agents | Defined upfront | **Self-spawning** on demand |
-| Coordination | Direct messaging | **Stigmergic signals + emergence** |
-| Growth control | None built in | **Permission chain to the human** |
-| Governance | "Try harder prompts" | **First-class `Constitution`** |
-| Failure | Often kills the run | **Self-healing; a failed task ≠ a dead system** |
-| Auditability | Ad-hoc logs | **Thought Trail per task** |
-
----
-
-## 📥 Install
+## Install
 
 ```bash
-pip install ormica                # core (MockBrain — no LLM cost)
-pip install ormica[gemini]        # + Google Gemini
-pip install ormica[claude]        # + Anthropic Claude
-pip install ormica[universal]     # + OpenAI · Ollama · OpenRouter · Groq · Together · DeepSeek · …
+pip install ormica                # the core, with a mock brain and no LLM cost
+pip install ormica[gemini]        # add Google Gemini
+pip install ormica[claude]        # add Anthropic Claude
+pip install ormica[universal]     # add OpenAI, Ollama, Groq, and every OpenAI compatible provider
 pip install ormica[all]           # everything
 ```
 
-Python 3.10+. One install, every major LLM — see [the provider matrix](./docs/guides/llm-providers.md).
+Needs Python 3.10 or newer. One install, every major model. The full recipe list lives in [the provider guide](./docs/guides/llm-providers.md).
 
-Hacking on Ormica itself? `git clone`, then `pip install -e ".[dev]"` and `pytest` (**920+ tests, <2s, no API keys needed**). Details in [CONTRIBUTING.md](./CONTRIBUTING.md).
+Hacking on Ormica itself? Clone the repo, run `pip install -e ".[dev]"`, then `pytest`. The whole suite is over 930 tests and finishes in a couple of seconds with no API keys.
 
----
+## Docs
 
-## 📚 Docs
+- [Getting started](./docs/getting-started.md), from install to your first colony
+- [Concepts](./docs/concepts.md), the stigmergy idea in depth
+- [Guides](./docs/README.md), for colonies, tools, rules, verification, distributed runs, the Forest, and the dashboard
+- [Architecture](./docs/architecture/README.md), one page per part of the engine
+- [CLI reference](./docs/reference/cli.md), for `ask`, `solve`, `run`, `resume`, `worker`, `plan`, `doctor`, and more
 
-- [Getting started](./docs/getting-started.md) — install + first colony
-- [Concepts](./docs/concepts.md) — Computational Stigmergy in depth
-- [Guides](./docs/README.md) — colonies · tools · constitutions · verification · distributed · the Forest · dashboard
-- [Architecture](./docs/architecture/README.md) — one page per module
-- [CLI reference](./docs/reference/cli.md) — `init · run · resume · worker · ask · solve · plan · doctor · …`
+## Roadmap
 
----
+The four pillars, the runtime, persistence, verification, typed results, recursive delegation, distributed workers, multi colony voting, self healing, a live 3D dashboard, and a full CLI are all shipped and on PyPI today. Next up are streaming responses, more first party integrations, and hardening for very large scale. A hosted platform is the long term goal.
 
-## 🛣️ Roadmap
+## Contributing
 
-- [x] **v0.1–0.3** — four pillars · runtime · CLI · persistence · async · YAML Constitutions · semantic memory · verify/grounding · planner + DAG · durable runs · sandbox · approvals · live 3D dashboard
-- [x] **v0.4–0.6** — recursive delegation · `RetryingBrain` · grounding framework · auto-RAG · async tools · typed artifacts · persistent agent tree
-- [x] **v0.7–0.8** — **distributed execution** (atomic-lease workers) · the **Forest** (multi-tree voting)
-- [x] **v0.9–0.10** — universe live-view · `org.ask`/`agent` ergonomics · **Preferences** · **self-healing** · `CachingBrain` · secret redaction · full CLI
-- [ ] **next** — streaming responses · more integrations (Gmail · Notion · Stripe) · vector signals
-- [ ] **v1.0** — hardening for high-scale production
+The colony is young, and new contributors shape its character. Start with [Your First PR](./docs/guides/your-first-pr.md), then read [CONTRIBUTING.md](./CONTRIBUTING.md) to see where things go. Run `pytest` and `ruff check .` before you push. Please be kind, per the [Code of Conduct](./CODE_OF_CONDUCT.md). Found a security issue? See [SECURITY.md](./SECURITY.md).
 
----
+## License
 
-## 🤝 Contributing
-
-The colony is young; new contributors shape its character. Start with **[Your First PR](./docs/guides/your-first-pr.md)**, then [CONTRIBUTING.md](./CONTRIBUTING.md) (the where-to-put-what matrix). Before you push: `pytest` and `ruff check .`. Be kind — see the [Code of Conduct](./CODE_OF_CONDUCT.md). Security issues: [SECURITY.md](./SECURITY.md).
-
----
-
-## 📜 License
-
-MIT — see [LICENSE](LICENSE). Free to use, modify, and build on.
+MIT. Yours to use, change, and build on.
 
 <div align="center">
-<sub><i>Computational Stigmergy · ant-colony-inspired coordination for autonomous AI operations</i></sub>
+<br>
+
+**Ormica.** Organize like a colony. Grow like a forest. Decide like an organization. Audit like infrastructure.
+
+`#AgenticAI` &nbsp; `#MultiAgentSystems` &nbsp; `#Stigmergy` &nbsp; `#SwarmIntelligence` &nbsp; `#Emergence` &nbsp; `#LLM` &nbsp; `#AIAgents` &nbsp; `#DistributedSystems` &nbsp; `#Autonomy` &nbsp; `#Python`
+
 </div>
