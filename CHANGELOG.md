@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **`CachingBrain` — memoize identical LLM calls (speed + cost).** Wrap any brain
+  so a prompt it has already seen returns the stored `Response` — no second API
+  call, no second bill. A big win where colonies repeat themselves (Forest
+  voting, delegation, resumed runs). In-process LRU (`maxsize`), keyed on full
+  prompt + system + model, exposes `hits` / `misses`; tool-use turns bypass the
+  cache (they depend on live state).
 - **Quick CLI commands for fast onboarding** — no config file needed:
   `ormica ask "<prompt>"` (one governed turn → answer), `ormica solve "<goal>"`
   (recursive delegation), both with `--brain`, `--model`, and `--preference`
