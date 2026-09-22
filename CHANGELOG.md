@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **CLI: every major capability is now reachable from the shell.** New commands
+  close the last access gaps — `ormica resume` (re-run whatever didn't finish,
+  `--retry-failed`), `ormica worker --id …` (join a shared colony as a
+  distributed worker: `--lease-ttl` / `--idle-rounds` / `--poll` /
+  `--no-heartbeat`), and `ormica plan "<goal>"` (decompose + preview without
+  running). `ormica run` gains `--preference {balanced,cost,quality,speed}` and
+  `--heal` (self-healing, sync runs).
 - **Secret redaction (security).** Credential-shaped strings (OpenAI / Anthropic
   / Google keys, AWS, GitHub, Slack tokens, `Bearer` headers) are now masked
   before a Thought Trail is persisted, so a pasted key in a prompt can't leak
