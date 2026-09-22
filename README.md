@@ -2,7 +2,9 @@
 
 # 🐜 Ormica
 
-### Build AI agents that organize themselves, the way an ant colony does.
+### An Autonomous Coordination Engine for multi-agent AI
+
+> Seed the colony. Let the organization emerge.
 
 [![PyPI](https://img.shields.io/pypi/v/ormica.svg)](https://pypi.org/project/ormica/)
 [![CI](https://github.com/Ranzim/ormica/actions/workflows/ci.yml/badge.svg)](https://github.com/Ranzim/ormica/actions/workflows/ci.yml)
@@ -14,9 +16,21 @@
 
 </div>
 
-Most AI systems fall apart on genuinely hard work. A single prompt forgets. A fixed chain of agents shatters the moment reality stops matching the diagram. Ormica takes a different path, borrowed from biology. You hand it a goal, and a colony of agents grows to meet it. They spawn the helpers they need, coordinate through a shared signal field instead of chatting back and forth, stay inside the rules you set, check their own work, and leave a complete record of everything they did. When a branch finishes, it is pruned. Nothing is hand wired.
+**Ormica is the coordination layer for multi-agent AI.** Most systems fall apart on genuinely hard work. A single prompt forgets. A fixed chain of agents shatters the moment reality stops matching the diagram. Ormica takes a different path, drawn from biology and cybernetics. You hand it a goal, and a colony of agents grows to meet it. They spawn the helpers they need, coordinate through a shared signal field instead of chatting back and forth, stay inside the rules you set, check their own work, and leave a complete record of everything they did. When a branch finishes, it is pruned. Nothing is hand wired.
+
+Think of a traditional AI system as a machine. You program it, it runs a fixed script, and it breaks at the first edge case. Ormica is closer to a cybernetic organism. It grows toward the goal, reinforces what works, prunes what does not, heals around failure, and governs itself inside the constraints you define. The colony is the program.
 
 It runs on any model you like, from Claude and Gemini to something local, and scales from your laptop to a room full of machines.
+
+**Architecture at a glance.** Five subsystems, one biological metaphor:
+
+| Subsystem | Role | In one line |
+|---|---|---|
+| `arbor` | the tree | agents spawn and prune as a living hierarchy |
+| `stigma` + `mycelium` | the field | pheromone signals over shared, persistent memory |
+| `canopy` | the gate | a permission chain that bounds every spawn |
+| `cortex` | the law | a Constitution the model cannot override |
+| `observe` | the record | a Thought Trail of every reasoning step |
 
 ## Why it exists
 
