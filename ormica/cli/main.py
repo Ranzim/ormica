@@ -544,6 +544,128 @@ def _build_brain(
     )
 
 
+_BRAIN_CHOICES = [
+    "mock", "claude", "openai", "gemini",
+    "ollama", "openrouter", "groq", "together", "deepseek",
+]
+
+
+def _prefs(name: Optional[str]):
+    """Map a --preference name to a Preferences preset."""
+    from ormica import Preferences
+
+    return {
+        "cost": Preferences.cost_saver,
+        "quality": Preferences.quality_first,
+        "speed": Preferences.fastest,
+        "balanced": Preferences.balanced,
+    }.get(name or "balanced", Preferences.balanced)()
+
+
+def _standalone_brain(brain_type: str, model: Optional[str]):
+    """Build a brain for the no-config quick commands (ask / solve)."""
+    cfg = BrainConfig(type=brain_type, model=model or _DEFAULT_MODELS.get(brain_type, ""))
+    return _build_brain(cfg, override=None)
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    """Run a single prompt through a fresh colony — the 10-second quick start."""
+    from ormica import Ormica
+
+    try:
+        brain = _standalone_brain(args.brain, args.model)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    org = Ormica("ormica", preferences=_prefs(args.preference))
+    if args.target:
+        org.spawn(args.target, role=args.target)
+    try:
+        print(org.ask(args.prompt, brain=brain, target=args.target or None))
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_solve(args: argparse.Namespace) -> int:
+    """Decompose a goal via recursive delegation (respects --preference)."""
+    from ormica import Ormica
+
+    try:
+        brain = _standalone_brain(args.brain, args.model)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    org = Ormica("ormica", preferences=_prefs(args.preference))
+    try:
+        print(org.solve(args.goal, brain=brain, max_tokens=args.max_tokens).content)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_doctor(_: argparse.Namespace) -> int:
+    """Check the environment: version, provider SDKs, keys (presence only), sandbox."""
+    import platform
+    import warnings
+
+    from ormica import __version__
+
+    print("ormica doctor")
+    print(f"  ormica   {__version__}")
+    print(f"  python   {platform.python_version()}  ({platform.system()})")
+    print("  provider SDKs:")
+    for mod, label in (
+        ("anthropic", "claude"),
+        ("openai", "openai / universal (ollama, groq, …)"),
+        ("google.generativeai", "gemini"),
+    ):
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")   # SDKs may warn on import; keep output clean
+                __import__(mod)
+            mark = "ok "
+        except ImportError:
+            mark = "-- "
+        print(f"    [{mark}] {label}")
+    print("  API keys (presence only — values never shown):")
+    for env in (
+        "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+        "OPENROUTER_API_KEY", "GROQ_API_KEY", "TOGETHER_API_KEY", "DEEPSEEK_API_KEY",
+    ):
+        print(f"    {'set' if os.environ.get(env) else ' — '}  {env}")
+    print(f"  sandbox (POSIX code execution): {'available' if os.name == 'posix' else 'unavailable'}")
+    return 0
+
+
+def cmd_version(_: argparse.Namespace) -> int:
+    from ormica import __version__
+
+    print(__version__)
+    return 0
+
+
+def cmd_health(args: argparse.Namespace) -> int:
+    """Show a colony's health snapshot (from its persisted state)."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found. Run 'ormica init <name>' first.", file=sys.stderr)
+        return 1
+    try:
+        org = _build_org(load_config(path))
+        org.load_tasks()
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    h = org.health()
+    print(f"colony: {org.name}")
+    for k in ("nodes", "tasks", "done", "failed", "dead", "pending", "dead_letter"):
+        print(f"  {k:12} {h[k]}")
+    return 0
+
+
 # --- parser + entry point -----------------------------------------------------
 
 
@@ -704,6 +826,41 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output path, or '-' for stdout (default).",
     )
     export.set_defaults(func=cmd_export)
+
+    # --- quick, config-free commands for fast onboarding ---
+    ask = sub.add_parser("ask", help="Run one prompt through a colony and print the answer")
+    ask.add_argument("prompt", help="The prompt to send")
+    ask.add_argument("--brain", default="mock", choices=_BRAIN_CHOICES)
+    ask.add_argument("--model", default=None, help="Override the model for the brain")
+    ask.add_argument("--target", default="", help="Route to a named node (spawned if new)")
+    ask.add_argument(
+        "--preference", default="balanced",
+        choices=["balanced", "cost", "quality", "speed"],
+        help="Objective that biases how hard the colony verifies/decomposes",
+    )
+    ask.set_defaults(func=cmd_ask)
+
+    solve = sub.add_parser("solve", help="Decompose a goal via recursive delegation")
+    solve.add_argument("goal", help="The goal to solve")
+    solve.add_argument("--brain", default="mock", choices=_BRAIN_CHOICES)
+    solve.add_argument("--model", default=None, help="Override the model for the brain")
+    solve.add_argument(
+        "--preference", default="balanced",
+        choices=["balanced", "cost", "quality", "speed"],
+        help="Objective that biases decomposition depth / fan-out",
+    )
+    solve.add_argument("--max-tokens", type=int, default=1024, dest="max_tokens")
+    solve.set_defaults(func=cmd_solve)
+
+    doctor = sub.add_parser("doctor", help="Check environment: SDKs, keys, sandbox")
+    doctor.set_defaults(func=cmd_doctor)
+
+    ver = sub.add_parser("version", help="Print the installed ormica version")
+    ver.set_defaults(func=cmd_version)
+
+    health = sub.add_parser("health", help="Show a colony's health snapshot")
+    health.add_argument("--config", default=str(DEFAULT_CONFIG))
+    health.set_defaults(func=cmd_health)
 
     return parser
 
