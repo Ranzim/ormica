@@ -114,6 +114,8 @@ class Ormica:
         # Custom tools attached per node (by node id). The runner hands these to
         # the node's agent alongside any emit/message tools it declared.
         self._node_tools: dict = {}
+        # Tasks that exhausted their healing retries (see HealingPolicy).
+        self._dead_letter: list = []
 
     def _emit_spawn(self, node) -> None:
         """Tree hook: announce a new node on the bus (live-view / audit)."""
@@ -496,8 +498,15 @@ class Ormica:
         max_tasks: int = 100,
         on_task_start=None,
         on_task_done=None,
+        heal=None,
     ):
-        """Process all pending tasks. ``brain`` is a Brain or a Router."""
+        """Process all pending tasks. ``brain`` is a Brain or a Router.
+
+        Pass ``heal=HealingPolicy(...)`` to make the run self-repairing: failed
+        tasks retry with backoff, chronically-failing targets trip a circuit
+        breaker (re-routing to root and/or pruning + respawning the node), and
+        tasks that exhaust their retries land in :attr:`dead_letter`.
+        """
         from ormica.runtime import TaskRunner
 
         runner = TaskRunner(
@@ -506,10 +515,31 @@ class Ormica:
             max_tasks=max_tasks,
             on_task_start=on_task_start,
             on_task_done=on_task_done,
+            heal=heal,
         )
         result = runner.run(self.pending_tasks())
         self._maybe_evaporate()
         return result
+
+    @property
+    def dead_letter(self) -> list:
+        """Tasks that exhausted their healing retries (see :meth:`run` ``heal=``)."""
+        return list(self._dead_letter)
+
+    def health(self) -> dict:
+        """A snapshot of the colony's work: task states, dead-letter, node count."""
+        from collections import Counter
+
+        c = Counter(t.status for t in self._tasks)
+        return {
+            "nodes": len(self.tree),
+            "tasks": len(self._tasks),
+            "done": c.get("done", 0),
+            "failed": c.get("failed", 0),
+            "dead": c.get("dead", 0),
+            "pending": c.get("pending", 0),
+            "dead_letter": len(self._dead_letter),
+        }
 
     async def arun(
         self,
