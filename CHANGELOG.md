@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Ergonomic agent helpers** — stop hand-wiring agents. `Ormica.agent(node,
+  brain=…)` builds an `Agent` already wired to the colony's memory, signals,
+  constitution, budget, and event bus (no more forgetting `agent.events = …`);
+  any of those can be overridden per call. `Ormica.ask("prompt", brain=…)` is
+  the one-call entry point — a single governed turn on a node (root by default)
+  that auto-includes the node's declared tools and returns the text answer.
+  `solve()` and the examples now use these instead of constructing agents by hand.
+
 ### Docs
 
 - **Architect example** — `examples/architect`: a colony of specialist agents
