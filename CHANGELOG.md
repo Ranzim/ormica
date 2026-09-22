@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Self-healing runs (`HealingPolicy`).** `org.run(heal=HealingPolicy(...))`
+  makes a run repair itself: a failed task **retries with backoff**; a target
+  that fails `circuit_threshold` times in a row trips a **circuit breaker** for a
+  cooldown; while open the colony **re-routes** the work to the root and/or
+  **prunes + respawns** the failing node (emergent self-repair via the same
+  primitives growth uses); a task that exhausts its retries is parked in
+  `org.dead_letter` and announced as `task.dead`. Presets `resilient()` /
+  `off()` / `from_preferences()` (quality heals harder). New `org.health()`
+  snapshot (task states, dead-letter, node count). Off by default — existing
+  runs are unchanged.
 - **Preferences — self-organization toward an objective.** Declare *what you
   want* and let the colony bias its emergent behaviour to match, without
   touching agent code. `Preferences(cost=, quality=, speed=)` (three 0–1 dials)

@@ -23,6 +23,7 @@ from ormica.core import Ormica
 from ormica.delegation import DelegationBuilder
 from ormica.distributed import DistributedWorker
 from ormica.forest import Forest, ForestResult, Vote, majority_vote, unanimous
+from ormica.healing import HealingPolicy
 from ormica.planner import (
     AsyncPlanner,
     Plan,
@@ -46,6 +47,7 @@ __all__ = [
     "DistributedWorker",
     "Forest",
     "ForestResult",
+    "HealingPolicy",
     "Message",
     "Ormica",
     "Plan",

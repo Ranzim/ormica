@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
-from time import time
+from time import sleep, time
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from uuid import uuid4
 
@@ -15,6 +15,7 @@ from .brain import AsyncBrain, Brain, Router
 from .observe import (
     RUN_COMPLETED,
     RUN_STARTED,
+    TASK_DEAD,
     TASK_DONE,
     TASK_FAILED,
     TASK_STARTED,
@@ -301,6 +302,7 @@ class TaskRunner:
         max_tasks: int = 100,
         on_task_start: Optional[TaskCallback] = None,
         on_task_done: Optional[TaskCallback] = None,
+        heal: Optional[Any] = None,
     ) -> None:
         if max_tasks < 1:
             raise ValueError("max_tasks must be >= 1")
@@ -309,13 +311,17 @@ class TaskRunner:
         self.max_tasks = max_tasks
         self.on_task_start = on_task_start
         self.on_task_done = on_task_done
+        self.heal = heal
 
     def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
         _checkpoint_queue(self.org, queue)
         self.org.events.emit(RUN_STARTED, source="runner", n_tasks=len(queue), mode="sync")
-        for task in queue:
-            self._process(task)
+        if self.heal is not None:
+            self._run_healing(queue)
+        else:
+            for task in queue:
+                self._process(task)
         result = _tally(queue)
         self.org.events.emit(
             RUN_COMPLETED,
@@ -325,6 +331,73 @@ class TaskRunner:
             failed=result.failed,
         )
         return result
+
+    def _run_healing(self, queue: list[Task]) -> None:
+        """Process the queue with the :class:`~ormica.HealingPolicy`.
+
+        A failed task is retried (with backoff) up to ``max_retries``; a target
+        that fails ``circuit_threshold`` times in a row has its circuit opened
+        for a cooldown — while open, work is re-routed to the root (``reroute``)
+        and/or the node is pruned and respawned (``respawn``). A task that
+        exhausts its retries is parked in ``org.dead_letter`` and announced.
+        """
+        from collections import deque
+
+        h = self.heal
+        now = self.org.memory.now
+        pending: deque = deque(queue)
+        attempts: dict = {}
+        fails: dict = {}          # consecutive failures per target
+        open_until: dict = {}     # target -> time its circuit reopens
+
+        while pending:
+            task = pending.popleft()
+            tgt = task.target or ""
+            # circuit open → route this attempt to the root instead
+            if tgt and h.reroute and open_until.get(tgt, 0.0) > now():
+                task.target = ""
+                tgt = ""
+
+            self._process(task)
+
+            if task.status == "done":
+                fails[tgt] = 0
+                continue
+
+            attempts[task.id] = attempts.get(task.id, 0) + 1
+            fails[tgt] = fails.get(tgt, 0) + 1
+            if tgt and fails[tgt] >= h.circuit_threshold and open_until.get(tgt, 0.0) <= now():
+                open_until[tgt] = now() + h.circuit_cooldown
+                if h.respawn:
+                    self._respawn(tgt)
+
+            if attempts[task.id] <= h.max_retries:
+                delay = h.backoff(attempts[task.id])
+                if delay:
+                    sleep(delay)
+                task.status = "pending"
+                task.error = None
+                pending.append(task)          # retry
+            else:
+                task.status = "dead"
+                self.org._dead_letter.append(task)
+                _record_task(self.org, task, self.org.root)
+                self.org.events.emit(
+                    TASK_DEAD, source="healing", task_id=task.id,
+                    target=task.target, error=task.error,
+                )
+
+    def _respawn(self, name: str) -> None:
+        """Prune a chronically-failing node and grow a fresh one in its place."""
+        try:
+            node = self.org.find(name)
+            parent, role = node.parent, node.role
+            if parent is None:
+                return                        # never respawn the root
+            self.org.prune(node)
+            self.org.spawn(name, under=parent, role=role)
+        except Exception:  # noqa: BLE001 — healing must never crash the run
+            pass
 
     def _task_prompt(self, task: Task) -> str:
         """The prompt handed to the agent. Overridden by DAG runners to inject
