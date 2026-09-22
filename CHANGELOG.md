@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-22
+
+The colony, made legible and beautiful. The live 3D graph becomes a deep,
+readable "universe" view, and two new runnable examples land the Forest and the
+live swarm. Additive; no API changes.
+
+### Added
+
+- **Live graph: a universe you can read.** The `/graph` view now renders each
+  node as a tiny crawling **ant** whose **abdomen swells with its task load**
+  (energy/tokens), on a rotating **parallax starfield** with soft additive glow
+  halos (brighter for the queen and hard-working ants), richer nebula depth, and
+  a cinematic vignette. End-states now read differently, grounded in the
+  concepts: **burn** (culled/failed branch → fiery embers), **retire** (an ant
+  that delivered its harvest → gold motes) and **evaporate** (pheromone fading on
+  its half-life → cool motes), plus a **gold bloom** when a harvest lands. A
+  legend teaches the visual language.
+- **`examples/live_swarm`** — a self-growing colony that drives every graph
+  concept at once (spawn, delegate to uneven task-complexity-driven depths,
+  forage, pheromone, harvest, message, verify retry, cascading branch burn).
+
 ### Docs
 
 - **Forest example + guide** — `examples/forest_vote` runs an unreliable analyst
@@ -370,7 +391,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/Ranzim/ormica/releases/tag/v0.9.0
 [0.8.0]: https://github.com/Ranzim/ormica/releases/tag/v0.8.0
 [0.7.0]: https://github.com/Ranzim/ormica/releases/tag/v0.7.0
 [0.6.0]: https://github.com/Ranzim/ormica/releases/tag/v0.6.0
