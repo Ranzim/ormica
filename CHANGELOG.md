@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Stigmergic learning — a colony that gets better the more it runs.** Pheromone
+  already decays; this closes the other half of the loop. `StigmergicRouter`
+  (via `org.stigmergic_router()`) learns which agent handles a *kind* of task
+  best from the outcomes you feed back: `select(kind, candidates)` samples a
+  candidate weighted by learned pheromone (with exploration), and
+  `reinforce(kind, choice, reward)` rewards what worked. `route_reward(task)`
+  scores a finished task 0 unless it verified, and higher the cheaper it was, so
+  the objective is *correct and cheap*. Over runs the colony converges on the
+  best route and develops **emergent specialists**; with a persistent backend
+  the learning survives restarts; and because trails decay, stale advice fades.
+  This is Ant Colony Optimization applied to agent workflows. See
+  `examples/learning` for a colony that discovers its own specialist.
+
 ## [0.10.1] — 2026-09-22
 
 A reliability point release: ship the distributed SQLite fix, close two
