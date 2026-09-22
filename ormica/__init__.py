@@ -31,6 +31,7 @@ from ormica.planner import (
     Planner,
 )
 from ormica.postbox import Message, Postbox
+from ormica.preferences import Preferences
 from ormica.runtime import AsyncDagRunner, RunResult, Task
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     "PlannedStep",
     "Planner",
     "Postbox",
+    "Preferences",
     "RunResult",
     "Task",
     "Vote",
