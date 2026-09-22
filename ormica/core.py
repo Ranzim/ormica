@@ -221,21 +221,63 @@ class Ormica:
         through the colony's spawn policy / governor, so growth stays bounded.
         Returns the top agent's final :class:`Response`.
         """
-        from ormica.agent import Agent
         from ormica.delegation import DelegationBuilder
 
         node = self._resolve_node(target) if target is not None else self.root
         base = list(base_tools or [])
-        agent = Agent(
-            node, brain, memory=self.memory, signals=self.signals,
-            constitution=self.constitution,
-        )
-        agent.events = self.events
+        agent = self.agent(node, brain=brain)
         delegate = DelegationBuilder(
             self, node, brain, max_depth=max_depth,
             max_subtasks=max_subtasks, base_tools=base,
         ).as_tool()
         return agent.act_with_tools(goal, tools=[delegate, *base], max_tokens=max_tokens)
+
+    def agent(self, target: Optional[NodeRef] = None, *, brain, **kwargs):
+        """Build an :class:`~ormica.Agent` for a node, fully wired to the colony.
+
+        Fills in the colony's ``memory``, ``signals``, ``constitution``, ``budget``
+        and event bus for you — no more constructing an ``Agent`` by hand and
+        remembering to set ``agent.events``. Any of them can be overridden with a
+        keyword (e.g. ``constitution=…``, ``auto_recall=3``, ``system_prompt=…``).
+        ``target`` is a Node or name; defaults to the root.
+        """
+        from ormica.agent import Agent
+
+        node = self.root if target is None else self._resolve_node(target)
+        params: dict = dict(
+            memory=self.memory, signals=self.signals,
+            constitution=self.constitution, budget=self.budget,
+        )
+        params.update(kwargs)   # caller overrides win
+        a = Agent(node, brain, **params)
+        a.events = self.events  # wire observability so think/verify events flow
+        return a
+
+    def ask(
+        self,
+        prompt: str,
+        *,
+        brain,
+        target: Optional[NodeRef] = None,
+        tools: Optional[list] = None,
+        **act_kwargs,
+    ) -> str:
+        """One call: run ``prompt`` through the colony and return the text answer.
+
+        The shortest path in — a single governed turn on a node (root by
+        default), with the colony's memory / signals / constitution / budget /
+        events all wired. The node's declared tools (emit, message,
+        :meth:`give_tools`) are used automatically unless you pass ``tools``.
+        Extra keywords (``max_tokens=``, ``max_verify_attempts=``) pass through
+        to :meth:`Agent.act`.
+        """
+        from ormica.runtime import _build_tools
+
+        agent = self.agent(target, brain=brain)
+        use = _build_tools(self, agent.node) if tools is None else tools
+        if use:
+            return agent.act_with_tools(prompt, tools=use, **act_kwargs).content
+        return agent.act(prompt, **act_kwargs).content
 
     # --- colony ergonomics ---
 

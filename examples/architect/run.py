@@ -32,7 +32,7 @@ import json
 import os
 import sys
 
-from ormica import Agent, ArtifactType, Ormica
+from ormica import ArtifactType, Ormica
 from ormica.cortex import Constitution, artifact_oracle, grounded
 
 # The shape every design must fit — this is what makes the output *usable*.
@@ -121,16 +121,14 @@ def design(system: str, brain) -> dict:
     notes = []
     for name, brief in SPECIALISTS.items():
         node = org.spawn(name, under=lead, role="architect")
-        agent = Agent(node, brain, memory=org.memory, signals=org.signals)
-        agent.events = org.events
+        agent = org.agent(node, brain=brain)   # fully wired — no manual events plumbing
         q = f"For the system: {system}\nSpecify {brief}. Reply in 3-5 concise bullet points."
         print(f"  · {name} analysing…", flush=True)
         notes.append(f"[{name}]\n{agent.act(q).content}")
 
     # 2. the lead synthesises a typed, grounded architecture (retries if malformed)
     con = Constitution([grounded(artifact_oracle(Architecture))])
-    lead_agent = Agent(lead, brain, memory=org.memory, signals=org.signals, constitution=con)
-    lead_agent.events = org.events
+    lead_agent = org.agent(lead, brain=brain, constitution=con)   # override the constitution
     print("  · lead synthesising the architecture…", flush=True)
     prompt = _SYNTH.format(system=system, notes="\n\n".join(notes))
     # a full architecture JSON is large — give it room so it isn't truncated

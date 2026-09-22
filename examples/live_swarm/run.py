@@ -48,9 +48,7 @@ def swarm_brain() -> MockBrain:
 
 
 def _agent(org: Ormica, node, brain) -> Agent:
-    a = Agent(node, brain, memory=org.memory, signals=org.signals)
-    a.events = org.events           # wire the live event stream
-    return a
+    return org.agent(node, brain=brain)   # fully wired (memory, signals, events)
 
 
 def grow_branch(org: Ormica, brain, parent, depth: int, busy: list, cap: int) -> None:
