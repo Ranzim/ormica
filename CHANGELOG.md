@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Quick CLI commands for fast onboarding** — no config file needed:
+  `ormica ask "<prompt>"` (one governed turn → answer), `ormica solve "<goal>"`
+  (recursive delegation), both with `--brain`, `--model`, and `--preference`
+  (balanced/cost/quality/speed); `ormica doctor` (environment check — provider
+  SDKs, API-key **presence only, values never printed**, sandbox availability);
+  `ormica version`; and `ormica health` (task states, dead-letter, node count).
 - **Self-healing runs (`HealingPolicy`).** `org.run(heal=HealingPolicy(...))`
   makes a run repair itself: a failed task **retries with backoff**; a target
   that fails `circuit_threshold` times in a row trips a **circuit breaker** for a

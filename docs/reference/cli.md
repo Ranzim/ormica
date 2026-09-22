@@ -10,6 +10,11 @@ ormica <subcommand> [flags]
 
 | Command | What it does |
 |---|---|
+| `ask` | Run one prompt through a fresh colony and print the answer — no config needed. |
+| `solve` | Decompose a goal via recursive delegation (honours `--preference`). |
+| `doctor` | Check the environment: provider SDKs, API-key presence (never values), sandbox. |
+| `version` | Print the installed `ormica` version. |
+| `health` | Show a colony's health snapshot (task states, dead-letter, node count). |
 | [`init`](#ormica-init) | Create a starter `ormica.yaml`. |
 | [`run`](#ormica-run) | Process the config's defined tasks. Sync by default, async with `--async`. |
 | [`status`](#ormica-status) | Show the org's tree + defined tasks without running. |
@@ -17,6 +22,19 @@ ormica <subcommand> [flags]
 | [`rules`](#ormica-rules) | List the active Constitution — org-level + per-node rules. |
 | [`signals`](#ormica-signals) | List stigma trails currently in shared memory, sorted by strength. |
 | [`trace`](#ormica-trace) | Dump a stored Thought Trail for a task by id. |
+
+### Quick start (no config file)
+
+```bash
+pip install ormica
+ormica doctor                                   # what's installed / which keys are set
+ormica ask "What is 6 * 7?" --brain gemini      # one prompt, real answer
+ormica solve "plan a product launch" --brain claude --preference quality
+```
+
+`--preference` is one of `balanced` · `cost` · `quality` · `speed` and biases how
+deeply the colony decomposes and how hard it verifies (see
+[Preferences](../../ormica/preferences.py)).
 
 ---
 
