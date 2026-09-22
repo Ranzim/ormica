@@ -23,10 +23,11 @@ _HTML = r"""<!doctype html><html><head><meta charset="utf-8">
   html,body{margin:0;height:100%;color:var(--text);overflow:hidden;
     font-family:ui-sans-serif,-apple-system,"Segoe UI",sans-serif;
     background:
-      radial-gradient(ellipse at 50% 46%,transparent 30%,rgba(0,0,0,.62) 100%),
-      radial-gradient(ellipse at 44% 34%,rgba(66,104,190,.12),transparent 60%),
-      radial-gradient(ellipse at 72% 70%,rgba(90,70,150,.07),transparent 58%),
-      radial-gradient(ellipse at 50% 46%,#0b1526 0%,#060c18 55%,#01030a 100%)}
+      radial-gradient(ellipse at 28% 26%,rgba(96,128,255,.11),transparent 55%),
+      radial-gradient(ellipse at 76% 60%,rgba(164,92,224,.10),transparent 55%),
+      radial-gradient(ellipse at 58% 80%,rgba(40,204,184,.06),transparent 50%),
+      radial-gradient(ellipse at 50% 46%,transparent 32%,rgba(0,0,0,.5) 100%),
+      radial-gradient(ellipse at 50% 44%,#0c1a30 0%,#060e1e 52%,#01030a 100%)}
   #hud{position:fixed;top:0;left:0;right:0;height:50px;display:flex;align-items:center;
     gap:15px;padding:0 16px;z-index:6;background:linear-gradient(180deg,rgba(6,9,16,.92),rgba(6,9,16,.35) 75%,transparent)}
   .brand{font-weight:600;letter-spacing:.4px;font-size:11.5px}.brand b{color:var(--root)}
@@ -96,7 +97,10 @@ _HTML = r"""<!doctype html><html><head><meta charset="utf-8">
   <span><i style="background:#5b9dff"></i>forager</span>
   <span><i style="background:#a3e635"></i>pheromone</span>
   <span><i style="background:#f472b6"></i>harvest</span>
-  <span style="color:#3a4a60">· ants crawl · fat abdomen = more work done · toggle move/rotate · drag · scroll zoom · click</span>
+  <span style="color:#6a5330">◦ <b style="color:#ff8a3d">burn</b> culled</span>
+  <span style="color:#6a5330">◦ <b style="color:#f6b250">gold</b> harvest done</span>
+  <span style="color:#4a6a4a">◦ <b style="color:#9ee06a">motes</b> pheromone fading</span>
+  <span style="color:#3a4a60">· fat abdomen = more work · drag · scroll · click</span>
 </div>
 <div id="tip"></div>
 <div id="detail"></div>
@@ -108,6 +112,26 @@ let W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
 function resize(){W=innerWidth;H=innerHeight;CV.width=W*DPR;CV.height=H*DPR;X.setTransform(DPR,0,0,DPR,0,0);}
 addEventListener('resize',resize);resize();
 const now=()=>performance.now();
+
+// --- the universe behind the colony: a deep parallax starfield + vignette ---
+const GLOWRGB={root:'255,190,80',dept:'56,226,200',agent:'110,170,255',
+  knowledge:'163,230,53',output:'244,114,182',msg:'245,158,11'};
+const STARS=[];(function(){for(let i=0;i<520;i++){
+  let x=Math.random()*2-1,y=Math.random()*2-1,z=Math.random()*2-1;const m=Math.hypot(x,y,z)||1;
+  const col=Math.random()<.13?[170,200,255]:Math.random()<.13?[255,222,180]:[224,232,248];
+  STARS.push({x:x/m,y:y/m,z:z/m,r:Math.random()*1.3+.25,ph:Math.random()*6.28,col});}})();
+function drawSky(t){const cx=W/2,cy=H*.47,R=Math.hypot(W,H)*.62;
+  const cyw=Math.cos(yaw),syw=Math.sin(yaw),cp=Math.cos(pitch*.6),sp=Math.sin(pitch*.6);
+  X.globalCompositeOperation='lighter';
+  for(const s of STARS){let x1=s.x*cyw-s.z*syw,z1=s.x*syw+s.z*cyw;
+    const y1=s.y*cp-z1*sp,z2=s.y*sp+z1*cp;if(z2<-.25)continue;
+    const depth=(z2+1.25)/2.25,tw=.55+.45*Math.sin(t*.0018+s.ph);
+    X.globalAlpha=(.22+.6*depth)*tw;X.fillStyle='rgb('+s.col[0]+','+s.col[1]+','+s.col[2]+')';
+    X.beginPath();X.arc(cx+x1*R,cy+y1*R,s.r*(.55+depth),0,7);X.fill();}
+  X.globalCompositeOperation='source-over';X.globalAlpha=1;
+  const vg=X.createRadialGradient(cx,cy,Math.min(W,H)*.18,cx,cy,Math.max(W,H)*.72);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(1,3,10,.55)');
+  X.fillStyle=vg;X.fillRect(0,0,W,H);}
 
 // ant-colony display name over the real node
 function nameFor(n){
@@ -147,7 +171,21 @@ CV.addEventListener('mousemove',e=>{if(!dragging)return;lastInteract=now();
 CV.addEventListener('wheel',e=>{e.preventDefault();userView=true;lastInteract=now();  // focal fixed → real zoom
   camDist=Math.max(300,Math.min(2400,camDist+e.deltaY*.9));},{passive:false});
 
-const nodes=new Map(),edges=new Map(),pulses=[];
+const nodes=new Map(),edges=new Map(),pulses=[],sparks=[],blooms=[];
+// a node's end looks different depending on WHY it ended (see legend):
+//  burn      = a culled / failed branch — fiery embers, flung outward
+//  retire    = an ant that delivered its harvest — warm gold motes, drifting up
+//  evaporate = pheromone fading on its half-life — cool green→cyan motes, rising
+const SPARKKIND={
+  burn:{n:10,spd:.16,drift:.0,life:820,c0:[255,205,70],c1:[255,60,25]},
+  retire:{n:8,spd:.10,drift:-.02,life:1150,c0:[255,226,150],c1:[246,178,80]},
+  evaporate:{n:6,spd:.05,drift:-.05,life:1500,c0:[163,230,53],c1:[125,211,252]}};
+function spark(n,kind){const S=SPARKKIND[kind]||SPARKKIND.burn,N=S.n+Math.floor(Math.random()*4);
+  for(let i=0;i<N;i++){const a=Math.random()*6.283,b=(Math.random()-.5)*3.14,sp=S.spd*(.5+Math.random());
+    sparks.push({x:n.x,y:n.y,z:n.z,vx:Math.cos(a)*Math.cos(b)*sp,vy:Math.sin(b)*sp+S.drift,
+      vz:Math.sin(a)*Math.cos(b)*sp,t0:now(),life:S.life*(.7+Math.random()*.6),c0:S.c0,c1:S.c1});}}
+// a soft expanding ring — a harvest landing (task completed)
+function bloom(n,col){blooms.push({x:n.x,y:n.y,z:n.z,t0:now(),life:750,col:col});}
 const ekey=(s,t,k)=>s+'>'+t+':'+k;
 function addNode(id,label,kind,role){if(nodes.has(id))return nodes.get(id);const R=150;
   const n={id,label,kind,role:role||'',x:(Math.random()-.5)*R,y:(Math.random()-.5)*R,z:(Math.random()-.5)*R,
@@ -208,7 +246,9 @@ es.onmessage=ev=>{let e;try{e=JSON.parse(ev.data);}catch(_){return;}
     case'node.spawned':addNode(p.node_id,p.name,kindByDepth(p.depth),p.role);
       if(p.parent_id)addEdge(p.parent_id,p.node_id,'spawn');flash(p.node_id);
       log(e.type,(p.parent_name||'?')+' → '+p.name);break;
-    case'node.pruned':{const s=subtree(p.node_id);for(const id of s){const n=nodes.get(id);if(n)n.dying=now();}
+    case'node.pruned':{const s=subtree(p.node_id);for(const id of s){const n=nodes.get(id);if(n){n.dying=now();
+      const kind=n.kind==='knowledge'?'evaporate':(nodes.has('o:'+id)||n.lastText)?'retire':'burn';
+      spark(n,kind);}}
       cnt.death++;log(e.type,p.name+' (-'+p.removed+')');break;}
     case'memory.write':{const kid='k:'+p.key;addNode(kid,p.key,'knowledge');addEdge(p.node,kid,'memory');
       pulse(p.node,kid,'memory');log(e.type,short(p.node)+' ✎ '+p.key);break;}
@@ -217,7 +257,7 @@ es.onmessage=ev=>{let e;try{e=JSON.parse(ev.data);}catch(_){return;}
     case'think.recorded':{const a=nodes.get(p.node_id);if(a){flash(p.node_id);a.energy+=(p.tokens_used||0);
       totalEnergy+=(p.tokens_used||0);a.lastText=p.response_content||'';
       if(a.lastText){const oid='o:'+p.node_id;const o=addNode(oid,'harvest','output');o.text=a.lastText;
-        o.owner=p.node_id;addEdge(p.node_id,oid,'output');pulse(p.node_id,oid,'memory');cnt.harvest++;}}
+        o.owner=p.node_id;addEdge(p.node_id,oid,'output');pulse(p.node_id,oid,'memory');bloom(a,'#ffd27a');cnt.harvest++;}}
       log(e.type,short(p.node_id)+' “'+(p.response_content||'').slice(0,30)+'”');break;}
     case'message.sent':addEdge(p.sender,p.recipient,'msg');pulse(p.sender,p.recipient,'msg');
       log(e.type,short(p.sender)+' ✉ '+short(p.recipient));break;
@@ -271,7 +311,7 @@ function ant(cx,cy,s,a,col,alpha,fed){
   seg(0,s*.55,s*.5);                   // thorax (middle, legs attach here)
   seg(s*1.05,s*.5,s*.46);              // head (front, antennae)
   X.restore();}
-function draw(){X.clearRect(0,0,W,H);const t=now();const N=[...nodes.values()];
+function draw(){X.clearRect(0,0,W,H);const t=now();drawSky(t);const N=[...nodes.values()];
   // cull the dead
   for(const n of N)if(n.dying&&t-n.dying>800)killNode(n.id);
   for(const n of N){const p=project(n.x,n.y,n.z);n._sx=p.sx;n._sy=p.sy;n._sc=p.sc;n._z=p.z;}
@@ -300,6 +340,14 @@ function draw(){X.clearRect(0,0,W,H);const t=now();const N=[...nodes.values()];
     const p=project(a.x+(b.x-a.x)*age,a.y+(b.y-a.y)*age,a.z+(b.z-a.z)*age);
     X.beginPath();X.arc(p.sx,p.sy,3.2*p.sc,0,7);
     X.fillStyle=pl.kind==='memory'?COL.knowledge:pl.kind==='msg'?COL.msg:'#7dd3fc';X.globalAlpha=1-age;X.fill();X.globalAlpha=1;}
+  // soft blooms behind the nodes — a harvest landing (task completed)
+  X.globalCompositeOperation='lighter';
+  for(let i=blooms.length-1;i>=0;i--){const bl=blooms[i],age=(t-bl.t0)/bl.life;
+    if(age>=1){blooms.splice(i,1);continue;}
+    const p=project(bl.x,bl.y,bl.z),rad=(4+age*28)*p.sc;
+    X.globalAlpha=(1-age)*.5*fog(p.sc);X.strokeStyle=bl.col;X.lineWidth=Math.max(1,2.4*(1-age)*p.sc);
+    X.beginPath();X.arc(p.sx,p.sy,rad,0,7);X.stroke();}
+  X.globalCompositeOperation='source-over';X.globalAlpha=1;
   N.sort((a,b)=>a._z-b._z);
   for(const n of N){const c=COL[n.kind]||'#89a';let r=(RAD[n.kind]||6)*n._sc;
     const grow=Math.min(1,(t-n.born)/350);r*=(.3+.7*grow);
@@ -309,6 +357,14 @@ function draw(){X.clearRect(0,0,W,H);const t=now();const N=[...nodes.values()];
     // heading: point the ant along its screen-space travel (the colony keeps drifting/spinning)
     const hdx=n._sx-(n._psx||n._sx),hdy=n._sy-(n._psy||n._sy);
     if(hdx*hdx+hdy*hdy>.35)n.head=Math.atan2(hdy,hdx);n._psx=n._sx;n._psy=n._sy;
+    // soft luminous halo — brighter for the queen and hard-working (energetic) ants
+    if(dp>.15){const gr=GLOWRGB[n.kind]||'150,170,200';
+      const boost=n.kind==='agent'?(.55+Math.min(1.3,Math.log2(1+n.energy)/4)):1.15;
+      const gr2=Math.max(3,r*2.6*boost);X.globalCompositeOperation='lighter';
+      const g=X.createRadialGradient(n._sx,n._sy,0,n._sx,n._sy,gr2);
+      g.addColorStop(0,'rgba('+gr+','+(.17*dp)+')');g.addColorStop(1,'rgba('+gr+',0)');
+      X.fillStyle=g;X.beginPath();X.arc(n._sx,n._sy,gr2,0,7);X.fill();
+      X.globalCompositeOperation='source-over';}
     if(n.think&&t-n.think<650){const a=1-(t-n.think)/650;X.beginPath();X.arc(n._sx,n._sy,r+6+a*10,0,7);
       X.strokeStyle='rgba(255,255,255,'+(a*.6)+')';X.lineWidth=1.5;X.stroke();}
     X.shadowBlur=0;X.fillStyle=c;X.strokeStyle=c;   // crisp shapes, no glow
@@ -322,7 +378,16 @@ function draw(){X.clearRect(0,0,W,H);const t=now();const N=[...nodes.values()];
     X.shadowBlur=0;
     if((n.kind==='root'||n.kind==='dept')&&dp>.35){X.globalAlpha=dp*.8;X.fillStyle='#b7c2d2';X.font='8px ui-sans-serif';
       X.textAlign='center';X.fillText(nameFor(n),n._sx,n._sy-r-5);X.globalAlpha=dp;}}
-  X.globalAlpha=1;}
+  // particles on top: embers (burn) · gold motes (retire) · cool motes (evaporate)
+  X.globalCompositeOperation='lighter';
+  for(let i=sparks.length-1;i>=0;i--){const s=sparks[i],el=t-s.t0,age=el/s.life;
+    if(age>=1){sparks.splice(i,1);continue;}
+    const p=project(s.x+s.vx*el,s.y+s.vy*el,s.z+s.vz*el);
+    const R=Math.round(s.c0[0]+(s.c1[0]-s.c0[0])*age),G=Math.round(s.c0[1]+(s.c1[1]-s.c0[1])*age),
+      B=Math.round(s.c0[2]+(s.c1[2]-s.c0[2])*age);
+    X.globalAlpha=(1-age)*fog(p.sc);X.fillStyle='rgb('+R+','+G+','+B+')';
+    X.beginPath();X.arc(p.sx,p.sy,Math.max(.6,(2.6*(1-age)+.4)*p.sc),0,7);X.fill();}
+  X.globalCompositeOperation='source-over';X.globalAlpha=1;}
 function loop(){step();draw();requestAnimationFrame(loop);}loop();
 
 // --- stats + insights ---
