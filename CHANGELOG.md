@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Preferences — self-organization toward an objective.** Declare *what you
+  want* and let the colony bias its emergent behaviour to match, without
+  touching agent code. `Preferences(cost=, quality=, speed=)` (three 0–1 dials)
+  with presets `balanced()` / `cost_saver()` / `quality_first()` / `fastest()`
+  derives the knobs the engine consumes — decomposition **depth** & **fan-out**,
+  **verify retries**, retry budget, and **concurrency** (quality decomposes
+  deeper and verifies harder; cost trims; speed widens). `Ormica(preferences=…)`
+  wires it: `solve()` takes its depth/fan-out and `ask()` its verify attempts
+  from the objective unless you override per call.
 - **Ergonomic agent helpers** — stop hand-wiring agents. `Ormica.agent(node,
   brain=…)` builds an `Agent` already wired to the colony's memory, signals,
   constitution, budget, and event bus (no more forgetting `agent.events = …`);

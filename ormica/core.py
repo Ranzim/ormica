@@ -43,8 +43,15 @@ class Ormica:
         signals_auto_emit: bool = False,
         signals_auto_evaporate: bool = False,
         constitution: Optional[Any] = None,
+        preferences: Optional[Any] = None,
     ) -> None:
         from ormica.cortex import Constitution as _Constitution
+        from ormica.preferences import Preferences
+
+        # How the colony should self-organize toward an objective (cost / quality
+        # / speed). Biases decomposition depth & fan-out, verify retries, and
+        # concurrency. Defaults to balanced; override per call still wins.
+        self.preferences = preferences if preferences is not None else Preferences.balanced()
         from ormica.cortex import ConstitutionPolicy
         from ormica.observe import EventBus
 
@@ -208,8 +215,8 @@ class Ormica:
         *,
         brain,
         target: Optional[NodeRef] = None,
-        max_depth: int = 2,
-        max_subtasks: int = 5,
+        max_depth: Optional[int] = None,
+        max_subtasks: Optional[int] = None,
         base_tools: Optional[list] = None,
         max_tokens: int = 1024,
     ):
@@ -220,15 +227,21 @@ class Ormica:
         and those sub-agents can delegate further until ``max_depth``. Spawns go
         through the colony's spawn policy / governor, so growth stays bounded.
         Returns the top agent's final :class:`Response`.
+
+        ``max_depth`` / ``max_subtasks`` default to what the colony's
+        :class:`~ormica.Preferences` prescribe (quality decomposes deeper/wider,
+        cost trims) — pass them explicitly to override.
         """
         from ormica.delegation import DelegationBuilder
 
         node = self._resolve_node(target) if target is not None else self.root
         base = list(base_tools or [])
+        depth = self.preferences.max_depth if max_depth is None else max_depth
+        fanout = self.preferences.max_subtasks if max_subtasks is None else max_subtasks
         agent = self.agent(node, brain=brain)
         delegate = DelegationBuilder(
-            self, node, brain, max_depth=max_depth,
-            max_subtasks=max_subtasks, base_tools=base,
+            self, node, brain, max_depth=depth,
+            max_subtasks=fanout, base_tools=base,
         ).as_tool()
         return agent.act_with_tools(goal, tools=[delegate, *base], max_tokens=max_tokens)
 
@@ -269,10 +282,12 @@ class Ormica:
         events all wired. The node's declared tools (emit, message,
         :meth:`give_tools`) are used automatically unless you pass ``tools``.
         Extra keywords (``max_tokens=``, ``max_verify_attempts=``) pass through
-        to :meth:`Agent.act`.
+        to :meth:`Agent.act`; ``max_verify_attempts`` defaults to what the
+        colony's :class:`~ormica.Preferences` prescribe (quality verifies harder).
         """
         from ormica.runtime import _build_tools
 
+        act_kwargs.setdefault("max_verify_attempts", self.preferences.verify_attempts)
         agent = self.agent(target, brain=brain)
         use = _build_tools(self, agent.node) if tools is None else tools
         if use:
