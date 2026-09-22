@@ -68,6 +68,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     config = load_config(path)
     try:
         org = _build_org(config)
+        if getattr(args, "preference", None):
+            org.preferences = _prefs(args.preference)
         brain = _build_brain(
             config.brain, override=args.brain, async_mode=args.async_
         )
@@ -89,11 +91,19 @@ def cmd_run(args: argparse.Namespace) -> int:
         org.task(t.description, dept=t.dept or t.target, priority=t.priority)
 
     if args.async_:
+        if args.heal:
+            print("note: --heal applies to sync runs only; ignoring for --async",
+                  file=sys.stderr)
         result = asyncio.run(
             org.arun(brain=brain, concurrency=args.concurrency)
         )
     else:
-        result = org.run(brain=brain)
+        heal = None
+        if args.heal:
+            from ormica import HealingPolicy
+
+            heal = HealingPolicy.from_preferences(org.preferences)
+        result = org.run(brain=brain, heal=heal)
     print(
         f"processed={result.processed} succeeded={result.succeeded} "
         f"failed={result.failed}"
@@ -647,6 +657,86 @@ def cmd_version(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_resume(args: argparse.Namespace) -> int:
+    """Reload persisted tasks and re-run whatever didn't finish."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found. Run 'ormica init <name>' first.", file=sys.stderr)
+        return 1
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+        brain = _build_brain(config.brain, override=args.brain, async_mode=args.async_)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+    from ormica.observe import ConsoleObserver, TraceObserver
+
+    org.subscribe(TraceObserver(store=org.memory))
+    if not args.quiet:
+        org.subscribe(ConsoleObserver())
+
+    kwargs = {"retry_failed": args.retry_failed}
+    if args.async_:
+        result = asyncio.run(org.resume(brain=brain, concurrency=args.concurrency, **kwargs))
+    else:
+        result = org.resume(brain=brain, **kwargs)
+    print(result.summary())
+    return 0 if result.failed == 0 else 2
+
+
+def cmd_worker(args: argparse.Namespace) -> int:
+    """Join a shared colony as a distributed worker draining its queue."""
+    path = Path(args.config)
+    if not path.exists():
+        print(f"error: {path} not found. Run 'ormica init <name>' first.", file=sys.stderr)
+        return 1
+    config = load_config(path)
+    try:
+        org = _build_org(config)
+        brain = _build_brain(config.brain, override=args.brain)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    # seed the shared queue with the config's tasks (idempotent across workers)
+    for t in config.tasks:
+        org.task(t.description, dept=t.dept or t.target, priority=t.priority)
+    try:
+        result = org.run_worker(
+            brain=brain,
+            worker_id=args.id,
+            lease_ttl=args.lease_ttl,
+            idle_rounds=args.idle_rounds,
+            poll=args.poll,
+            heartbeat=not args.no_heartbeat,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    print(f"{args.id}: {result.summary()}")
+    return 0 if result.failed == 0 else 2
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Decompose a goal into a plan and print it — without running anything."""
+    from ormica import Ormica
+
+    try:
+        brain = _standalone_brain(args.brain, args.model)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    org = Ormica("ormica")
+    try:
+        plan = org.plan(args.goal, brain=brain, max_depth=args.max_depth, max_tokens=args.max_tokens)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    print(plan.pretty())
+    return 0
+
+
 def cmd_health(args: argparse.Namespace) -> int:
     """Show a colony's health snapshot (from its persisted state)."""
     path = Path(args.config)
@@ -725,7 +815,53 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Suppress the live event ticker (task start/done, soft rule fires)",
     )
+    run.add_argument(
+        "--preference",
+        default=None,
+        choices=["balanced", "cost", "quality", "speed"],
+        help="Objective that biases decomposition / verify effort",
+    )
+    run.add_argument(
+        "--heal",
+        action="store_true",
+        help="Self-heal: retry failed tasks, break circuits, dead-letter (sync only)",
+    )
     run.set_defaults(func=cmd_run)
+
+    resume = sub.add_parser("resume", help="Reload persisted tasks and re-run the unfinished")
+    resume.add_argument("--config", default=str(DEFAULT_CONFIG))
+    resume.add_argument("--brain", default=None, choices=_BRAIN_CHOICES,
+                        help="Override the brain type from config")
+    resume.add_argument("--retry-failed", dest="retry_failed", action="store_true",
+                        help="Also re-run tasks that previously failed")
+    resume.add_argument("--async", dest="async_", action="store_true")
+    resume.add_argument("--concurrency", type=int, default=5)
+    resume.add_argument("--quiet", action="store_true")
+    resume.set_defaults(func=cmd_resume)
+
+    worker = sub.add_parser("worker", help="Join a shared colony as a distributed worker")
+    worker.add_argument("--id", required=True, help="Unique worker id")
+    worker.add_argument("--config", default=str(DEFAULT_CONFIG))
+    worker.add_argument("--brain", default=None, choices=_BRAIN_CHOICES,
+                        help="Override the brain type from config")
+    worker.add_argument("--lease-ttl", dest="lease_ttl", type=float, default=30.0,
+                        help="Seconds a claimed task is protected (default 30)")
+    worker.add_argument("--idle-rounds", dest="idle_rounds", type=int, default=1,
+                        help="Empty polls before the worker exits (default 1)")
+    worker.add_argument("--poll", type=float, default=0.0,
+                        help="Seconds between empty polls (default 0)")
+    worker.add_argument("--no-heartbeat", dest="no_heartbeat", action="store_true",
+                        help="Disable lease renewal for long tasks")
+    worker.set_defaults(func=cmd_worker)
+
+    plan = sub.add_parser("plan", help="Decompose a goal into a plan (preview, no run)")
+    plan.add_argument("goal", help="The goal to decompose")
+    plan.add_argument("--brain", default="mock", choices=_BRAIN_CHOICES)
+    plan.add_argument("--model", default=None, help="Override the model for the brain")
+    plan.add_argument("--max-depth", dest="max_depth", type=int, default=1,
+                      help="How many levels to decompose (default 1)")
+    plan.add_argument("--max-tokens", dest="max_tokens", type=int, default=1024)
+    plan.set_defaults(func=cmd_plan)
 
     status = sub.add_parser("status", help="Show the org's structure and defined tasks")
     status.add_argument("--config", default=str(DEFAULT_CONFIG))

@@ -12,11 +12,14 @@ ormica <subcommand> [flags]
 |---|---|
 | `ask` | Run one prompt through a fresh colony and print the answer — no config needed. |
 | `solve` | Decompose a goal via recursive delegation (honours `--preference`). |
+| `plan` | Decompose a goal into a plan and print it — preview, without running. |
+| `resume` | Reload persisted tasks and re-run whatever didn't finish (`--retry-failed`). |
+| `worker` | Join a shared colony as a distributed worker (`--id`, `--lease-ttl`). |
 | `doctor` | Check the environment: provider SDKs, API-key presence (never values), sandbox. |
 | `version` | Print the installed `ormica` version. |
 | `health` | Show a colony's health snapshot (task states, dead-letter, node count). |
 | [`init`](#ormica-init) | Create a starter `ormica.yaml`. |
-| [`run`](#ormica-run) | Process the config's defined tasks. Sync by default, async with `--async`. |
+| [`run`](#ormica-run) | Process the config's defined tasks. Sync by default, async with `--async`; `--preference` and `--heal` supported. |
 | [`status`](#ormica-status) | Show the org's tree + defined tasks without running. |
 | [`colonies`](#ormica-colonies) | List registered colonies and their descriptions. |
 | [`rules`](#ormica-rules) | List the active Constitution — org-level + per-node rules. |
