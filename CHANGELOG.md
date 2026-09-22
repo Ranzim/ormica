@@ -6,12 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-09-22
+
+A reliability point release: ship the distributed SQLite fix, close two
+resilience gaps the benchmark surfaced, and add the benchmark harness.
+
 ### Added
 
+- **Async self-healing** — `HealingPolicy` now works in `arun()` too
+  (`org.arun(brain=…, heal=…)`): failures retry across concurrent passes, with
+  the same circuit breaker, dead-letter, and prune/respawn/re-route as the sync
+  runner. Previously self-healing was sync-only.
 - **Benchmark harness** (`benchmarks/bench.py`) — offline, deterministic
   measurements of throughput (sync + async runners), `CachingBrain` hit-rate and
   savings, distributed worker scaling over shared SQLite, and colony memory
-  footprint. Indicative numbers in `benchmarks/README.md`.
+  footprint, with a `--latency-ms` flag to simulate a real model (free,
+  reproducible). Indicative numbers in `benchmarks/README.md`.
 
 ### Fixed
 
@@ -20,6 +30,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   doesn't cover the journal-mode switch). Init now retries briefly, so many
   processes opening the same shared DB at once succeed. Surfaced by the new
   distributed benchmark; guarded by a regression test.
+- **Silent `max_tasks` truncation** — `run()` / `arun()` default to
+  `max_tasks=100`; queueing more than that quietly dropped the rest. It now
+  emits a `UserWarning` telling you how many were skipped and to raise
+  `max_tasks`.
 
 ## [0.10.0] — 2026-09-22
 
@@ -481,7 +495,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/Ranzim/ormica/releases/tag/v0.10.1
 [0.10.0]: https://github.com/Ranzim/ormica/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Ranzim/ormica/releases/tag/v0.9.0
 [0.8.0]: https://github.com/Ranzim/ormica/releases/tag/v0.8.0

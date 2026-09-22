@@ -272,6 +272,15 @@ def _dep_prompt(task: Task, by_id: dict[str, Task]) -> str:
 
 
 def _sorted_queue(tasks: list[Task], max_tasks: int) -> list[Task]:
+    if len(tasks) > max_tasks:
+        import warnings
+
+        warnings.warn(
+            f"{len(tasks)} tasks pending but max_tasks={max_tasks} — only the "
+            f"first {max_tasks} (by priority) will run this call. Pass "
+            f"max_tasks={len(tasks)} to run them all.",
+            stacklevel=3,
+        )
     return sorted(
         tasks,
         key=lambda t: (_PRIORITY_RANK.get(t.priority, 99), t.created_at),
@@ -504,6 +513,7 @@ class AsyncTaskRunner:
         concurrency: int = 5,
         on_task_start: Optional[TaskCallback] = None,
         on_task_done: Optional[TaskCallback] = None,
+        heal: Optional[Any] = None,
     ) -> None:
         if max_tasks < 1:
             raise ValueError("max_tasks must be >= 1")
@@ -515,6 +525,7 @@ class AsyncTaskRunner:
         self.concurrency = concurrency
         self.on_task_start = on_task_start
         self.on_task_done = on_task_done
+        self.heal = heal
 
     async def run(self, tasks: list[Task]) -> RunResult:
         queue = _sorted_queue(tasks, self.max_tasks)
@@ -528,15 +539,16 @@ class AsyncTaskRunner:
         )
 
         started = time()
-        bands: dict[int, list[Task]] = {}
-        for t in queue:
-            rank = _PRIORITY_RANK.get(t.priority, 99)
-            bands.setdefault(rank, []).append(t)
-
         sem = asyncio.Semaphore(self.concurrency)
-        for rank in sorted(bands):
-            band = bands[rank]
-            await asyncio.gather(*(self._bounded(t, sem) for t in band))
+        if self.heal is not None:
+            await self._run_healing_async(queue, sem)
+        else:
+            bands: dict[int, list[Task]] = {}
+            for t in queue:
+                rank = _PRIORITY_RANK.get(t.priority, 99)
+                bands.setdefault(rank, []).append(t)
+            for rank in sorted(bands):
+                await asyncio.gather(*(self._bounded(t, sem) for t in bands[rank]))
 
         result = _tally(queue)
         result.seconds = time() - started
@@ -552,6 +564,64 @@ class AsyncTaskRunner:
     async def _bounded(self, task: Task, sem: asyncio.Semaphore) -> None:
         async with sem:
             await self._process(task)
+
+    async def _run_healing_async(self, queue: list[Task], sem: asyncio.Semaphore) -> None:
+        """Concurrent healing: run a pass, then retry / break / dead-letter the
+        failures, and run another pass — mirroring the sync :class:`HealingPolicy`
+        while keeping each pass parallel."""
+        h = self.heal
+        now = self.org.memory.now
+        attempts: dict = {}
+        fails: dict = {}
+        open_until: dict = {}
+        pending = list(queue)
+
+        while pending:
+            for t in pending:                     # reroute off open circuits
+                tgt = t.target or ""
+                if tgt and h.reroute and open_until.get(tgt, 0.0) > now():
+                    t.target = ""
+            await asyncio.gather(*(self._bounded(t, sem) for t in pending))
+
+            retry: list[Task] = []
+            for t in pending:
+                tgt = t.target or ""
+                if t.status == "done":
+                    fails[tgt] = 0
+                    continue
+                attempts[t.id] = attempts.get(t.id, 0) + 1
+                fails[tgt] = fails.get(tgt, 0) + 1
+                if tgt and fails[tgt] >= h.circuit_threshold and open_until.get(tgt, 0.0) <= now():
+                    open_until[tgt] = now() + h.circuit_cooldown
+                    if h.respawn:
+                        self._respawn(tgt)
+                if attempts[t.id] <= h.max_retries:
+                    t.status = "pending"
+                    t.error = None
+                    retry.append(t)
+                else:
+                    t.status = "dead"
+                    self.org._dead_letter.append(t)
+                    _record_task(self.org, t, self.org.root)
+                    self.org.events.emit(
+                        TASK_DEAD, source="healing", task_id=t.id,
+                        target=t.target, error=t.error,
+                    )
+            pending = retry
+            if pending and h.backoff_base:
+                await asyncio.sleep(h.backoff(1))
+
+    def _respawn(self, name: str) -> None:
+        """Prune a chronically-failing node and grow a fresh one in its place."""
+        try:
+            node = self.org.find(name)
+            parent, role = node.parent, node.role
+            if parent is None:
+                return
+            self.org.prune(node)
+            self.org.spawn(name, under=parent, role=role)
+        except Exception:  # noqa: BLE001 — healing must never crash the run
+            pass
 
     def _task_prompt(self, task: Task) -> str:
         """The prompt handed to the agent. :class:`AsyncDagRunner` overrides this
