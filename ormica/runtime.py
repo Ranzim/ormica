@@ -62,6 +62,8 @@ class Task:
     # a runtime type and is not persisted; ``artifact`` is.
     produces: Optional[Any] = None
     artifact: Optional[Artifact] = None
+    # tokens the brain reported for this task's run (0 until it runs).
+    tokens_used: int = 0
 
     @classmethod
     def from_record(cls, payload: dict) -> "Task":
@@ -89,6 +91,14 @@ class RunResult:
     succeeded: int = 0
     failed: int = 0
     tokens_used: int = 0
+    seconds: float = 0.0
+
+    def summary(self) -> str:
+        """A one-line run report: outcomes, tokens burned, wall-clock time."""
+        return (
+            f"processed={self.processed} succeeded={self.succeeded} "
+            f"failed={self.failed} tokens={self.tokens_used} in {self.seconds:.2f}s"
+        )
 
 
 BrainOrRouter = Union[Brain, Router]
@@ -272,9 +282,10 @@ def _tally(queue: list[Task]) -> RunResult:
     result = RunResult()
     for t in queue:
         result.processed += 1
+        result.tokens_used += getattr(t, "tokens_used", 0) or 0
         if t.status == "done":
             result.succeeded += 1
-        elif t.status == "failed":
+        elif t.status in ("failed", "dead"):
             result.failed += 1
     return result
 
@@ -317,12 +328,14 @@ class TaskRunner:
         queue = _sorted_queue(tasks, self.max_tasks)
         _checkpoint_queue(self.org, queue)
         self.org.events.emit(RUN_STARTED, source="runner", n_tasks=len(queue), mode="sync")
+        started = time()
         if self.heal is not None:
             self._run_healing(queue)
         else:
             for task in queue:
                 self._process(task)
         result = _tally(queue)
+        result.seconds = time() - started
         self.org.events.emit(
             RUN_COMPLETED,
             source="runner",
@@ -442,6 +455,7 @@ class TaskRunner:
             else:
                 response = agent.act(prompt)
             tokens_used = response.tokens_used
+            task.tokens_used += tokens_used
             _capture_result(task, response)
         except Exception as exc:
             task.error = f"{type(exc).__name__}: {exc}"
@@ -513,6 +527,7 @@ class AsyncTaskRunner:
             concurrency=self.concurrency,
         )
 
+        started = time()
         bands: dict[int, list[Task]] = {}
         for t in queue:
             rank = _PRIORITY_RANK.get(t.priority, 99)
@@ -524,6 +539,7 @@ class AsyncTaskRunner:
             await asyncio.gather(*(self._bounded(t, sem) for t in band))
 
         result = _tally(queue)
+        result.seconds = time() - started
         self.org.events.emit(
             RUN_COMPLETED,
             source="runner",
@@ -580,6 +596,7 @@ class AsyncTaskRunner:
             else:
                 response = await agent.act(prompt)
             tokens_used = response.tokens_used
+            task.tokens_used += tokens_used
             _capture_result(task, response)
         except Exception as exc:
             task.error = f"{type(exc).__name__}: {exc}"
@@ -644,6 +661,7 @@ class AsyncDagRunner(AsyncTaskRunner):
         return _dep_prompt(task, getattr(self, "_dag_by_id", {}))
 
     async def run(self, tasks: list[Task]) -> RunResult:
+        started = time()
         queue = _sorted_queue(tasks, self.max_tasks)
         _checkpoint_queue(self.org, queue)
         by_id = {t.id: t for t in queue}
@@ -727,6 +745,7 @@ class AsyncDagRunner(AsyncTaskRunner):
             _schedule_ready(aws)
 
         result = _tally(queue)
+        result.seconds = time() - started
         self.org.events.emit(
             RUN_COMPLETED,
             source="runner",

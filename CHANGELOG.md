@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Secret redaction (security).** Credential-shaped strings (OpenAI / Anthropic
+  / Google keys, AWS, GitHub, Slack tokens, `Bearer` headers) are now masked
+  before a Thought Trail is persisted, so a pasted key in a prompt can't leak
+  into `traces/`. `redact()` / `redact_deep()` are exported for use anywhere;
+  the `TraceObserver` applies them automatically on persist.
+- **Run report (speed / cost visibility).** `RunResult` now carries
+  `tokens_used` (summed across tasks) and `seconds` (wall-clock), with a
+  `.summary()` one-liner; each `Task` records its own `tokens_used`. Pairs with
+  `CachingBrain` to *show* the savings.
 - **`CachingBrain` — memoize identical LLM calls (speed + cost).** Wrap any brain
   so a prompt it has already seen returns the stored `Response` — no second API
   call, no second bill. A big win where colonies repeat themselves (Forest

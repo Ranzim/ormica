@@ -185,10 +185,13 @@ class TraceObserver:
     def _persist(self, trace: Trace) -> None:
         from dataclasses import asdict
 
+        from ormica.redact import redact_deep
+
         try:
+            # scrub credential-shaped strings before anything hits durable storage
             self.store.write(
                 f"traces/{trace.task_id}",
-                asdict(trace),
+                redact_deep(asdict(trace)),
                 author=trace.node_id or None,
             )
         except Exception:  # noqa: BLE001 — observability must not crash the run
