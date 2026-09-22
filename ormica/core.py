@@ -549,13 +549,15 @@ class Ormica:
         concurrency: int = 5,
         on_task_start=None,
         on_task_done=None,
+        heal=None,
     ):
         """Async run — fans out same-priority tasks concurrently.
 
         ``brain`` is an :class:`AsyncBrain` or a :class:`Router` whose
         members are async cortexes. Bands of equal priority run via
         ``asyncio.gather`` capped at ``concurrency``; higher priority
-        bands finish before lower ones start.
+        bands finish before lower ones start. Pass ``heal=HealingPolicy(...)``
+        for self-repair (each retry pass stays concurrent).
         """
         from ormica.runtime import AsyncTaskRunner
 
@@ -566,6 +568,7 @@ class Ormica:
             concurrency=concurrency,
             on_task_start=on_task_start,
             on_task_done=on_task_done,
+            heal=heal,
         )
         result = await runner.run(self.pending_tasks())
         self._maybe_evaporate()
