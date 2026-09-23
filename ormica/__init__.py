@@ -22,6 +22,7 @@ from ormica.artifact import Artifact, ArtifactError, ArtifactType
 from ormica.core import Ormica
 from ormica.delegation import DelegationBuilder
 from ormica.distributed import DistributedWorker
+from ormica.evolution import EvolutionResult, Genome, evolve
 from ormica.forest import Forest, ForestResult, Vote, majority_vote, unanimous
 from ormica.healing import HealingPolicy
 from ormica.learning import StigmergicRouter, route_reward
@@ -47,8 +48,10 @@ __all__ = [
     "AsyncPlanner",
     "DelegationBuilder",
     "DistributedWorker",
+    "EvolutionResult",
     "Forest",
     "ForestResult",
+    "Genome",
     "HealingPolicy",
     "Message",
     "Ormica",
@@ -63,6 +66,7 @@ __all__ = [
     "Task",
     "Vote",
     "__version__",
+    "evolve",
     "majority_vote",
     "redact",
     "redact_deep",
