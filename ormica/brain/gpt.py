@@ -99,9 +99,9 @@ class GPTBrain:
     lazily so the rest of brain stays usable without the optional dependency.
     Install with: ``pip install ormica[openai]``.
 
-    Intentionally minimal: no function calling, no streaming, no temperature
-    knob. Layer those on top when a caller actually needs them — this
-    adapter's job is one round trip per ``think()``.
+    Supports function calling — pass ``tools=`` and any tool calls come back
+    on ``Response.tool_calls``. Intentionally no streaming or temperature
+    knob; this adapter's job is one round trip per ``think()``.
     """
 
     name = "openai"
