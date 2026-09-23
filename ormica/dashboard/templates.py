@@ -69,6 +69,7 @@ def _layout(*, title: str, body: str) -> str:
         '<a href="/tree">tree</a>'
         '<a href="/rules">rules</a>'
         '<a href="/signals">signals</a>'
+        '<a href="/learning">learning</a>'
         '<a href="/traces">traces</a></nav>'
         f"<h1>{escape(title)}</h1>"
         f"{body}"
@@ -257,6 +258,43 @@ def trace_detail(org, task_id: str) -> str:
         if entry.response_content:
             parts.append(f"<p><strong>→</strong> {escape(entry.response_content)}</p>")
     return _layout(title=f"Trace {task_id[:8]}", body="".join(parts))
+
+
+def learning_page(org) -> str:
+    """What the colony has learned: the specialist it now prefers per task kind."""
+    trails = [s for s in org.signals.trails() if s.topic.startswith("route:")]
+    by_kind: dict = {}
+    for s in trails:
+        parts = s.topic.split(":", 2)
+        if len(parts) < 3:
+            continue
+        _, kind, cand = parts
+        by_kind.setdefault(kind, []).append((cand, s.strength))
+
+    if not by_kind:
+        body = (
+            '<p class="empty">No learning yet. Route work with '
+            "<code>org.dispatch(description, kind=…, candidates=…)</code> and the "
+            "colony will learn which agent is best for each kind of task.</p>"
+        )
+        return _layout(title="learning", body=body)
+
+    blocks = []
+    for kind in sorted(by_kind):
+        rows = sorted(by_kind[kind], key=lambda x: x[1], reverse=True)
+        top = rows[0][1] or 1.0
+        trs = "".join(
+            f"<tr><td>{escape(c)}</td>"
+            f'<td><span style="color:var(--gold)">{"█" * round(v / top * 18)}</span> '
+            f"{v:.2f}</td></tr>"
+            for c, v in rows
+        )
+        blocks.append(
+            f'<h2>{escape(kind)} '
+            f'<span class="muted">→ specialist: {escape(rows[0][0])}</span></h2>'
+            f"<table>{trs}</table>"
+        )
+    return _layout(title="learning", body="".join(blocks))
 
 
 # --- live graph ---------------------------------------------------------------

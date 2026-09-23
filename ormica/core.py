@@ -121,6 +121,9 @@ class Ormica:
         self._node_tools: dict = {}
         # Tasks that exhausted their healing retries (see HealingPolicy).
         self._dead_letter: list = []
+        # Persistent learner for ambient learning (org.dispatch). Lazy so the
+        # cost is zero unless you use it; its pheromone lives in self.signals.
+        self._learner: Any = None
 
     def _emit_spawn(self, node) -> None:
         """Tree hook: announce a new node on the bus (live-view / audit)."""
@@ -593,6 +596,36 @@ class Ormica:
         result = await runner.run(self.pending_tasks())
         self._maybe_evaporate()
         return result
+
+    @property
+    def learner(self):
+        """The persistent learner behind :meth:`dispatch` (created on first use)."""
+        if self._learner is None:
+            from ormica.learning import StigmergicRouter
+
+            self._learner = StigmergicRouter(self.signals)
+        return self._learner
+
+    def dispatch(self, description: str, *, kind: str, candidates: list, brain, **task_kwargs):
+        """Route a task to the learned-best agent for its *kind*, run it, and learn.
+
+        Ambient learning in one call: the colony picks whichever candidate has
+        done this *kind* of work best so far, runs the task there, and reinforces
+        from the real outcome (verified and cheap wins). Call it repeatedly and
+        it gets better at your work on its own — no manual router wiring. This is
+        domain-blind: ``kind`` and ``candidates`` are yours to define.
+        """
+        from ormica.learning import route_reward
+        from ormica.runtime import Task, TaskRunner
+
+        names = [c.name if hasattr(c, "name") else str(c) for c in candidates]
+        choice = self.learner.select(kind, names)
+        task = Task(description=description, target=choice, **task_kwargs)
+        TaskRunner(self, brain=brain).run([task])
+        self.learner.reinforce(kind, choice, route_reward(task))
+        self._tasks.append(task)
+        self._maybe_evaporate()
+        return task
 
     def stigmergic_router(self, **kwargs):
         """A learning router over this colony's pheromone field.

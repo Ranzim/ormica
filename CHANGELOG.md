@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-09-23
+
+Ambient learning: the flywheel turns on its own.
+
+### Added
+
+- **`org.dispatch(description, kind=, candidates=, brain=)`** — ambient learning
+  in one call. It routes a task to the learned-best candidate for its kind, runs
+  it, and reinforces from the real outcome (verified and cheap wins). Call it
+  repeatedly and the colony gets better at your work with no manual router
+  wiring. `org.learner` exposes the persistent learner. Domain-blind: `kind` and
+  `candidates` are yours to define.
+- **Dashboard learning view** (`/learning`) — shows, per task kind, which agent
+  the colony now prefers and how strong the preference is. The emergent
+  specialists, made visible.
+
 ## [0.11.0] — 2026-09-23
 
 The learning release: a colony that gets better over runs, evolves its strategy,
@@ -550,7 +566,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/Ranzim/ormica/releases/tag/v0.11.1
 [0.11.0]: https://github.com/Ranzim/ormica/releases/tag/v0.11.0
 [0.10.1]: https://github.com/Ranzim/ormica/releases/tag/v0.10.1
 [0.10.0]: https://github.com/Ranzim/ormica/releases/tag/v0.10.0
