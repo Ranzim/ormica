@@ -20,6 +20,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   the learning survives restarts; and because trails decay, stale advice fades.
   This is Ant Colony Optimization applied to agent workflows. See
   `examples/learning` for a colony that discovers its own specialist.
+- **Learn the whole strategy, not just routing.** The same `StigmergicRouter`
+  learns over any `(kind, candidates)` pair, so it also learns which **tool** and
+  which **decomposition** works best for a kind of task. See
+  `examples/learning_strategy`.
+- **Evolutionary Forest.** Treat each colony's `Preferences` as a genome, score
+  it, keep the best, and breed the next generation by crossover and mutation.
+  `evolve(evaluate, generations=, population=)` returns the winning strategy and
+  the per-generation history. Self-evolving strategy search over the objective
+  space.
+- **MCP bridge, both directions.** Consume any MCP server as Ormica tools
+  (`ormica.mcp.MCPClient(...).as_tools()`), and expose a colony *as* an MCP
+  server (`python -m ormica.mcp`, or `ormica.mcp.serve_stdio(org, brain)`) so any
+  MCP client — including Claude — can hand a whole colony a goal. Minimal stdlib
+  JSON-RPC over stdio, no new dependencies.
 
 ## [0.10.1] — 2026-09-22
 
