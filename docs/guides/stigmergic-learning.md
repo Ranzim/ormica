@@ -32,6 +32,22 @@ router.reinforce("billing-question", node, route_reward(task))
 - `best(kind, candidates)` and `preferences(kind, candidates)` read out what the
   colony has learned.
 
+## Ambient learning with dispatch
+
+If you do not want to wire the router by hand, `org.dispatch` does the whole loop
+for you: it routes a task to the learned best candidate for its kind, runs it,
+and reinforces from the real outcome. Call it repeatedly and the colony gets
+better at your work on its own.
+
+```python
+org.dispatch("Summarize this week's numbers", kind="report",
+             candidates=["alice", "bob", "carol"], brain=brain)
+```
+
+The dashboard has a **learning** page that shows, per kind, which agent the
+colony now prefers and how strong that preference is. Watch the specialists
+emerge as you use it.
+
 ## It learns your whole strategy, not just routing
 
 The router works over any `(kind, candidates)` pair, so the same call learns the

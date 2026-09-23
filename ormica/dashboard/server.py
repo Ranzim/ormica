@@ -51,6 +51,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._html(templates.rules(self.org))
         elif path == "/signals":
             self._html(templates.signals(self.org))
+        elif path == "/learning":
+            self._html(templates.learning_page(self.org))
         elif path == "/traces":
             self._html(templates.traces_list(self.org))
         elif path.startswith("/traces/"):
