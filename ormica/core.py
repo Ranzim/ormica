@@ -110,6 +110,11 @@ class Ormica:
         # backends (sqlite) don't accumulate stale data across invocations.
         self.signals_auto_evaporate: bool = signals_auto_evaporate
         self.events: EventBus = EventBus()
+        # Always-on metrics: a cheap event counter for monitoring (org.metrics()).
+        from ormica.observe import MetricsObserver
+
+        self._metrics = MetricsObserver()
+        self.events.subscribe(self._metrics)
         self._tasks: list = []
         # Custom tools attached per node (by node id). The runner hands these to
         # the node's agent alongside any emit/message tools it declared.
@@ -525,6 +530,21 @@ class Ormica:
     def dead_letter(self) -> list:
         """Tasks that exhausted their healing retries (see :meth:`run` ``heal=``)."""
         return list(self._dead_letter)
+
+    def metrics(self, *, brain: Any = None) -> dict:
+        """Live monitoring snapshot: outcomes, failure and verify-retry rates,
+        spawns/prunes, memory writes, messages, and total tokens. Pass a
+        ``CachingBrain`` to include its hit-rate. Complements :meth:`health`.
+        """
+        from ormica.observe import cache_stats
+
+        snap = self._metrics.snapshot()
+        snap["colony"] = self.health()
+        if brain is not None:
+            cache = cache_stats(brain)
+            if cache:
+                snap["cache"] = cache
+        return snap
 
     def health(self) -> dict:
         """A snapshot of the colony's work: task states, dead-letter, node count."""

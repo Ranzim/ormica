@@ -41,3 +41,11 @@ def test_worker_requires_id(tmp_path):
 
     with pytest.raises(SystemExit):        # --id is required
         main(["worker", "--config", _config(tmp_path)])
+
+
+def test_mcp_command_is_wired():
+    from ormica.cli.main import build_parser
+
+    args = build_parser().parse_args(["mcp", "--brain", "mock"])
+    assert args.func.__name__ == "cmd_mcp"
+    assert args.brain == "mock"

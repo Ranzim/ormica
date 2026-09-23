@@ -39,15 +39,29 @@ class StigmergicRouter:
         self,
         signals: Any,
         *,
-        temperature: float = 0.5,
-        explore: float = 0.3,
+        temperature: float = 0.6,
+        explore: float = 0.4,
+        epsilon: float = 0.05,
+        max_strength: float = 4.0,
         prefix: str = "route",
     ) -> None:
         if temperature <= 0:
             raise ValueError("temperature must be > 0")
+        if not (0.0 <= epsilon < 1.0):
+            raise ValueError("epsilon must be in [0, 1)")
         self.signals = signals
         self.temperature = temperature
         self.explore = explore     # baseline weight so untried options still get picked
+        # epsilon-random floor: this fraction of picks are uniformly random, which
+        # guarantees every option keeps being sampled so the router can never
+        # hard-lock onto an early winner. The best option therefore keeps getting
+        # tried and its trail keeps being reinforced.
+        self.epsilon = epsilon
+        # MMAS-style ceiling: cap the trail strength used in selection so no
+        # option can run away and starve the rest. This keeps exploration alive
+        # and prevents locking onto whatever happened to be tried first. Set to
+        # 0 to disable (pure, unbounded cumulative stigmergy).
+        self.max_strength = max_strength
         self.prefix = prefix
 
     def _key(self, kind: str, candidate: str) -> str:
@@ -66,8 +80,11 @@ class StigmergicRouter:
         if not candidates:
             raise ValueError("need at least one candidate")
         r = rng or random
+        if self.epsilon and r.random() < self.epsilon:
+            return r.choice(candidates)          # forced exploration, no lock-in
         strengths = self.preferences(kind, candidates)
-        logits = [(strengths[c] + self.explore) / self.temperature for c in candidates]
+        cap = self.max_strength or float("inf")
+        logits = [(min(strengths[c], cap) + self.explore) / self.temperature for c in candidates]
         hi = max(logits)                                   # subtract max for numerical stability
         weights = [math.exp(x - hi) for x in logits]
         total = sum(weights)

@@ -226,11 +226,12 @@ function matchF(n){switch(filter){
 
 // --- live stream ---
 let evTotal=0,evWindow=[],totalEnergy=0;
-const cnt={fail:0,retry:0,death:0,harvest:0};
+const cnt={fail:0,retry:0,death:0,harvest:0,dead:0};
 const rows=document.getElementById('rows');
 const LOGCOL={'node.spawned':'#5b9dff','node.pruned':'#f87171','memory.write':'#a3e635',
   'memory.read':'#7dd3fc','think.recorded':'#e5e7eb','message.sent':'#f59e0b',
-  'task.done':'#38e2c8','task.failed':'#f87171','verify.retry':'#fbbf24','verify.failed':'#f87171'};
+  'task.done':'#38e2c8','task.failed':'#f87171','task.dead':'#ef4444',
+  'verify.retry':'#fbbf24','verify.failed':'#f87171'};
 function log(type,msg){const r=document.createElement('div');r.className='r';
   r.innerHTML='<span class="d" style="background:'+(LOGCOL[type]||'#5f7088')+'"></span><span class="k">'+
     type.replace(/^[a-z]+\./,'')+'</span><span class="m"></span>';
@@ -261,6 +262,8 @@ es.onmessage=ev=>{let e;try{e=JSON.parse(ev.data);}catch(_){return;}
       log(e.type,short(p.node_id)+' “'+(p.response_content||'').slice(0,30)+'”');break;}
     case'message.sent':addEdge(p.sender,p.recipient,'msg');pulse(p.sender,p.recipient,'msg');
       log(e.type,short(p.sender)+' ✉ '+short(p.recipient));break;
+    case'task.dead':{const n=[...nodes.values()].find(x=>x.label===p.target);if(n){n.risk=true;spark(n,'burn');}
+      cnt.dead++;cnt.fail++;log(e.type,(p.target||'')+' gave up (dead-letter)');break;}
     case'task.failed':{const n=[...nodes.values()].find(x=>x.label===p.target);if(n)n.risk=true;cnt.fail++;
       log(e.type,(p.target||'')+' failed');break;}
     case'verify.retry':cnt.retry++;log(e.type,summary(p));break;
@@ -402,6 +405,7 @@ setInterval(()=>{let a=0,k=0,o=0,es=[];for(const n of nodes.values()){
   const busy=[...nodes.values()].filter(n=>n.kind==='agent').sort((x,y)=>y.energy-x.energy)[0];
   const ins=[];
   if(cnt.fail)ins.push('<div class="i">⚠ <b>'+cnt.fail+'</b> failures — review those branches</div>');
+  if(cnt.dead)ins.push('<div class="i">☠ <b>'+cnt.dead+'</b> dead-lettered — gave up after retries</div>');
   if(cnt.retry)ins.push('<div class="i">↻ <b>'+cnt.retry+'</b> verify retries — outputs needed correcting</div>');
   ins.push('<div class="i">🪶 <b>'+o+'</b> harvests brought home</div>');
   if(busy&&busy.energy)ins.push('<div class="i">🔥 busiest: <b>'+busy.label+'</b> ('+busy.energy+' tok)</div>');
