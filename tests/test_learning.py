@@ -84,6 +84,19 @@ def test_route_reward_favours_cheap_success():
     assert failed == 0.0
 
 
-def test_router_rejects_bad_temperature():
+def test_router_rejects_bad_params():
     with pytest.raises(ValueError):
         StigmergicRouter(_org().signals, temperature=0)
+    with pytest.raises(ValueError):
+        StigmergicRouter(_org().signals, epsilon=1.0)
+
+
+def test_epsilon_floor_prevents_hard_lock_in():
+    # even after massively favoring one option, the others keep being sampled,
+    # so the router can never permanently lock onto an early winner
+    r = _org().stigmergic_router()               # defaults include epsilon + trail cap
+    r.reinforce("k", "alice", 1000.0)
+    rng = random.Random(0)
+    picks = [r.select("k", CANDS, rng=rng) for _ in range(400)]
+    assert picks.count("alice") > 300            # still mostly alice (it is best)
+    assert picks.count("bob") >= 2 and picks.count("carol") >= 2   # but never starved

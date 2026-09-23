@@ -43,6 +43,9 @@ The runtime layer that sits on top of the four pillars:
 - [Async runs and multi-provider routing](./guides/async-and-routing.md) — `Router` + `org.arun`.
 - [Distributed execution](./guides/distributed-execution.md) — many workers drain one shared queue via atomic leases; `org.run_worker`.
 - [The Forest](./guides/forest-voting.md) — many independent colonies vote on one goal; `Forest` + `majority_vote`.
+- [Stigmergic learning](./guides/stigmergic-learning.md) — a colony that gets better over runs; `StigmergicRouter`.
+- [The Evolutionary Forest](./guides/evolutionary-forest.md) — breed better strategies; `evolve`.
+- [MCP bridge](./guides/mcp.md) — consume MCP servers as tools, and expose a colony as an MCP server.
 - [Web dashboard](./guides/dashboard.md) — view tree, signals, rules, traces; watch events live via SSE.
 - [Human approvals](./guides/human-approvals.md) — `ConsoleApprover` for dev, `CallbackApprover` for Slack/web/queue.
 

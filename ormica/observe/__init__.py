@@ -33,6 +33,7 @@ from .observer import (
     LogObserver,
     Observer,
 )
+from .metrics import MetricsObserver, cache_stats
 from .export import (
     trace_to_dict,
     trace_to_json,
@@ -49,6 +50,7 @@ __all__ = [
     "Event",
     "EventBus",
     "LogObserver",
+    "MetricsObserver",
     "MEMORY_READ",
     "MEMORY_WRITE",
     "MESSAGE_SENT",
@@ -68,6 +70,7 @@ __all__ = [
     "Trace",
     "TraceEntry",
     "TraceObserver",
+    "cache_stats",
     "emit_think_event",
     "trace_to_dict",
     "trace_to_json",

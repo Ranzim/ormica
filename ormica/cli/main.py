@@ -33,6 +33,20 @@ _DEFAULT_MODELS = {
 }
 
 
+# --- terminal styling (only when stdout is a TTY, so pipes stay clean) ---------
+
+def _color(text: str, code: str) -> str:
+    return f"\033[{code}m{text}\033[0m" if sys.stdout.isatty() else text
+
+
+def _bold(t: str) -> str: return _color(t, "1")
+def _dim(t: str) -> str: return _color(t, "2")
+def _gold(t: str) -> str: return _color(t, "38;5;214")
+def _green(t: str) -> str: return _color(t, "32")
+def _red(t: str) -> str: return _color(t, "31")
+def _cyan(t: str) -> str: return _color(t, "36")
+
+
 # --- command implementations ---------------------------------------------------
 
 
@@ -109,10 +123,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"failed={result.failed}"
     )
     for task in org.tasks:
-        mark = {"done": "[ok]", "failed": "[fail]"}.get(task.status, "[--]")
+        mark = {"done": _green("[ok]"), "failed": _red("[fail]")}.get(task.status, _dim("[--]"))
         body = task.result or task.error or ""
         target = task.target or "root"
-        print(f"  {mark} [{task.priority}] {target}: {body}")
+        print(f"  {mark} {_dim('[' + task.priority + ']')} {_cyan(target)}: {body}")
     return 0 if result.failed == 0 else 2
 
 
@@ -623,10 +637,10 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 
     from ormica import __version__
 
-    print("ormica doctor")
-    print(f"  ormica   {__version__}")
+    print(_bold(_gold("🐜 ormica doctor")))
+    print(f"  ormica   {_cyan(__version__)}")
     print(f"  python   {platform.python_version()}  ({platform.system()})")
-    print("  provider SDKs:")
+    print(_bold("  provider SDKs:"))
     for mod, label in (
         ("anthropic", "claude"),
         ("openai", "openai / universal (ollama, groq, …)"),
@@ -636,17 +650,19 @@ def cmd_doctor(_: argparse.Namespace) -> int:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")   # SDKs may warn on import; keep output clean
                 __import__(mod)
-            mark = "ok "
+            mark = _green("ok")
         except ImportError:
-            mark = "-- "
+            mark = _dim("--")
         print(f"    [{mark}] {label}")
-    print("  API keys (presence only — values never shown):")
+    print(_bold("  API keys (presence only — values never shown):"))
     for env in (
         "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
         "OPENROUTER_API_KEY", "GROQ_API_KEY", "TOGETHER_API_KEY", "DEEPSEEK_API_KEY",
     ):
-        print(f"    {'set' if os.environ.get(env) else ' — '}  {env}")
-    print(f"  sandbox (POSIX code execution): {'available' if os.name == 'posix' else 'unavailable'}")
+        flag = _green("set") if os.environ.get(env) else _dim(" — ")
+        print(f"    {flag}  {env}")
+    box = "available" if os.name == "posix" else "unavailable"
+    print(f"  sandbox (POSIX code execution): {_green(box) if os.name == 'posix' else _dim(box)}")
     return 0
 
 
@@ -737,6 +753,36 @@ def cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mcp(args: argparse.Namespace) -> int:
+    """Serve a colony as an MCP server over stdio.
+
+    Any MCP client (including Claude) can then hand this colony a goal via the
+    ``ormica_ask`` / ``ormica_solve`` tools. The JSON-RPC channel is stdout, so
+    startup notices go to stderr only.
+    """
+    from ormica import Ormica
+    from ormica.mcp import serve_stdio
+
+    path = Path(args.config)
+    if path.exists():
+        try:
+            org = _build_org(load_config(path))
+        except Exception as exc:  # noqa: BLE001
+            print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+    else:
+        org = Ormica("mcp-colony")
+    try:
+        brain = _standalone_brain(args.brain, args.model)
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    print(f"ormica MCP server on stdio (brain={args.brain}). Connect an MCP client; Ctrl+C to stop.",
+          file=sys.stderr)
+    serve_stdio(org, brain)
+    return 0
+
+
 def cmd_health(args: argparse.Namespace) -> int:
     """Show a colony's health snapshot (from its persisted state)."""
     path = Path(args.config)
@@ -750,9 +796,12 @@ def cmd_health(args: argparse.Namespace) -> int:
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
     h = org.health()
-    print(f"colony: {org.name}")
+    print(_bold(_gold(f"🐜 {org.name}")) + _dim("  health"))
+    color = {"done": _green, "failed": _red, "dead": _red, "dead_letter": _red}
     for k in ("nodes", "tasks", "done", "failed", "dead", "pending", "dead_letter"):
-        print(f"  {k:12} {h[k]}")
+        val = str(h[k])
+        val = color[k](val) if k in color and h[k] else val
+        print(f"  {_dim(k.ljust(12))} {val}")
     return 0
 
 
@@ -997,6 +1046,13 @@ def build_parser() -> argparse.ArgumentParser:
     health = sub.add_parser("health", help="Show a colony's health snapshot")
     health.add_argument("--config", default=str(DEFAULT_CONFIG))
     health.set_defaults(func=cmd_health)
+
+    mcp = sub.add_parser("mcp", help="Serve a colony as an MCP server over stdio")
+    mcp.add_argument("--config", default=str(DEFAULT_CONFIG),
+                     help="Colony config to serve (falls back to a fresh colony)")
+    mcp.add_argument("--brain", default="mock", choices=_BRAIN_CHOICES)
+    mcp.add_argument("--model", default=None, help="Override the model for the brain")
+    mcp.set_defaults(func=cmd_mcp)
 
     return parser
 

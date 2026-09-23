@@ -15,7 +15,7 @@ Quick start:
 Docs: https://github.com/Ranzim/ormica/tree/master/docs
 """
 
-__version__ = "0.10.1"
+__version__ = "0.11.0"
 
 from ormica.agent import Agent, AsyncAgent
 from ormica.artifact import Artifact, ArtifactError, ArtifactType

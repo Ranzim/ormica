@@ -10,49 +10,67 @@ from html import escape
 
 
 _BASE_CSS = """
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-         max-width: 980px; margin: 1.5rem auto; padding: 0 1rem;
-         color: #1a1a1a; background: #fcfbf7; line-height: 1.5; }
-  h1, h2 { margin-bottom: .25rem; color: #2c1810; }
-  h1 { border-bottom: 2px solid #d4a368; padding-bottom: .4rem; }
-  nav { margin: 1rem 0 1.5rem; padding: .5rem .75rem;
-        background: #f3eee2; border-radius: 6px; }
-  nav a { margin-right: 1rem; text-decoration: none; color: #2c1810;
-          font-weight: 500; }
-  nav a:hover { color: #d4a368; }
-  pre { background: #f3eee2; padding: .75rem; border-radius: 6px;
-        overflow-x: auto; font-size: .85rem; }
-  table { width: 100%; border-collapse: collapse; margin: .5rem 0; }
-  th, td { padding: .4rem .6rem; text-align: left;
-           border-bottom: 1px solid #e5dec9; }
-  th { background: #f3eee2; }
-  .tag { display: inline-block; padding: .1rem .4rem; border-radius: 4px;
-         background: #d4a368; color: white; font-size: .75rem; margin-left: .25rem; }
-  .tag.soft { background: #6c8b7a; }
-  .tag.hard { background: #c97257; }
-  .tag.stage { background: #5a7a9e; }
-  .muted { color: #888; }
-  .empty { color: #888; font-style: italic; padding: 1rem 0; }
-  #live { margin-top: 1rem; padding: .5rem .75rem; background: #f8f4e8;
-          border-left: 3px solid #d4a368; border-radius: 4px;
-          font-family: ui-monospace, "SF Mono", monospace; font-size: .85rem;
-          min-height: 2rem; max-height: 14rem; overflow-y: auto; }
-  #live .row { padding: .15rem 0; }
+  :root{--bg:#0a0f1a;--panel:rgba(20,28,44,.72);--line:rgba(140,165,200,.12);
+    --text:#c9d4e3;--head:#eaf1fb;--muted:#6b7a90;--gold:#f4b942;--teal:#38e2c8;
+    --blue:#5b9dff;--pink:#f472b6;--red:#f87171}
+  *{box-sizing:border-box}
+  body{font-family:ui-sans-serif,-apple-system,"Segoe UI",sans-serif;
+    max-width:1000px;margin:0 auto;padding:0 1.1rem 3rem;color:var(--text);line-height:1.55;
+    background:
+      radial-gradient(ellipse at 22% 0%,rgba(96,128,255,.10),transparent 55%),
+      radial-gradient(ellipse at 90% 10%,rgba(164,92,224,.09),transparent 55%),
+      radial-gradient(ellipse at 50% 120%,rgba(40,204,184,.06),transparent 55%),
+      linear-gradient(180deg,#0b1220,#070b14 60%,#04070e)}
+  a{color:var(--teal);text-decoration:none}a:hover{color:var(--gold)}
+  header{display:flex;align-items:center;gap:.6rem;padding:1.4rem 0 .3rem}
+  header .brand{font-weight:700;letter-spacing:.5px;color:var(--head);font-size:1.15rem}
+  header .brand b{color:var(--gold)}
+  header .sub{color:var(--muted);font-size:.8rem;margin-left:.2rem}
+  h1{font-size:1.5rem;color:var(--head);margin:.6rem 0 .2rem;font-weight:650}
+  h2{font-size:.8rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);
+    margin:1.6rem 0 .5rem;font-weight:600}
+  nav{display:flex;flex-wrap:wrap;gap:.4rem;margin:.8rem 0 1.4rem}
+  nav a{padding:.32rem .8rem;border-radius:999px;font-size:.82rem;font-weight:500;
+    color:var(--text);background:rgba(255,255,255,.045);border:1px solid var(--line)}
+  nav a:hover{background:rgba(244,185,66,.14);border-color:rgba(244,185,66,.35);color:var(--gold)}
+  table{width:100%;border-collapse:separate;border-spacing:0;margin:.4rem 0;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    backdrop-filter:blur(8px)}
+  th,td{padding:.55rem .85rem;text-align:left;border-bottom:1px solid var(--line);font-size:.9rem}
+  tr:last-child th,tr:last-child td{border-bottom:none}
+  th{color:var(--muted);font-weight:600;width:40%}
+  td{color:var(--head);font-variant-numeric:tabular-nums}
+  pre{background:rgba(8,12,22,.7);padding:.8rem;border-radius:10px;border:1px solid var(--line);
+    overflow-x:auto;font-size:.82rem;color:#dbe4f0}
+  .tag{display:inline-block;padding:.12rem .5rem;border-radius:999px;font-size:.72rem;
+    margin-left:.3rem;color:#08111a;font-weight:600;background:var(--gold)}
+  .tag.soft{background:var(--teal)}.tag.hard{background:var(--red);color:#fff}
+  .tag.stage{background:var(--blue);color:#fff}
+  .muted{color:var(--muted)}
+  .empty{color:var(--muted);font-style:italic;padding:1rem 0}
+  #live{margin-top:1rem;padding:.6rem .85rem;background:rgba(8,12,22,.6);
+    border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;
+    font-family:ui-monospace,"SF Mono",monospace;font-size:.82rem;color:#9fb0c6;
+    min-height:2rem;max-height:15rem;overflow-y:auto}
+  #live .row{padding:.15rem 0}
 """
 
 
 def _layout(*, title: str, body: str) -> str:
     return (
         "<!doctype html><html><head>"
-        f'<meta charset="utf-8"><title>{escape(title)} — Ormica</title>'
+        f'<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{escape(title)} — Ormica</title>"
         f"<style>{_BASE_CSS}</style></head><body>"
-        f"<h1>{escape(title)}</h1>"
+        '<header><span class="brand">🐜 <b>ORMICA</b></span>'
+        '<span class="sub">autonomous coordination engine</span></header>'
         '<nav><a href="/">overview</a>'
         '<a href="/graph">◆ live graph</a>'
         '<a href="/tree">tree</a>'
         '<a href="/rules">rules</a>'
         '<a href="/signals">signals</a>'
         '<a href="/traces">traces</a></nav>'
+        f"<h1>{escape(title)}</h1>"
         f"{body}"
         "</body></html>"
     )
@@ -64,6 +82,7 @@ def overview(org) -> str:
     per_node = sum(1 for n in org if n.rules)
     trails = org.signals.trails()
     traces = [e for e in org.memory.all() if e.key.startswith("traces/")]
+    m = org.metrics()
 
     body = (
         '<div id="live"><div class="muted">live events stream here when the colony is running…</div></div>'
@@ -74,6 +93,15 @@ def overview(org) -> str:
         f'<tr><th>nodes with per-node rules</th><td>{per_node}</td></tr>'
         f'<tr><th>active signals</th><td>{len(trails)}</td></tr>'
         f'<tr><th>stored traces</th><td>{len(traces)}</td></tr>'
+        '</table>'
+        '<h2>metrics</h2>'
+        '<table>'
+        f'<tr><th>tasks done</th><td>{m["tasks_done"]}</td></tr>'
+        f'<tr><th>tasks failed</th><td>{m["tasks_failed"]}</td></tr>'
+        f'<tr><th>dead-lettered</th><td>{m["colony"]["dead_letter"]}</td></tr>'
+        f'<tr><th>failure rate</th><td>{m["failure_rate"]:.0%}</td></tr>'
+        f'<tr><th>verify retries</th><td>{m["verify_retries"]}</td></tr>'
+        f'<tr><th>tokens</th><td>{m["tokens"]:,}</td></tr>'
         '</table>'
         '<script>'
         '(function(){'

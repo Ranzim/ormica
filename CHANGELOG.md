@@ -6,8 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-23
+
+The learning release: a colony that gets better over runs, evolves its strategy,
+speaks MCP both ways, exposes real metrics, and comes with a sleek dark
+dashboard. Everything is additive.
+
 ### Added
 
+- **Ops metrics.** Always-on `MetricsObserver`; `org.metrics()` returns failure
+  rate, verify-retry rate, spawns/prunes, memory writes, messages, tokens, and
+  cache hit-rate (pass a `CachingBrain`). Surfaced on the dashboard overview.
+- **Sleek dark dashboard + CLI polish.** The server pages get a modern dark
+  theme matching the live 3D graph; the graph now visualizes `task.dead`
+  (dead-lettered) events; and the CLI colorizes `doctor`, `health`, and run
+  output (TTY-gated, so pipes stay clean). New `ormica mcp` command serves a
+  colony over MCP.
 - **Stigmergic learning — a colony that gets better the more it runs.** Pheromone
   already decays; this closes the other half of the loop. `StigmergicRouter`
   (via `org.stigmergic_router()`) learns which agent handles a *kind* of task
@@ -34,6 +48,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   server (`python -m ormica.mcp`, or `ormica.mcp.serve_stdio(org, brain)`) so any
   MCP client — including Claude — can hand a whole colony a goal. Minimal stdlib
   JSON-RPC over stdio, no new dependencies.
+
+### Changed
+
+- **`StigmergicRouter` is robust by default.** An exploration floor (`epsilon`)
+  and an MMAS-style trail ceiling (`max_strength`), plus softer default
+  temperature, stop it from locking onto whatever it tried first. It keeps
+  exploring so the best option can win.
+
+### Docs
+
+- New guides: stigmergic learning, the Evolutionary Forest, and the MCP bridge.
+  An `examples/README.md` now maps all the examples.
 
 ## [0.10.1] — 2026-09-22
 
@@ -524,7 +550,8 @@ Initial public release. All four functional pillars + runtime + CLI working end-
 
 ---
 
-[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/Ranzim/ormica/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/Ranzim/ormica/releases/tag/v0.11.0
 [0.10.1]: https://github.com/Ranzim/ormica/releases/tag/v0.10.1
 [0.10.0]: https://github.com/Ranzim/ormica/releases/tag/v0.10.0
 [0.9.0]: https://github.com/Ranzim/ormica/releases/tag/v0.9.0
