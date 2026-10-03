@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`make_brain()`** — one call to get a Brain by name or from the environment.
+  `make_brain("groq:llama-3.3-70b-versatile")`, `make_brain("openai", model=...)`,
+  or `make_brain()` to auto-detect a provider from whatever API key is set
+  (falling back to the offline `MockBrain` with a warning). Removes the last
+  friction in switching models. Exported from `ormica.brain`.
+- **Cross-brain tool-calling conformance suite** — one shared contract that every
+  adapter (Claude, OpenAI, Gemini, and the OpenAI-compatible universal adapter)
+  must pass: protocol conformance, text round-trip, tool encode, and tool-call
+  parsing. Makes "any brain works, tool calling included" a verified,
+  regression-proof guarantee rather than a hope.
+
+### Fixed
+
+- **`GPTBrain` docstring** wrongly claimed "no function calling" — it has
+  supported `tools=` and tool-call parsing all along, alongside the Claude,
+  Gemini, and universal adapters. Corrected the docstring.
+
 ## [0.11.1] — 2026-09-23
 
 Ambient learning: the flywheel turns on its own.
