@@ -29,23 +29,25 @@ def test_mock_spec_is_offline_and_usable():
 
 
 def test_named_provider_builds_the_right_adapter():
-    assert isinstance(make_brain("openai", api_key="x"), GPTBrain)
-    assert isinstance(make_brain("gpt", api_key="x"), GPTBrain)          # alias
+    # inject a client so the optional provider SDK is never imported (CI's
+    # [dev] install omits it); the factory's job is picking the right class
+    assert isinstance(make_brain("openai", client=object()), GPTBrain)
+    assert isinstance(make_brain("gpt", client=object()), GPTBrain)      # alias
 
 
 def test_provider_model_shorthand_sets_the_model():
-    b = make_brain("openai:gpt-4o-mini", api_key="x")
+    b = make_brain("openai:gpt-4o-mini", client=object())
     assert isinstance(b, GPTBrain)
     assert b.model == "gpt-4o-mini"
 
 
 def test_explicit_model_overrides_the_spec_model():
-    b = make_brain("openai:gpt-4o", model="gpt-4o-mini", api_key="x")
+    b = make_brain("openai:gpt-4o", model="gpt-4o-mini", client=object())
     assert b.model == "gpt-4o-mini"
 
 
 def test_openai_compatible_provider_builds_universal():
-    b = make_brain("groq:llama-3.3-70b-versatile", api_key="x")
+    b = make_brain("groq:llama-3.3-70b-versatile", client=object())
     assert isinstance(b, UniversalBrain)
     assert b.model == "llama-3.3-70b-versatile"
 
@@ -71,14 +73,14 @@ def test_openrouter_without_model_raises():
 
 def test_auto_detect_picks_provider_from_env(clean_env):
     clean_env.setenv("OPENAI_API_KEY", "x")
-    assert isinstance(make_brain(), GPTBrain)
+    assert isinstance(make_brain(client=object()), GPTBrain)
 
 
 def test_auto_detect_respects_priority_order(clean_env):
     # groq is lower priority than openai; with both set, openai wins
     clean_env.setenv("GROQ_API_KEY", "x")
     clean_env.setenv("OPENAI_API_KEY", "x")
-    assert isinstance(make_brain(), GPTBrain)
+    assert isinstance(make_brain(client=object()), GPTBrain)
 
 
 def test_no_key_falls_back_to_mock_with_warning(clean_env):
